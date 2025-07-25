@@ -206,9 +206,9 @@ export const FilterBar: React.FC<FilterBarProps> = ({
             )}
             
             {filters.search && (
-              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                Search: "{filters.search}"
-              </span>
+                             <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                 Search: &ldquo;{filters.search}&rdquo;
+               </span>
             )}
             
             {filters.startDate && (

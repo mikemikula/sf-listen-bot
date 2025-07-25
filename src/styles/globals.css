@@ -1,0 +1,100 @@
+@import "tailwindcss";
+
+@theme {
+  /* Slack-inspired color palette */
+  --color-slack-purple: #4A154B;
+  --color-slack-green: #007A5A;
+  --color-slack-blue: #1264A3;
+  --color-slack-orange: #E01E5A;
+  --color-slack-yellow: #ECB22E;
+  
+  /* Custom grays for message cards */
+  --color-message-bg: #F8F9FA;
+  --color-message-border: #E1E5E9;
+  --color-message-text: #1D1C1D;
+  --color-message-meta: #616061;
+
+  /* Font families */
+  --font-family-sans: 'Inter', 'system-ui', 'sans-serif';
+  --font-family-mono: 'JetBrains Mono', 'monospace';
+
+  /* Custom spacing */
+  --spacing-18: 4.5rem;
+  --spacing-88: 22rem;
+
+  /* Custom animations */
+  --animate-pulse-slow: pulse 3s infinite;
+  --animate-bounce-gentle: bounce 2s infinite;
+
+  /* Custom backdrop blur */
+  --backdrop-blur-xs: 2px;
+}
+
+/* Custom component styles */
+.message-card {
+  @apply bg-message-bg border border-message-border rounded-lg;
+}
+
+.message-card__avatar {
+  @apply flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-white font-medium text-sm;
+}
+
+.message-card__content {
+  @apply flex-1 min-w-0;
+}
+
+.message-card__header {
+  @apply flex items-center space-x-2 mb-1;
+}
+
+.message-card__username {
+  @apply font-semibold text-sm text-message-text;
+}
+
+.message-card__channel {
+  @apply text-sm text-slack-blue font-medium;
+}
+
+.message-card__timestamp {
+  @apply text-sm text-message-meta;
+}
+
+.message-card__text {
+  @apply text-message-text text-sm leading-relaxed max-w-none;
+}
+
+.message-feed__item {
+  @apply hover:bg-gray-50 transition-colors;
+}
+
+.loading-spinner {
+  @apply inline-block;
+}
+
+.filter-bar {
+  @apply bg-white p-4 rounded-lg shadow-sm border border-gray-200;
+}
+
+.filter-bar__search {
+  @apply flex-1;
+}
+
+.filter-bar__channel {
+  @apply w-full lg:w-48;
+}
+
+.filter-bar__dates {
+  @apply flex gap-2;
+}
+
+.filter-bar__actions {
+  @apply flex items-center;
+}
+
+.filter-bar__active-filters {
+  @apply mt-3 pt-3 border-t border-gray-100;
+}
+
+.error-boundary {
+  @apply min-h-screen bg-gray-50 flex items-center justify-center;
+} 

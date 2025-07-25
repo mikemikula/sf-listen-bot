@@ -100,7 +100,7 @@ export const MessageFeed: React.FC<MessageFeedProps> = ({
       {/* End of Messages Indicator */}
       {!hasMore && messages.length > 0 && (
         <div className="text-center py-4 text-sm text-gray-400 border-t">
-          <p>You've reached the end of the messages</p>
+                     <p>You&rsquo;ve reached the end of the messages</p>
         </div>
       )}
     </div>
