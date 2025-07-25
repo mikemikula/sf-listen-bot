@@ -1,0 +1,74 @@
+// Prisma schema for Listen Bot
+// Database: Supabase Postgres
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+/// Message model for storing Slack messages
+model Message {
+  /// Unique identifier for the message
+  id String @id @default(cuid())
+  
+  /// Slack message ID (unique)
+  slackId String @unique @map("slack_id")
+  
+  /// Message text content
+  text String
+  
+  /// Slack user ID who sent the message
+  userId String @map("user_id")
+  
+  /// Username of the sender
+  username String
+  
+  /// Channel where message was sent
+  channel String
+  
+  /// Slack timestamp (converted to DateTime)
+  timestamp DateTime
+  
+  /// Record creation timestamp
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  /// Record update timestamp
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  /// Indexes for performance
+  @@index([channel])
+  @@index([timestamp])
+  @@index([userId])
+  @@map("messages")
+}
+
+/// Channel model for future enhancements
+model Channel {
+  /// Unique identifier for the channel
+  id String @id @default(cuid())
+  
+  /// Slack channel ID (unique)
+  slackId String @unique @map("slack_id")
+  
+  /// Channel name
+  name String
+  
+  /// Channel description
+  description String?
+  
+  /// Whether channel is private
+  isPrivate Boolean @default(false) @map("is_private")
+  
+  /// Record creation timestamp
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  /// Record update timestamp  
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("channels")
+} 
