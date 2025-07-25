@@ -1,11 +1,6 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
   "version": 2,
-  "builds": [
-    {
-      "src": "next.config.js",
-      "use": "@vercel/next"
-    }
-  ],
   "env": {
     "NODE_ENV": "production"
   },
@@ -21,6 +16,24 @@
   },
   "headers": [
     {
+      "source": "/api/health",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "s-maxage=60, stale-while-revalidate=300"
+        }
+      ]
+    },
+    {
+      "source": "/api/messages",
+      "headers": [
+        {
+          "key": "Cache-Control", 
+          "value": "s-maxage=30, stale-while-revalidate=60"
+        }
+      ]
+    },
+    {
       "source": "/api/slack/events",
       "headers": [
         {
@@ -34,6 +47,19 @@
         {
           "key": "Access-Control-Allow-Headers",
           "value": "Content-Type, X-Slack-Signature, X-Slack-Request-Timestamp"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/(.*)\\.(js|css|woff2?|png|jpe?g|gif|svg|ico)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
         }
       ]
     },
@@ -55,6 +81,14 @@
         {
           "key": "X-DNS-Prefetch-Control",
           "value": "on"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "camera=(), microphone=(), geolocation=()"
+        },
+        {
+          "key": "Strict-Transport-Security",
+          "value": "max-age=63072000; includeSubDomains; preload"
         }
       ]
     }
