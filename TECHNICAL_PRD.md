@@ -32,7 +32,7 @@ graph LR
 | **Backend API** | Next.js API Routes | Event processing & validation |
 | **Database** | Supabase Postgres | Message persistence |
 | **ORM** | Prisma | Database operations |
-| **Hosting** | Railway | Application deployment |
+| **Hosting** | Vercel | Application deployment |
 | **Auth** | Slack App Signing Secret | Request validation |
 
 ---
@@ -150,7 +150,7 @@ const isValid = `v0=${computedSignature}` === signature
 # .env.local
 DATABASE_URL="postgresql://..."
 SLACK_SIGNING_SECRET="your_slack_signing_secret"
-NEXT_PUBLIC_APP_URL="https://your-app.railway.app"
+NEXT_PUBLIC_APP_URL="https://your-app.vercel.app"
 ```
 
 ---
@@ -174,7 +174,7 @@ NEXT_PUBLIC_APP_URL="https://your-app.railway.app"
 ### Phase 3: Polish & Deploy (Week 3)
 - [ ] Error handling
 - [ ] Logging system
-- [ ] Railway deployment
+- [ ] Vercel deployment
 - [ ] Performance optimization
 - [ ] Testing & QA
 
@@ -268,7 +268,7 @@ npx prisma studio     # Database GUI
 - ✅ Slack messages are captured and stored
 - ✅ Web dashboard displays messages in real-time
 - ✅ Basic filtering/search functionality
-- ✅ Deployed and accessible via Railway
+- ✅ Deployed and accessible via Vercel
 - ✅ Proper error handling and logging
 - ✅ Mobile-responsive design
 - ✅ Production-ready security measures

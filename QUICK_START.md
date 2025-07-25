@@ -65,11 +65,11 @@ curl http://localhost:3000/api/health
 ## Ready for Production?
 
 ```bash
-# Build and deploy to Railway
+# Build and deploy to Vercel
 pnpm build
-railway up
+vercel
 
-# Update Slack webhook URL to your Railway domain
+# Update Slack webhook URL to your Vercel domain
 ```
 
 **You're all set! 🎉** 

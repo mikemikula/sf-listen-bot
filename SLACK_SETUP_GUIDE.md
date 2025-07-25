@@ -43,7 +43,7 @@
 2. **Toggle** "Enable Events" to **ON**
 3. **Request URL**: Enter your webhook endpoint:
    - **Development**: `http://localhost:3000/api/slack/events`
-   - **Production**: `https://your-app.railway.app/api/slack/events`
+   - **Production**: `https://your-app.vercel.app/api/slack/events`
 
 ### URL Verification Process
 When you save the URL, Slack will send a verification challenge:
@@ -108,7 +108,7 @@ After deploying to Railway:
 ### Verify Production
 - **Send message** in Slack
 - **Check** your production dashboard
-- **Monitor** Railway logs for any errors
+- **Monitor** Vercel logs for any errors
 
 ## 🔍 Troubleshooting
 

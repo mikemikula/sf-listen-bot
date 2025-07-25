@@ -18,7 +18,7 @@ Listen Bot is a full-stack Next.js application that:
 - **Backend**: Next.js API Routes, Node.js
 - **Database**: PostgreSQL (Supabase)
 - **ORM**: Prisma
-- **Hosting**: Railway
+- **Hosting**: Vercel
 - **Package Manager**: pnpm
 
 ## 🚀 Quick Start
@@ -107,7 +107,7 @@ Add these **Bot Token Scopes**:
 
 1. Go to **Event Subscriptions**
 2. Enable Events: **On**
-3. Request URL: `https://your-domain.railway.app/api/slack/events`
+3. Request URL: `https://your-domain.vercel.app/api/slack/events`
 4. Subscribe to bot events:
    - `message.channels`
 
@@ -207,7 +207,7 @@ GET /api/health
 
 ---
 
-## 🚢 Deployment (Railway)
+## 🚀 Deployment (Vercel)
 
 ### 1. Prepare for Production
 
@@ -219,22 +219,23 @@ pnpm build
 pnpm start
 ```
 
-### 2. Railway Setup
+### 2. Vercel Setup
 
-1. Install Railway CLI: `npm install -g @railway/cli`
-2. Login: `railway login`
-3. Initialize: `railway init`
-4. Deploy: `railway up`
+1. Install Vercel CLI: `npm install -g vercel`
+2. Login: `vercel login`
+3. Deploy: `vercel`
+
+**📖 For complete deployment instructions, see `VERCEL_DEPLOYMENT.md`**
 
 ### 3. Environment Variables
 
-Set these in Railway dashboard:
+Set these in Vercel dashboard:
 
 ```bash
 DATABASE_URL="your_supabase_url"
 DIRECT_URL="your_supabase_direct_url"  
 SLACK_SIGNING_SECRET="your_slack_secret"
-NEXT_PUBLIC_APP_URL="https://your-app.railway.app"
+NEXT_PUBLIC_APP_URL="https://your-app.vercel.app"
 NODE_ENV="production"
 ```
 
@@ -252,7 +253,7 @@ railway run npx prisma db push
 
 Update your Slack app's **Event Subscriptions** URL:
 ```
-https://your-app.railway.app/api/slack/events
+https://your-app.vercel.app/api/slack/events
 ```
 
 ---
@@ -270,10 +271,10 @@ https://your-app.railway.app/api/slack/events
 
 ```bash
 # Test health endpoint
-curl https://your-app.railway.app/api/health
+curl https://your-app.vercel.app/api/health
 
 # Test messages API
-curl https://your-app.railway.app/api/messages
+curl https://your-app.vercel.app/api/messages
 ```
 
 ---
@@ -350,7 +351,7 @@ railway run npx prisma studio
 ### Logging
 
 - **Development**: Console logs with emojis
-- **Production**: Structured logging to Railway
+- **Production**: Structured logging to Vercel
 - **Errors**: Comprehensive error tracking
 
 ---
