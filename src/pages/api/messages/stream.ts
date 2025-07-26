@@ -96,11 +96,11 @@ export default async function handler(
     // Poll for changes every 5 seconds (reduced frequency)
     const pollInterval = setInterval(async () => {
       try {
-        // Check for new messages
+        // Check for new messages (use >= to catch messages at exact timestamp)
         const newMessages = await db.message.findMany({
           where: {
             timestamp: {
-              gt: lastCheckTime
+              gte: lastCheckTime
             }
           },
           orderBy: [
@@ -138,11 +138,11 @@ export default async function handler(
         const currentMessageCount = await db.message.count()
         const hasDeletedMessages = currentMessageCount < lastMessageCount
         
-        // Check for edits by looking for recently updated messages
+        // Check for edits by looking for recently updated messages  
         const recentlyUpdated = await db.message.findMany({
           where: {
             updatedAt: {
-              gt: lastUpdateTime
+              gte: lastUpdateTime // Use >= to catch exact timestamps
             },
             createdAt: {
               lt: lastUpdateTime // Only messages that were created before our last check (so they're edits, not new)
@@ -179,11 +179,19 @@ export default async function handler(
           }
         })
         
-        // Update tracking variables
-        lastCheckTime = new Date()
+        // Update tracking variables AFTER processing to avoid race conditions
+        // Use the timestamp of the newest message found, not current time
+        if (newMessages.length > 0) {
+          const newestMessage = newMessages[newMessages.length - 1]
+          lastCheckTime = new Date(newestMessage.timestamp)
+        }
+        
         lastMessageCount = currentMessageCount
-        const currentUpdateTime = new Date()
-        lastUpdateTime = currentUpdateTime
+        
+        if (recentlyUpdated.length > 0) {
+          const newestUpdate = recentlyUpdated[recentlyUpdated.length - 1]
+          lastUpdateTime = new Date(newestUpdate.updatedAt)
+        }
 
         // Send new messages (but handle thread replies differently)
         if (newMessages.length > 0) {
