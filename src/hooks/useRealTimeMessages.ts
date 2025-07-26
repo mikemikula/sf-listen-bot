@@ -3,7 +3,7 @@
  * Provides real-time message streaming functionality
  */
 
-import { useEffect, useRef, useCallback } from 'react'
+import { useEffect, useRef, useCallback, useState } from 'react'
 import { logger } from '@/lib/logger'
 import type { MessageDisplay } from '@/types'
 
@@ -39,7 +39,7 @@ export const useRealTimeMessages = ({
   reconnect: () => void
 } => {
   const eventSourceRef = useRef<EventSource | null>(null)
-  const isConnectedRef = useRef(false)
+  const [isConnected, setIsConnected] = useState(false)
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   /**
@@ -58,7 +58,7 @@ export const useRealTimeMessages = ({
 
        eventSource.onopen = () => {
          logger.sse('Real-time connection established')
-         isConnectedRef.current = true
+         setIsConnected(true)
        }
 
        eventSource.onmessage = (event) => {
@@ -116,7 +116,7 @@ export const useRealTimeMessages = ({
 
        eventSource.onerror = (error) => {
          logger.warn('SSE connection error, will attempt reconnect')
-         isConnectedRef.current = false
+         setIsConnected(false)
          
          // Attempt to reconnect after 5 seconds
          if (reconnectTimeoutRef.current) {
@@ -146,7 +146,7 @@ export const useRealTimeMessages = ({
        logger.sse('Disconnecting from real-time stream')
        eventSourceRef.current.close()
        eventSourceRef.current = null
-       isConnectedRef.current = false
+       setIsConnected(false)
      }
 
     if (reconnectTimeoutRef.current) {
@@ -182,7 +182,7 @@ export const useRealTimeMessages = ({
   }, [disconnect])
 
   return {
-    isConnected: isConnectedRef.current,
+    isConnected,
     disconnect,
     reconnect
   }
