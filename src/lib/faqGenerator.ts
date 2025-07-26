@@ -446,22 +446,14 @@ class FAQGeneratorService {
 
     for (const candidate of candidates) {
       try {
-        // TEMPORARY FIX: Skip Pinecone duplicate check to isolate the deletion bug
-        console.log(`⚠️ SKIPPING Pinecone duplicate check for FAQ: "${candidate.question}"`)
-        const duplicateCheck: { isDuplicate: boolean; matches: any[] } = { isDuplicate: false, matches: [] }
-        
-        // Original code (commented out):
-        // const duplicateCheck = await pineconeService.findDuplicateFAQs({
-        //   question: candidate.question,
-        //   answer: candidate.answer,
-        //   category: candidate.category
-        // })
+        // Check for duplicates using Pinecone semantic similarity
+        const duplicateCheck = await pineconeService.findDuplicateFAQs({
+          question: candidate.question,
+          answer: candidate.answer,
+          category: candidate.category
+        })
 
-        // TEMPORARY FIX: Skip duplicate detection/enhancement to isolate the deletion bug
-        // TODO: Re-enable after fixing the FAQ deletion issue
-        console.log(`⚠️ TEMPORARILY SKIPPING duplicate detection for FAQ: "${candidate.question}"`)
-        
-        if (false && duplicateCheck.isDuplicate && duplicateCheck.matches.length > 0) {
+        if (duplicateCheck.isDuplicate && duplicateCheck.matches.length > 0) {
           duplicatesFound++
           
           // Check if we should enhance the existing FAQ
