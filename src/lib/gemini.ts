@@ -1,7 +1,7 @@
 /**
  * Gemini AI Service
  * Provides AI-powered document processing, FAQ generation, and embedding creation
- * Uses Gemini 2.0 Flash for optimal cost-effectiveness and performance
+ * Uses Gemini 2.5 Flash-Lite for optimal quota limits and cost-effectiveness
  * Implements rate limiting, error handling, and usage tracking
  */
 
@@ -10,12 +10,12 @@ import { logger } from './logger'
 import { GeminiConfig, GeminiResponse, GeminiError } from '@/types'
 
 // Configuration constants
-// Using Gemini 2.0 Flash for 5x cost savings with near-Claude quality performance
-const DEFAULT_MODEL = 'gemini-2.0-flash-exp'
+// Using Gemini 2.5 Flash-Lite for optimal quota limits and cost-effectiveness
+const DEFAULT_MODEL = 'gemini-2.5-flash-lite' // Best quota: 4K RPM in Tier 1 vs 2K for 2.0 Flash
 const EMBEDDING_MODEL = 'text-embedding-004'
 const MAX_RETRIES = 3
 const RETRY_DELAY_MS = 1000
-const RATE_LIMIT_DELAY_MS = 100
+const RATE_LIMIT_DELAY_MS = 100 
 
 /**
  * Gemini AI service class with rate limiting and error handling
@@ -57,6 +57,7 @@ class GeminiService {
 
   /**
    * Retry logic with exponential backoff
+   * Enhanced to handle 429 rate limit errors with proper retry-after delays
    */
   private async withRetry<T>(
     operation: () => Promise<T>,
@@ -72,7 +73,22 @@ class GeminiService {
         lastError = error as Error
         logger.warn(`Gemini API attempt ${attempt} failed for ${context}:`, error)
 
-        if (attempt < MAX_RETRIES) {
+        // Handle 429 rate limit errors specially
+        if (error instanceof Error && error.message.includes('429')) {
+          const retryAfterMatch = error.message.match(/retryDelay":"(\d+)s/)
+          if (retryAfterMatch) {
+            const retryAfterSeconds = parseInt(retryAfterMatch[1])
+            const retryDelayMs = retryAfterSeconds * 1000
+            logger.info(`Rate limited. Waiting ${retryAfterSeconds} seconds before retry ${attempt + 1}`)
+            await new Promise(resolve => setTimeout(resolve, retryDelayMs))
+          } else {
+            // Default rate limit backoff: 4 seconds for 15 RPM limit (Flash-Lite Free tier)
+            const rateLimitDelay = 4000
+            logger.info(`Rate limited. Waiting ${rateLimitDelay}ms before retry ${attempt + 1}`)
+            await new Promise(resolve => setTimeout(resolve, rateLimitDelay))
+          }
+        } else if (attempt < MAX_RETRIES) {
+          // Standard exponential backoff for other errors
           const delay = RETRY_DELAY_MS * Math.pow(2, attempt - 1)
           await new Promise(resolve => setTimeout(resolve, delay))
         }
@@ -123,19 +139,23 @@ class GeminiService {
 
   /**
    * Parse JSON response that might be wrapped in markdown code blocks
+   * Enhanced to handle various response formats from different Gemini models
    */
   private parseJSONResponse(responseText: string): any {
+    // Clean the response text
+    const cleanText = responseText.trim()
+    
     // First try direct JSON parsing
     try {
-      return JSON.parse(responseText)
+      return JSON.parse(cleanText)
     } catch (directError) {
       // If direct parsing fails, try to extract JSON from markdown code blocks
       const jsonBlockRegex = /```(?:json)?\s*(\{[\s\S]*?\}|\[[\s\S]*?\])\s*```/i
-      const match = responseText.match(jsonBlockRegex)
+      const match = cleanText.match(jsonBlockRegex)
       
       if (match && match[1]) {
         try {
-          return JSON.parse(match[1])
+          return JSON.parse(match[1].trim())
         } catch (blockError) {
           logger.warn('Failed to parse JSON from code block:', blockError)
         }
@@ -143,23 +163,28 @@ class GeminiService {
       
       // Try to find JSON-like content without code blocks
       const jsonPattern = /(\{[\s\S]*\}|\[[\s\S]*\])/
-      const jsonMatch = responseText.match(jsonPattern)
+      const jsonMatch = cleanText.match(jsonPattern)
       
       if (jsonMatch && jsonMatch[1]) {
         try {
-          return JSON.parse(jsonMatch[1])
+          return JSON.parse(jsonMatch[1].trim())
         } catch (patternError) {
           logger.warn('Failed to parse JSON from pattern match:', patternError)
         }
       }
       
-      // If all parsing attempts fail, throw the original error
-      throw directError
+      // If response looks like it should be an empty array but isn't JSON
+      if (cleanText.length === 0 || cleanText === '[]' || cleanText === '{}') {
+        return []
+      }
+      
+      // Final fallback - throw with helpful context
+      throw new Error(`Unable to parse JSON from response. Response length: ${cleanText.length}, starts with: "${cleanText.substring(0, 50)}..."`)
     }
   }
 
   /**
-   * Detect PII in text with contextual understanding
+   * Detect PII in text using Gemini AI with enhanced JSON response handling
    */
   async detectPII(text: string): Promise<GeminiResponse<Array<{
     type: 'EMAIL' | 'PHONE' | 'NAME' | 'URL' | 'CUSTOM'
@@ -170,32 +195,25 @@ class GeminiService {
     replacement: string
   }>>> {
     const prompt = `
-Analyze the following text for Personally Identifiable Information (PII):
+TASK: Analyze text for Personally Identifiable Information (PII) and return ONLY valid JSON.
 
+TEXT TO ANALYZE:
 "${text}"
 
-Detect:
-1. Email addresses
-2. Phone numbers
-3. Person names (real names, not usernames like @alice)
-4. URLs that might contain sensitive information
-5. Other sensitive data patterns
+DETECTION RULES:
+1. Email addresses (user@domain.com)
+2. Phone numbers (+1-555-123-4567, (555) 123-4567)
+3. Person names (John Smith, Mary Johnson - NOT usernames like @alice)
+4. URLs containing sensitive data
+5. Other clear PII patterns
 
-For each PII found, provide:
-- type: EMAIL, PHONE, NAME, URL, or CUSTOM
-- originalText: the actual PII text
-- startIndex: character position where PII starts
-- endIndex: character position where PII ends
-- confidence: 0-1 score for detection confidence
-- replacement: appropriate placeholder ([EMAIL], [PHONE], [PERSON_NAME], [URL], etc.)
+IMPORTANT: 
+- Return ONLY valid JSON array
+- If NO PII found, return: []
+- DO NOT include explanatory text
+- Be conservative - avoid false positives
 
-Be conservative - only flag clear PII, not technical terms or common words.
-Avoid false positives for:
-- Technical usernames (@alice, @bot)
-- Generic terms (password, email, phone)
-- Code snippets or technical URLs
-
-Provide response in JSON format:
+JSON FORMAT:
 [
   {
     "type": "EMAIL",
@@ -206,6 +224,8 @@ Provide response in JSON format:
     "replacement": "[EMAIL]"
   }
 ]
+
+RESPONSE (JSON only):
 `
 
     const response = await this.generateContent(prompt, 'pii-detection')
@@ -227,6 +247,21 @@ Provide response in JSON format:
     } catch (error) {
       logger.error('Failed to parse Gemini PII detection response:', error)
       logger.error('Raw response:', response.data)
+      
+      // Fallback: If response indicates no PII, return empty array
+      const responseText = response.data!.toLowerCase()
+      if (responseText.includes('no pii') || 
+          responseText.includes('does not contain') ||
+          responseText.includes('not considered pii') ||
+          responseText.includes('no personally identifiable')) {
+        logger.info('PII detection returned natural language "no PII" response, using empty array fallback')
+        return {
+          success: true,
+          data: [],
+          usage: response.usage
+        }
+      }
+      
       return {
         success: false,
         error: 'Failed to parse AI response'
@@ -608,6 +643,117 @@ Respond in JSON format:
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error'
+      }
+    }
+  }
+
+  /**
+   * Enhanced conversation analysis with intelligent message classification
+   * Analyzes entire conversation context for accurate Q&A pattern detection
+   */
+  async analyzeConversationPatterns(messages: Array<{
+    id: string
+    text: string
+    username: string
+    timestamp: string
+    channel?: string
+  }>): Promise<GeminiResponse<{
+    patterns: Array<{
+      type: 'qa_pair' | 'question_only' | 'answer_only' | 'context' | 'greeting'
+      messageIds: string[]
+      confidence: number
+      reasoning: string
+      topics: string[]
+    }>
+    overallTopics: string[]
+    conversationFlow: string
+    faqPotential: number
+  }>> {
+    
+    const conversationText = messages.map((m, i) => 
+      `[${i+1}] ${m.username} (${m.timestamp}): "${m.text}"`
+    ).join('\n')
+    
+    const messageList = messages.map((m, i) => 
+      `ID: ${m.id} | Index: ${i+1} | User: ${m.username} | Text: "${m.text}"`
+    ).join('\n')
+
+    const prompt = `
+TASK: Analyze this Slack conversation to identify Q&A patterns and message roles with high accuracy.
+
+CONVERSATION TIMELINE:
+${conversationText}
+
+MESSAGE DATABASE:
+${messageList}
+
+ANALYSIS REQUIREMENTS:
+1. **Context Understanding**: Consider conversation flow, user relationships, and topic evolution
+2. **Semantic Analysis**: Detect questions/answers beyond simple keywords  
+3. **Pattern Recognition**: Identify implicit Q&A pairs, follow-up questions, clarifications
+4. **Topic Modeling**: Extract main discussion topics and subtopics
+5. **FAQ Assessment**: Evaluate how well this conversation would convert to FAQs
+
+CLASSIFICATION RULES:
+- **qa_pair**: Question followed by relevant answer (include both message IDs)
+- **question_only**: Question without clear answer in conversation
+- **answer_only**: Answer/explanation without preceding question
+- **context**: Supporting information, examples, or background
+- **greeting**: Social pleasantries, acknowledgments
+
+IMPORTANT CONTEXT CLUES:
+- Time gaps between messages matter
+- Same user asking follow-ups vs different users
+- Technical terms suggest informational content
+- "Thanks", "got it" suggest answer completion
+- Code/examples often support explanations
+
+RESPONSE FORMAT (JSON only):
+{
+  "patterns": [
+    {
+      "type": "qa_pair",
+      "messageIds": ["msg1_id", "msg2_id"],
+      "confidence": 0.95,
+      "reasoning": "Clear question about CPQ followed by detailed explanation",
+      "topics": ["salesforce", "cpq", "quoting"]
+    },
+    {
+      "type": "question_only", 
+      "messageIds": ["msg3_id"],
+      "confidence": 0.87,
+      "reasoning": "Question about governor limits but no clear answer provided",
+      "topics": ["salesforce", "governor-limits"]
+    }
+  ],
+  "overallTopics": ["salesforce", "cpq", "governor-limits", "soql"],
+  "conversationFlow": "Technical Q&A session about Salesforce features with good question-answer patterns",
+  "faqPotential": 0.9
+}
+`
+
+    const response = await this.generateContent(prompt, 'conversation-analysis')
+    
+    if (!response.success) {
+      return {
+        success: false,
+        error: response.error
+      }
+    }
+
+    try {
+      const data = this.parseJSONResponse(response.data!)
+      return {
+        success: true,
+        data,
+        usage: response.usage
+      }
+    } catch (error) {
+      logger.error('Failed to parse conversation analysis response:', error)
+      logger.error('Raw response:', response.data)
+      return {
+        success: false,
+        error: 'Failed to parse AI analysis response'
       }
     }
   }

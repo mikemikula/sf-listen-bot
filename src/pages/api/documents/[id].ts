@@ -10,9 +10,9 @@ import { logger } from '@/lib/logger'
 import { ApiResponse, DocumentDisplay, MessageDisplay, FAQDisplay } from '@/types'
 
 interface DocumentDetailResponse {
-  document: DocumentDisplay
-  messages: MessageDisplay[]
-  faqs: FAQDisplay[]
+  document?: DocumentDisplay // Make optional since we're returning DocumentDisplay directly
+  messages?: MessageDisplay[]
+  faqs?: FAQDisplay[]
 }
 
 /**
@@ -76,31 +76,6 @@ async function handleGetDocument(
       })
     }
 
-    // Transform document data
-    const participants = Array.from(new Set(document.documentMessages.map((dm: any) => dm.message?.username).filter(Boolean))) as string[]
-    const channelNames = Array.from(new Set(document.documentMessages.map((dm: any) => dm.message?.channel).filter(Boolean))) as string[]
-    const lastActivity = document.updatedAt > document.createdAt ? document.updatedAt : document.createdAt
-    
-    const documentDisplay: DocumentDisplay = {
-      id: document.id,
-      title: document.title,
-      description: document.description || '',
-      category: document.category,
-      status: document.status,
-      processingJobId: document.processingJobId,
-      confidenceScore: document.confidenceScore,
-      createdBy: document.createdBy,
-      messageCount: document.documentMessages.length,
-      faqCount: document.documentFAQs.length,
-      participantCount: participants.length,
-      participants,
-      channelNames,
-      lastActivity,
-      timeAgo: getTimeAgo(lastActivity),
-      createdAt: document.createdAt,
-      updatedAt: document.updatedAt
-    }
-
     // Transform messages data
     const messages: MessageDisplay[] = document.documentMessages
       .filter((dm: any) => dm.message)
@@ -144,13 +119,39 @@ async function handleGetDocument(
       timeAgo: getTimeAgo(df.faq.createdAt)
     }))
 
+    // Transform document data
+    const participants = Array.from(new Set(document.documentMessages.map((dm: any) => dm.message?.username).filter(Boolean))) as string[]
+    const channelNames = Array.from(new Set(document.documentMessages.map((dm: any) => dm.message?.channel).filter(Boolean))) as string[]
+    const lastActivity = document.updatedAt > document.createdAt ? document.updatedAt : document.createdAt
+
+    const documentDisplay: DocumentDisplay = {
+      id: document.id,
+      title: document.title,
+      description: document.description || '',
+      category: document.category,
+      status: document.status,
+      processingJobId: document.processingJobId,
+      confidenceScore: document.confidenceScore,
+      createdBy: document.createdBy,
+      messageCount: document.documentMessages.length,
+      faqCount: document.documentFAQs.length,
+      participantCount: participants.length,
+      participants,
+      channelNames,
+      lastActivity,
+      timeAgo: getTimeAgo(lastActivity),
+      createdAt: document.createdAt,
+      updatedAt: document.updatedAt,
+      // Include conversation analysis from database
+      conversationAnalysis: (document as any).conversationAnalysis || undefined,
+      // Include messages and FAQs directly in the document
+      messages,
+      faqs
+    }
+
     return res.status(200).json({
       success: true,
-      data: {
-        document: documentDisplay,
-        messages,
-        faqs
-      }
+      data: documentDisplay
     })
 
   } catch (error) {

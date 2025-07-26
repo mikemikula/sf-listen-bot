@@ -9,17 +9,13 @@ import { db } from './db'
 import { geminiService } from './gemini'
 import { piiDetectorService } from './piiDetector'
 import { 
-  ProcessedDocument,
+  ProcessedDocument, 
   DocumentProcessingInput,
-  DocumentProcessingResult,
-  BaseMessage,
-  DocumentMessage,
-  PIIDetection,
-  DocumentStatus,
   InclusionMethod,
   PIISourceType,
   ProcessingError
 } from '@/types'
+import type { Message, PIIDetection } from '@prisma/client'
 
 /**
  * Processing statistics interface
@@ -44,7 +40,13 @@ class DocumentProcessorService {
   /**
    * Process a collection of messages into a structured document
    */
-  async processDocument(input: DocumentProcessingInput): Promise<DocumentProcessingResult> {
+  async processDocument(input: DocumentProcessingInput): Promise<{
+    document: ProcessedDocument
+    messagesProcessed: number
+    piiDetected: PIIDetection[]
+    confidenceScore: number
+    processingTime: number
+  }> {
     const startTime = Date.now()
     
     try {
@@ -53,25 +55,45 @@ class DocumentProcessorService {
       // Step 1: Validate input
       this.validateInput(input)
 
-      // Step 2: Fetch messages from database
-      const messages = await this.fetchMessages(input.messageIds)
+      // Step 2: Fetch full message objects
+      const messages = await db.message.findMany({ where: { id: { in: input.messageIds } } })
       console.log(`Fetched ${messages.length} messages for document processing:`, messages.map(m => ({ id: m.id, text: m.text.substring(0, 50) + '...' })))
 
-      // Step 3: Detect and handle PII
+      // Step 3: Process PII for all messages
       const piiResults = await this.processPII(messages)
 
-      // Step 4: Create document with metadata
-      const document = await this.createDocument(input, messages, piiResults)
+      // Step 4: Run AI conversation analysis
+      const conversationAnalysisResult = await geminiService.analyzeConversationPatterns(
+        messages.map(m => ({
+          id: m.id,
+          text: m.text,
+          username: m.username,
+          timestamp: m.timestamp.toISOString(),
+          channel: m.channel
+        }))
+      )
+      if (!conversationAnalysisResult.success || !conversationAnalysisResult.data) {
+        logger.warn('AI conversation analysis failed during document processing')
+        // Continue without analysis - document will be created with basic info
+      }
 
-      // Step 5: Create junction table relationships
-      await this.createDocumentMessageRelationships(document.id, messages)
+      // Step 5: Create the initial document record in the database
+      const document = await this.createDocument(input, messages, conversationAnalysisResult.data)
 
-      // Step 6: Calculate final statistics
+      // Step 6: Create relationships between the document and messages
+      await this.createDocumentMessageRelationships(
+        document.id,
+        messages,
+        InclusionMethod.AI_AUTOMATIC,
+        input.userId
+      )
+
+      // Step 7: Calculate final statistics
       const stats: ProcessingStats = {
         messagesAnalyzed: messages.length,
         messagesIncluded: messages.length,
         piiItemsDetected: piiResults.detections.length,
-        piiItemsReplaced: piiResults.replacements,
+        piiItemsReplaced: 0, // PII replacement is handled by piiDetectorService
         qaPairsFound: 0, // Simplified - no longer analyzing Q&A pairs
         confidenceScore: document.confidenceScore,
         processingTimeMs: Date.now() - startTime,
@@ -104,7 +126,7 @@ class DocumentProcessorService {
     userId?: string
   ): Promise<{
     updatedDocument: ProcessedDocument
-    addedMessages: BaseMessage[]
+    addedMessages: Message[]
     stats: ProcessingStats
   }> {
     const startTime = Date.now()
@@ -123,7 +145,7 @@ class DocumentProcessorService {
       }
 
       // Step 2: Fetch new messages
-      const newMessages = await this.fetchMessages(additionalMessageIds)
+      const newMessages = await db.message.findMany({ where: { id: { in: additionalMessageIds } } })
 
       // Step 3: Process PII in new messages
       const piiResults = await this.processPII(newMessages)
@@ -210,7 +232,7 @@ class DocumentProcessorService {
   /**
    * Fetch messages from database with validation
    */
-  private async fetchMessages(messageIds: string[]): Promise<BaseMessage[]> {
+  private async fetchMessages(messageIds: string[]): Promise<Message[]> {
     const messages = await db.message.findMany({
       where: {
         id: { in: messageIds }
@@ -230,7 +252,7 @@ class DocumentProcessorService {
   /**
    * Process PII detection and replacement
    */
-  private async processPII(messages: BaseMessage[]): Promise<{
+  private async processPII(messages: Message[]): Promise<{
     detections: PIIDetection[]
     replacements: number
   }> {
@@ -238,10 +260,11 @@ class DocumentProcessorService {
     let totalReplacements = 0
 
     for (const message of messages) {
-      try {
-                 const detections = await piiDetectorService.detectPII(message.text, PIISourceType.MESSAGE, message.id)
-         allDetections = allDetections.concat(detections)
-         totalReplacements += detections.length
+            try {
+        const detections = await piiDetectorService.detectPII(message.text, PIISourceType.MESSAGE, message.id)
+        // Type cast to handle enum compatibility
+        allDetections.push(...(detections as PIIDetection[]))
+        totalReplacements += detections.length
       } catch (error) {
         logger.warn(`PII processing failed for message ${message.id}:`, error)
       }
@@ -257,44 +280,29 @@ class DocumentProcessorService {
    * Generate document metadata using AI or defaults
    */
   private async generateDocumentMetadata(
-    messages: BaseMessage[]
-  ): Promise<{ title: string; category: string; description: string }> {
-    try {
-      // Prepare message content for AI analysis
-      const messageContent = messages
-        .map(m => `${m.username}: ${m.text}`)
-        .join('\n')
-        .substring(0, 4000) // Limit for AI context
-
-      if (messageContent.length < 100) {
-        // Fallback for very short conversations
-        return this.generateBasicMetadata(messages)
-      }
-
-      // Use AI service to generate metadata
-      const response = await geminiService.generateDocumentMetadata(messageContent)
-      
-      if (response.success && response.data) {
-        return {
-          title: response.data.title || 'Untitled Document',
-          category: response.data.category || 'General',
-          description: response.data.description || 'Document description not available'
-        }
-      } else {
-        logger.warn('AI metadata generation failed, using basic metadata')
-        return this.generateBasicMetadata(messages)
-      }
-
-    } catch (error) {
-      logger.error('Document metadata generation failed:', error)
-      return this.generateBasicMetadata(messages)
+    messages: Message[]
+  ): Promise<{ title: string; description: string; category: string; confidence: number }> {
+    const messageContent = messages.map((m) => m.text).join('\n')
+    
+    const metadataResult = await geminiService.generateDocumentMetadata(messageContent)
+    
+    if (metadataResult.success && metadataResult.data) {
+      return { ...metadataResult.data, confidence: 0.8 }
+    }
+    
+    logger.warn('AI metadata generation failed, using basic metadata')
+    return {
+      title: 'Untitled Document',
+      description: 'Document description not available',
+      category: 'General',
+      confidence: 0.7
     }
   }
 
   /**
    * Generate basic metadata as fallback
    */
-  private generateBasicMetadata(messages: BaseMessage[]): { title: string; category: string; description: string } {
+  private generateBasicMetadata(messages: Message[]): { title: string; category: string; description: string } {
          const participants = Array.from(new Set(messages.map(m => m.username))).slice(0, 3)
     const firstMessage = messages[0]?.text.substring(0, 100) || 'Discussion'
     
@@ -309,43 +317,31 @@ class DocumentProcessorService {
    * Create document record in database
    */
   private async createDocument(
-    input: DocumentProcessingInput,
-    messages: BaseMessage[],
-    piiResults: any
+    input: DocumentProcessingInput, 
+    messages: Message[],
+    conversationAnalysis: any | null
   ): Promise<ProcessedDocument> {
-    // Use provided metadata or generate with AI
-    let title = input.title?.trim()
-    let category = input.category?.trim()
-    let description: string
+    const { title, category, userId } = input
 
-    if (!title || !category) {
-      logger.info('Auto-generating document metadata with AI analysis')
-      const metadata = await this.generateDocumentMetadata(messages)
-      
-      title = title || metadata.title
-      category = category || metadata.category
-      description = metadata.description
-    } else {
-      // Generate description for manually titled documents
-      description = await this.generateDocumentDescription(messages)
-    }
+    // Use AI-generated metadata if available, otherwise create basic metadata
+    const metadata = (title && category) 
+      ? { title, description: 'Generated from conversation', category, confidence: 1.0 }
+      : await this.generateDocumentMetadata(messages)
 
-    // Calculate confidence score
-    const confidenceScore = this.calculateDocumentConfidence(messages, piiResults)
-
-    const document = await db.processedDocument.create({
+    const newDocument = await db.processedDocument.create({
       data: {
-        title,
-        description,
-        category,
-        status: DocumentStatus.COMPLETE,
-        confidenceScore,
-        createdBy: input.userId || null
-      }
+        title: metadata.title,
+        description: metadata.description,
+        category: metadata.category,
+        confidenceScore: metadata.confidence,
+        status: 'DRAFT',
+        createdBy: userId || 'system',
+        ...(conversationAnalysis && { conversationAnalysis: conversationAnalysis as any }),
+      },
     })
 
-    logger.info(`Created document: "${title}" (Category: ${category})`)
-    return document
+    logger.info(`Created document: "${newDocument.title}" (Category: ${newDocument.category})`)
+    return newDocument
   }
 
   /**
@@ -353,7 +349,7 @@ class DocumentProcessorService {
    */
   private async createDocumentMessageRelationships(
     documentId: string,
-    messages: BaseMessage[],
+    messages: Message[],
     inclusionMethod: InclusionMethod = InclusionMethod.AI_AUTOMATIC,
     addedBy?: string
   ): Promise<void> {
@@ -409,7 +405,7 @@ class DocumentProcessorService {
    * Generate simple document description
    */
   private async generateDocumentDescription(
-    messages: BaseMessage[]
+    messages: Message[]
   ): Promise<string> {
     try {
       const messageTexts = messages.map(m => m.text).join(' ')
@@ -429,7 +425,7 @@ class DocumentProcessorService {
    * Calculate document confidence score
    */
   private calculateDocumentConfidence(
-    messages: BaseMessage[],
+    messages: Message[],
     piiResults: any
   ): number {
     let confidence = 0.7 // Base confidence
@@ -450,13 +446,13 @@ class DocumentProcessorService {
   /**
    * Generate processing warnings
    */
-  private generateWarnings(piiResults: any): string[] {
+  private generateWarnings(piiResults: { detections: PIIDetection[]; replacements: number }): string[] {
     const warnings: string[] = []
-
-    if (piiResults.detections.length > 10) {
-      warnings.push(`High number of PII detections (${piiResults.detections.length}) - review recommended`)
+    
+    if (piiResults.detections.length > 0) {
+      warnings.push(`${piiResults.detections.length} PII items detected and need review`)
     }
-
+    
     return warnings
   }
 

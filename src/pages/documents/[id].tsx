@@ -11,6 +11,7 @@ import { useRouter } from 'next/router'
 import { Header } from '@/components/Header'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { DocumentDisplay, MessageDisplay, FAQDisplay, ApiResponse } from '@/types'
+import { logger } from '@/lib/logger'
 
 /**
  * Document metadata component
@@ -175,25 +176,115 @@ const DocumentMetadata: React.FC<DocumentMetadataProps> = ({
 }
 
 /**
- * Source messages component
+ * Source messages component - now uses AI-powered conversation analysis
  */
 interface SourceMessagesProps {
   messages: MessageDisplay[]
+  conversationAnalysis: ConversationAnalysis | null
   onRemoveMessage: (messageId: string) => void
   onAddMessages: () => void
 }
 
+interface ConversationMessage {
+  id: string
+  text: string
+  username: string
+  timestamp: string
+  channel?: string
+}
+
+// Define the conversation analysis type structure
+interface ConversationAnalysis {
+  patterns: Array<{
+    type: 'qa_pair' | 'question_only' | 'answer_only' | 'context' | 'greeting'
+    messageIds: string[]
+    confidence: number
+    reasoning: string
+    topics: string[]
+  }>
+  overallTopics: string[]
+  conversationFlow: string
+  faqPotential: number
+}
+
 const SourceMessages: React.FC<SourceMessagesProps> = ({
   messages,
+  conversationAnalysis,
   onRemoveMessage,
   onAddMessages
 }) => {
+  
+  // Create message lookup for efficient access
+  const messageMap = messages.reduce((map, message) => {
+    map[message.id] = message
+    return map
+  }, {} as Record<string, MessageDisplay>)
+
+  // Use AI analysis if available, otherwise fall back to simple detection
+  const getConversationPatterns = () => {
+    if (conversationAnalysis && conversationAnalysis.patterns.length > 0) {
+      return conversationAnalysis.patterns.map((pattern: any) => ({
+        ...pattern,
+        id: `ai_${pattern.messageIds.join('_')}`,
+        messages: pattern.messageIds.map((id: string) => messageMap[id]).filter(Boolean)
+      }))
+    }
+    
+    // Fallback: basic pattern detection (simplified)
+    return messages.map(message => ({
+      type: 'context' as const,
+      id: `basic_${message.id}`,
+      messages: [message],
+      confidence: 0.5,
+      reasoning: 'Basic fallback classification',
+      topics: [],
+      messageIds: [message.id]
+    }))
+  }
+
+  const patterns = getConversationPatterns()
+  const qaCount = patterns.filter((p: any) => p.type === 'qa_pair').length
+  const questionCount = patterns.filter((p: any) => p.type === 'question_only').length
+
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-          Source Messages ({messages.length})
-        </h2>
+        <div>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+            Conversation Messages ({messages.length})
+          </h2>
+          <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+            {conversationAnalysis ? (
+              <div className="space-y-1">
+                <div>
+                  {qaCount > 0 && `${qaCount} Q&A pairs found`}
+                  {qaCount > 0 && questionCount > 0 && ', '}
+                  {questionCount > 0 && `${questionCount} additional questions`}
+                  {qaCount === 0 && questionCount === 0 && 'General conversation messages'}
+                </div>
+                <div className="text-xs">
+                  AI Analysis: {conversationAnalysis.conversationFlow}
+                  {conversationAnalysis.faqPotential > 0.7 && (
+                    <span className="ml-2 px-2 py-0.5 bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 rounded text-xs">
+                      High FAQ Potential ({Math.round(conversationAnalysis.faqPotential * 100)}%)
+                    </span>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {conversationAnalysis?.overallTopics?.map((topic: string) => (
+                    <span key={topic} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                      {topic}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <span className="text-yellow-600 dark:text-yellow-400">
+                ⚠️ Using basic pattern detection (AI analysis failed)
+              </span>
+            )}
+          </div>
+        </div>
         <button
           onClick={onAddMessages}
           className="px-3 py-1 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
@@ -202,54 +293,219 @@ const SourceMessages: React.FC<SourceMessagesProps> = ({
         </button>
       </div>
 
-      <div className="space-y-4">
-        {messages.map((message) => (
-          <div
-            key={message.id}
-            className="border border-gray-200 dark:border-gray-600 rounded-lg p-4 hover:border-gray-300 dark:hover:border-gray-500 transition-colors"
-          >
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="font-medium text-gray-900 dark:text-white">
-                    {message.username}
-                  </span>
-                  <span className="text-sm text-gray-500 dark:text-gray-400">
-                    {message.channel}
-                  </span>
-                  <span className="text-sm text-gray-500 dark:text-gray-400">
-                    {message.timeAgo}
-                  </span>
-                  {message.role && (
-                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                      message.role === 'QUESTION'
-                        ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-                        : message.role === 'ANSWER'
-                        ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                        : 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
-                    }`}>
-                      {message.role}
-                    </span>
-                  )}
-                </div>
-                <p className="text-gray-900 dark:text-white">{message.text}</p>
-                {message.threadReplies && message.threadReplies.length > 0 && (
-                  <div className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                    {message.threadReplies.length} replies in thread
-                  </div>
-                )}
-              </div>
-              <button
-                onClick={() => onRemoveMessage(message.id)}
-                className="ml-4 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
+      {qaCount > 0 && (
+        <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3 mb-4">
+          <div className="flex items-center gap-2 text-sm">
+            <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span className="font-medium text-green-800 dark:text-green-200">
+              {conversationAnalysis ? 'AI-Verified' : 'Detected'} FAQ Potential!
+            </span>
+            <span className="text-green-700 dark:text-green-300">
+              These patterns will create {qaCount} high-quality FAQ{qaCount !== 1 ? 's' : ''}.
+            </span>
           </div>
-        ))}
+        </div>
+      )}
+
+      <div className="space-y-6">
+        {patterns.map((pattern: any) => {
+          if (pattern.type === 'qa_pair') {
+            // Q&A pair: should have 2 messages (question and answer)
+            const [questionMsg, answerMsg] = pattern.messages
+            if (!questionMsg || !answerMsg) return null
+            
+            return (
+              <div key={pattern.id} className="border border-blue-200 dark:border-blue-800 rounded-lg bg-blue-50/30 dark:bg-blue-900/10">
+                {/* Question Message */}
+                <div className="p-4 border-b border-blue-200 dark:border-blue-800">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
+                          <span className="text-xs font-bold text-blue-600 dark:text-blue-400">Q</span>
+                        </div>
+                        <span className="font-medium text-gray-900 dark:text-white">
+                          {questionMsg.username}
+                        </span>
+                        <span className="text-sm text-gray-500 dark:text-gray-400">
+                          {questionMsg.channel}
+                        </span>
+                        <span className="text-sm text-gray-500 dark:text-gray-400">
+                          {questionMsg.timeAgo}
+                        </span>
+                        <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                          Question
+                        </span>
+                        {conversationAnalysis && (
+                          <span className="px-2 py-1 text-xs font-medium rounded-full bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
+                            {Math.round(pattern.confidence * 100)}% confidence
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-gray-900 dark:text-white font-medium">{questionMsg.text}</p>
+                      {conversationAnalysis && pattern.reasoning && (
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 italic">
+                          AI: {pattern.reasoning}
+                        </p>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => onRemoveMessage(questionMsg.id)}
+                      className="ml-4 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+                
+                {/* Answer Message */}
+                <div className="p-4">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="w-6 h-6 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center">
+                          <span className="text-xs font-bold text-green-600 dark:text-green-400">A</span>
+                        </div>
+                        <span className="font-medium text-gray-900 dark:text-white">
+                          {answerMsg.username}
+                        </span>
+                        <span className="text-sm text-gray-500 dark:text-gray-400">
+                          {answerMsg.channel}
+                        </span>
+                        <span className="text-sm text-gray-500 dark:text-gray-400">
+                          {answerMsg.timeAgo}
+                        </span>
+                        <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                          Answer
+                        </span>
+                      </div>
+                      <p className="text-gray-900 dark:text-white">{answerMsg.text}</p>
+                    </div>
+                    <button
+                      onClick={() => onRemoveMessage(answerMsg.id)}
+                      className="ml-4 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )
+          } else if (pattern.type === 'question_only') {
+            const message = pattern.messages[0]
+            if (!message) return null
+            
+            return (
+              <div key={pattern.id} className="border border-yellow-200 dark:border-yellow-800 rounded-lg bg-yellow-50/30 dark:bg-yellow-900/10 p-4">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-6 h-6 rounded-full bg-yellow-100 dark:bg-yellow-900 flex items-center justify-center">
+                        <span className="text-xs font-bold text-yellow-600 dark:text-yellow-400">?</span>
+                      </div>
+                      <span className="font-medium text-gray-900 dark:text-white">
+                        {message.username}
+                      </span>
+                      <span className="text-sm text-gray-500 dark:text-gray-400">
+                        {message.channel}
+                      </span>
+                      <span className="text-sm text-gray-500 dark:text-gray-400">
+                        {message.timeAgo}
+                      </span>
+                      <span className="px-2 py-1 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
+                        Unanswered Question
+                      </span>
+                      {conversationAnalysis && (
+                        <span className="px-2 py-1 text-xs font-medium rounded-full bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
+                          {Math.round(pattern.confidence * 100)}% confidence
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-gray-900 dark:text-white">{message.text}</p>
+                    {conversationAnalysis && pattern.reasoning && (
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 italic">
+                        AI: {pattern.reasoning}
+                      </p>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => onRemoveMessage(message.id)}
+                    className="ml-4 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            )
+          } else {
+            // Answer only, context, or greeting messages
+            const message = pattern.messages[0]
+            if (!message) return null
+            
+            const getDisplayInfo = (type: string) => {
+              switch (type) {
+                case 'answer_only':
+                  return { label: 'Standalone Answer', color: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' }
+                case 'greeting':
+                  return { label: 'Greeting', color: 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200' }
+                default:
+                  return { label: 'Context', color: 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200' }
+              }
+            }
+            
+            const displayInfo = getDisplayInfo(pattern.type)
+            
+            return (
+              <div key={pattern.id} className="border border-gray-200 dark:border-gray-600 rounded-lg p-4 hover:border-gray-300 dark:hover:border-gray-500 transition-colors">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="font-medium text-gray-900 dark:text-white">
+                        {message.username}
+                      </span>
+                      <span className="text-sm text-gray-500 dark:text-gray-400">
+                        {message.channel}
+                      </span>
+                      <span className="text-sm text-gray-500 dark:text-gray-400">
+                        {message.timeAgo}
+                      </span>
+                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${displayInfo.color}`}>
+                        {displayInfo.label}
+                      </span>
+                      {conversationAnalysis && (
+                        <span className="px-2 py-1 text-xs font-medium rounded-full bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
+                          {Math.round(pattern.confidence * 100)}% confidence
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-gray-900 dark:text-white">{message.text}</p>
+                    {conversationAnalysis && pattern.reasoning && (
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 italic">
+                        AI: {pattern.reasoning}
+                      </p>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => onRemoveMessage(message.id)}
+                    className="ml-4 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            )
+          }
+        })}
 
         {messages.length === 0 && (
           <div className="text-center py-8">
@@ -376,14 +632,14 @@ const DocumentDetailPage: React.FC = () => {
   const router = useRouter()
   const { id } = router.query
 
-  // State
   const [document, setDocument] = useState<DocumentDisplay | null>(null)
   const [messages, setMessages] = useState<MessageDisplay[]>([])
-  const [faqs, setFAQs] = useState<FAQDisplay[]>([])
+  const [faqs, setFaqs] = useState<FAQDisplay[]>([])
+  const [conversationAnalysis, setConversationAnalysis] = useState<ConversationAnalysis | null>(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [editing, setEditing] = useState(false)
   const [processing, setProcessing] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [notification, setNotification] = useState<{ type: 'success' | 'error', message: string } | null>(null)
 
   /**
@@ -395,30 +651,46 @@ const DocumentDetailPage: React.FC = () => {
   }, [])
 
   /**
-   * Fetch document data
+   * Fetch document details including pre-computed conversation analysis
    */
   const fetchDocument = useCallback(async () => {
-    if (!id || typeof id !== 'string') return
+    if (!id) return
 
     try {
       setLoading(true)
-      setError(null)
-
       const response = await fetch(`/api/documents/${id}`)
-      const result = await response.json()
-
-      if (!response.ok || !result.success) {
-        throw new Error(result.error || 'Failed to fetch document')
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch document: ${response.statusText}`)
       }
 
-      setDocument(result.data.document)
-      setMessages(result.data.messages || [])
-      setFAQs(result.data.faqs || [])
+      const result: ApiResponse<DocumentDisplay> = await response.json()
+      
+      if (!result.success || !result.data) {
+        throw new Error(result.error || 'Document not found')
+      }
 
+      logger.info('Document fetched successfully:', { documentId: id, title: result.data.title })
+      
+      setDocument(result.data)
+      setMessages(result.data.messages || [])
+      setFaqs(result.data.faqs || [])
+      
+      // Use pre-computed conversation analysis from database
+      if (result.data.conversationAnalysis) {
+        setConversationAnalysis(result.data.conversationAnalysis as ConversationAnalysis)
+        logger.info('Using pre-computed conversation analysis:', { 
+          patterns: result.data.conversationAnalysis.patterns?.length || 0 
+        })
+      } else {
+        logger.warn('No conversation analysis found for document - this document may have been created before AI analysis was implemented')
+        setConversationAnalysis(null)
+      }
+      
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred'
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred'
+      logger.error('Failed to fetch document:', { error: errorMessage, documentId: id })
       setError(errorMessage)
-      console.error('Failed to fetch document:', err)
     } finally {
       setLoading(false)
     }
@@ -746,8 +1018,9 @@ const DocumentDetailPage: React.FC = () => {
             />
 
             {/* Source Messages */}
-            <SourceMessages
+            <SourceMessages 
               messages={messages}
+              conversationAnalysis={conversationAnalysis}
               onRemoveMessage={handleRemoveMessage}
               onAddMessages={handleAddMessages}
             />

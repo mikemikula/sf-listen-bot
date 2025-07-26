@@ -396,6 +396,21 @@ export interface DocumentDisplay extends Omit<ProcessedDocument, 'status'> {
   channelNames: string[]
   lastActivity: Date
   timeAgo: string
+  // Optional detailed data for document detail pages
+  messages?: MessageDisplay[]
+  faqs?: FAQDisplay[]
+  conversationAnalysis?: {
+    patterns: Array<{
+      type: 'qa_pair' | 'question_only' | 'answer_only' | 'context' | 'greeting'
+      messageIds: string[]
+      confidence: number
+      reasoning: string
+      topics: string[]
+    }>
+    overallTopics: string[]
+    conversationFlow: string
+    faqPotential: number
+  }
 }
 
 /**

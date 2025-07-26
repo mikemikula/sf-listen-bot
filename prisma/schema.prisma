@@ -105,6 +105,8 @@ model ProcessedDocument {
   /// Junction table relationships
   documentMessages DocumentMessage[]
   documentFAQs DocumentFAQ[]
+  /// AI-powered conversation analysis results
+  conversationAnalysis Json? @map("conversation_analysis")
 
   /// Indexes for performance
   @@index([status])

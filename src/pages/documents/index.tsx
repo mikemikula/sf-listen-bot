@@ -25,10 +25,25 @@ const ProcessAllModal: React.FC<ProcessAllModalProps> = ({ isOpen, onClose, onSu
   const [processing, setProcessing] = useState(false)
   const [result, setResult] = useState<any>(null)
   const [error, setError] = useState<string | null>(null)
+  const [loadingMessage, setLoadingMessage] = useState('Initializing...')
 
   const handleProcessAll = async () => {
     setProcessing(true)
     setError(null)
+    setLoadingMessage('Scanning for unprocessed messages...')
+    
+    // Track start time for minimum loading duration
+    const startTime = Date.now()
+    const MIN_LOADING_TIME = 1500 // 1.5 seconds minimum loading time
+    
+    // Update loading messages progressively
+    const messageTimer1 = setTimeout(() => {
+      setLoadingMessage('Analyzing message patterns...')
+    }, 500)
+    
+    const messageTimer2 = setTimeout(() => {
+      setLoadingMessage('Organizing conversations...')
+    }, 1000)
     
     try {
       const response = await fetch('/api/documents/process-all', {
@@ -43,6 +58,20 @@ const ProcessAllModal: React.FC<ProcessAllModalProps> = ({ isOpen, onClose, onSu
       })
 
       const data = await response.json()
+      
+      // Clear message timers
+      clearTimeout(messageTimer1)
+      clearTimeout(messageTimer2)
+      setLoadingMessage('Finalizing results...')
+      
+      // Calculate remaining time to meet minimum loading duration
+      const elapsedTime = Date.now() - startTime
+      const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsedTime)
+      
+      // Wait for remaining time if needed to prevent jarring flash
+      if (remainingTime > 0) {
+        await new Promise(resolve => setTimeout(resolve, remainingTime))
+      }
       
       if (data.success) {
         setResult(data.data)
@@ -63,6 +92,18 @@ const ProcessAllModal: React.FC<ProcessAllModalProps> = ({ isOpen, onClose, onSu
         }
       }
     } catch (err) {
+      // Clear message timers
+      clearTimeout(messageTimer1)
+      clearTimeout(messageTimer2)
+      
+      // Still respect minimum loading time even for errors
+      const elapsedTime = Date.now() - startTime
+      const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsedTime)
+      
+      if (remainingTime > 0) {
+        await new Promise(resolve => setTimeout(resolve, remainingTime))
+      }
+      
       setError('Network error occurred')
       console.error('Process all error:', err)
     } finally {
@@ -73,6 +114,7 @@ const ProcessAllModal: React.FC<ProcessAllModalProps> = ({ isOpen, onClose, onSu
   const handleClose = () => {
     setResult(null)
     setError(null)
+    setLoadingMessage('Initializing...') // Reset loading message
     onClose()
   }
 
@@ -98,15 +140,25 @@ const ProcessAllModal: React.FC<ProcessAllModalProps> = ({ isOpen, onClose, onSu
 
           {!result && !error && (
             <div className="text-center">
-              <div className="mb-6">
+              <div className="mb-6 transition-all duration-300 ease-in-out">
                 <svg className="w-16 h-16 mx-auto text-blue-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
                 <p className="text-lg text-gray-900 dark:text-white mb-2">
-                  Ready to create documents automatically!
+                  {processing ? 'Processing...' : 'Ready to create documents automatically!'}
                 </p>
-                <p className="text-gray-600 dark:text-gray-400">
-                  AI will find all unprocessed Slack messages and create structured documents with smart titles, categories, and descriptions.
+                <p className="text-gray-600 dark:text-gray-400 min-h-[2.5rem] flex items-center justify-center">
+                  {processing ? (
+                    <span className="inline-flex items-center">
+                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      {loadingMessage}
+                    </span>
+                  ) : (
+                    'AI will find all unprocessed Slack messages and create structured documents with smart titles, categories, and descriptions.'
+                  )}
                 </p>
               </div>
 
@@ -116,13 +168,7 @@ const ProcessAllModal: React.FC<ProcessAllModalProps> = ({ isOpen, onClose, onSu
                 className="w-full px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-lg font-semibold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
               >
                 {processing ? (
-                  <>
-                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Processing Messages...
-                  </>
+                  'Processing...'
                 ) : (
                   <>
                     <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -180,21 +226,60 @@ const ProcessAllModal: React.FC<ProcessAllModalProps> = ({ isOpen, onClose, onSu
           {result && (
             <div className="text-center">
               <div className="mb-4">
-                {result.isPartialSuccess ? (
-                  <svg className="w-12 h-12 mx-auto text-yellow-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                  </svg>
+                {/* Special handling for when no messages were found */}
+                {result.stats.totalMessages === 0 ? (
+                  <>
+                    <svg className="w-12 h-12 mx-auto text-blue-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <p className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                      All Messages Processed! ✅
+                    </p>
+                    <p className="text-gray-600 dark:text-gray-400 mb-4">
+                      No unprocessed messages found. All your Slack messages have already been organized into documents.
+                    </p>
+                    
+                    <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-4">
+                      <div className="flex items-center justify-center mb-2">
+                        <svg className="w-5 h-5 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <p className="text-sm font-medium text-blue-800 dark:text-blue-200">
+                          What&apos;s Next?
+                        </p>
+                      </div>
+                      <ul className="text-sm text-blue-700 dark:text-blue-300 text-left space-y-1">
+                        <li>• Review existing documents below</li>
+                        <li>• Generate FAQs from your documents</li>
+                        <li>• New messages will be processed automatically</li>
+                      </ul>
+                    </div>
+                  </>
+                ) : result.isPartialSuccess ? (
+                  <>
+                    <svg className="w-12 h-12 mx-auto text-yellow-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                    </svg>
+                    <p className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                      Partial Success! ⚠️
+                    </p>
+                    <p className="text-gray-600 dark:text-gray-400 mb-4">
+                      {result.message}
+                    </p>
+                  </>
                 ) : (
-                  <svg className="w-12 h-12 mx-auto text-green-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
+                  <>
+                    <svg className="w-12 h-12 mx-auto text-green-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <p className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                      Success! 🎉
+                    </p>
+                    <p className="text-gray-600 dark:text-gray-400 mb-4">
+                      {result.message}
+                    </p>
+                  </>
                 )}
-                <p className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                  {result.isPartialSuccess ? 'Partial Success! ⚠️' : 'Success! 🎉'}
-                </p>
-                <p className="text-gray-600 dark:text-gray-400 mb-4">
-                  {result.message}
-                </p>
                 
                 {result.isPartialSuccess && (
                   <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 mb-4">
@@ -205,28 +290,31 @@ const ProcessAllModal: React.FC<ProcessAllModalProps> = ({ isOpen, onClose, onSu
                   </div>
                 )}
                 
-                <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 mb-4">
-                  <div className="grid grid-cols-3 gap-4 text-center">
-                    <div>
-                      <div className="text-2xl font-bold text-blue-600">{result.stats.totalMessages}</div>
-                      <div className="text-sm text-gray-600 dark:text-gray-400">Messages Found</div>
-                    </div>
-                    <div>
-                      <div className="text-2xl font-bold text-green-600">{result.stats.documentsCreated}</div>
-                      <div className="text-sm text-gray-600 dark:text-gray-400">Documents Created</div>
-                    </div>
-                    <div>
-                      <div className="text-2xl font-bold text-purple-600">{result.stats.messagesProcessed}</div>
-                      <div className="text-sm text-gray-600 dark:text-gray-400">Messages Processed</div>
+                {/* Only show stats if there were actually messages to process */}
+                {result.stats.totalMessages > 0 && (
+                  <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 mb-4">
+                    <div className="grid grid-cols-3 gap-4 text-center">
+                      <div>
+                        <div className="text-2xl font-bold text-blue-600">{result.stats.totalMessages}</div>
+                        <div className="text-sm text-gray-600 dark:text-gray-400">Messages Found</div>
+                      </div>
+                      <div>
+                        <div className="text-2xl font-bold text-green-600">{result.stats.documentsCreated}</div>
+                        <div className="text-sm text-gray-600 dark:text-gray-400">Documents Created</div>
+                      </div>
+                      <div>
+                        <div className="text-2xl font-bold text-purple-600">{result.stats.messagesProcessed}</div>
+                        <div className="text-sm text-gray-600 dark:text-gray-400">Messages Processed</div>
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
 
                 <button
                   onClick={handleClose}
                   className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors"
                 >
-                  View Documents
+                  {result.stats.totalMessages === 0 ? 'Close' : 'View Documents'}
                 </button>
               </div>
             </div>
