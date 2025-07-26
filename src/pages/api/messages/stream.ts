@@ -185,17 +185,31 @@ export default async function handler(
         const currentUpdateTime = new Date()
         lastUpdateTime = currentUpdateTime
 
-        // Send new messages
+        // Send new messages (but handle thread replies differently)
         if (newMessages.length > 0) {
-          logger.sse(`Sending ${newMessages.length} new messages`)
+          logger.sse(`Processing ${newMessages.length} new messages`)
           
           for (const message of newMessages) {
             const displayMessage = transformMessage(message)
             
-            res.write(`data: ${JSON.stringify({
-              type: 'message',
-              data: displayMessage
-            })}\n\n`)
+            if (message.isThreadReply) {
+              // For thread replies, send a thread update event instead
+              // This will trigger the parent message to refresh its replies
+              res.write(`data: ${JSON.stringify({
+                type: 'thread_reply_added',
+                data: {
+                  parentThreadTs: message.threadTs,
+                  reply: displayMessage,
+                  channel: message.channel
+                }
+              })}\n\n`)
+            } else {
+              // For parent messages, send normally
+              res.write(`data: ${JSON.stringify({
+                type: 'message',
+                data: displayMessage
+              })}\n\n`)
+            }
             
             lastMessageId = message.id
           }

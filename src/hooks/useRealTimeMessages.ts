@@ -11,14 +11,15 @@ interface UseRealTimeMessagesProps {
   onNewMessage?: (message: MessageDisplay) => void
   onMessageEdited?: (message: MessageDisplay) => void
   onMessagesDeleted?: () => void
+  onThreadReplyAdded?: (data: { parentThreadTs: string, reply: any, channel: string }) => void
   onTransactionUpdate?: (data: { stats: any, newEvents: any[] }) => void
   onError?: (error: string) => void
   enabled?: boolean
 }
 
 interface SSEMessage {
-  type: 'connected' | 'message' | 'message_edited' | 'messages_deleted' | 'transaction_update' | 'heartbeat' | 'error'
-  data?: MessageDisplay | { stats: any, newEvents: any[] }
+  type: 'connected' | 'message' | 'message_edited' | 'messages_deleted' | 'thread_reply_added' | 'transaction_update' | 'heartbeat' | 'error'
+  data?: MessageDisplay | { stats: any, newEvents: any[] } | { parentThreadTs: string, reply: any, channel: string }
   message?: string
   timestamp?: string
 }
@@ -30,6 +31,7 @@ export const useRealTimeMessages = ({
   onNewMessage,
   onMessageEdited,
   onMessagesDeleted,
+  onThreadReplyAdded,
   onTransactionUpdate,
   onError,
   enabled = true
@@ -95,6 +97,13 @@ export const useRealTimeMessages = ({
                logger.sse('Messages deleted, triggering refresh')
                if (onMessagesDeleted) {
                  onMessagesDeleted()
+               }
+               break
+
+             case 'thread_reply_added':
+               logger.sse('Thread reply added')
+               if (onThreadReplyAdded && data.data) {
+                 onThreadReplyAdded(data.data as { parentThreadTs: string, reply: any, channel: string })
                }
                break
                

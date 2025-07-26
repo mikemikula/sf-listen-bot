@@ -189,11 +189,19 @@ const Dashboard: React.FC = () => {
     setRealTimeEnabled(prev => !prev)
   }, [])
 
+  // Handle thread reply updates
+  const handleThreadReplyAdded = useCallback((data: { parentThreadTs: string, reply: any, channel: string }) => {
+    // Refresh the messages to get the updated parent with new reply
+    console.log('Thread reply added, refreshing messages...')
+    fetchMessages()
+  }, [fetchMessages])
+
   // Setup real-time connection
   const { isConnected, disconnect, reconnect } = useRealTimeMessages({
     onNewMessage: handleNewMessage,
     onMessageEdited: handleMessageEdited,
     onMessagesDeleted: handleMessagesDeleted,
+    onThreadReplyAdded: handleThreadReplyAdded,
     onError: handleRealTimeError,
     enabled: realTimeEnabled
   })
