@@ -47,6 +47,65 @@ model Message {
   @@map("messages")
 }
 
+/// Slack webhook event log for audit trail and error recovery
+model SlackEvent {
+  /// Unique identifier for the event
+  id String @id @default(cuid())
+  
+  /// Slack event ID (for deduplication)
+  slackEventId String? @map("slack_event_id")
+  
+  /// Event type (event_callback, url_verification)
+  eventType String @map("event_type")
+  
+  /// Event subtype (message, message_changed, message_deleted)
+  eventSubtype String? @map("event_subtype")
+  
+  /// Raw payload from Slack
+  payload Json
+  
+  /// Processing status
+  status SlackEventStatus @default(PENDING)
+  
+  /// Error message if processing failed
+  errorMessage String? @map("error_message")
+  
+  /// Number of processing attempts
+  attempts Int @default(0)
+  
+  /// Last attempt timestamp
+  lastAttemptAt DateTime? @map("last_attempt_at")
+  
+  /// Related message ID (if applicable)
+  messageId String? @map("message_id")
+  
+  /// Channel where event occurred
+  channel String?
+  
+  /// Record creation timestamp
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  /// Record update timestamp
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  /// Indexes for performance and querying
+  @@index([slackEventId])
+  @@index([status])
+  @@index([eventType])
+  @@index([createdAt])
+  @@index([channel])
+  @@map("slack_events")
+}
+
+/// Slack event processing status
+enum SlackEventStatus {
+  PENDING     // Received but not processed
+  PROCESSING  // Currently being processed
+  SUCCESS     // Successfully processed
+  FAILED      // Failed after all retries
+  SKIPPED     // Intentionally skipped (duplicate, etc.)
+}
+
 /// Channel model for future enhancements
 model Channel {
   /// Unique identifier for the channel

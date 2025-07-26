@@ -1,24 +1,13 @@
 /**
  * Slack Events API webhook handler
- * Handles URL verification and message events
+ * Handles URL verification and message events with full transaction logging
  */
 
 import type { NextApiRequest, NextApiResponse } from 'next'
-import { db } from '@/lib/db'
-import { 
-  verifySlackSignature, 
-  parseSlackTimestamp, 
-  formatUsername,
-  shouldProcessMessage,
-  isMessageDeletion,
-  isMessageEdit
-} from '@/lib/slack'
-import type { 
-  SlackWebhookPayload, 
-  ApiResponse,
-  SlackVerificationError
-} from '@/types'
-import { DatabaseError } from '@/types'
+import { verifySlackSignature } from '@/lib/slack'
+import { logger } from '@/lib/logger'
+import { processSlackEvent, EventProcessingResult } from '@/lib/eventProcessor'
+import type { SlackWebhookPayload, ApiResponse } from '@/types'
 
 /**
  * Get raw body from request for signature verification
@@ -80,144 +69,52 @@ export default async function handler(
     // Parse the payload
     const payload: SlackWebhookPayload = JSON.parse(rawBody)
 
-    // Handle URL verification challenge
-    if (payload.type === 'url_verification') {
-      console.log('✅ URL verification challenge received')
-      return res.status(200).json({
-        success: true,
-        data: { challenge: payload.challenge }
-      })
-    }
-
-    // Handle message events
-    if (payload.type === 'event_callback' && payload.event) {
-      const event = payload.event
-
-      // Validate message should be processed
-      if (!shouldProcessMessage(event)) {
+    // Process the event using the robust event processor
+    const result = await processSlackEvent(payload, rawBody)
+    
+    // Handle different processing results
+    switch (result.result) {
+      case EventProcessingResult.SUCCESS:
+        logger.info(`Event processed successfully: ${payload.event_id}`)
         return res.status(200).json({
           success: true,
-          message: 'Event ignored'
+          data: result.data,
+          message: result.message || 'Event processed successfully'
         })
-      }
-
-      try {
-        // Handle message deletion
-        if (isMessageDeletion(event)) {
-          const deletedMessageId = event.deleted_ts
-          
-          if (!deletedMessageId) {
-            return res.status(400).json({
-              success: false,
-              error: 'Missing deleted message timestamp'
-            })
-          }
-
-          // Find and delete the message from database
-          const deletedMessage = await db.message.deleteMany({
-            where: {
-              slackId: deletedMessageId,
-              channel: event.channel
-            }
-          })
-
-          console.log(`🗑️ Message deleted: ${deletedMessageId} (${deletedMessage.count} records)`)
-          
-          return res.status(200).json({
-            success: true,
-            data: { 
-              deletedSlackId: deletedMessageId,
-              deletedCount: deletedMessage.count 
-            },
-            message: 'Message deletion processed successfully'
-          })
-        }
-
-        // Handle message edits
-        if (isMessageEdit(event)) {
-          const editedMessage = event.message
-          const previousMessage = event.previous_message
-
-          if (!editedMessage || !previousMessage) {
-            return res.status(400).json({
-              success: false,
-              error: 'Missing edited message data'
-            })
-          }
-
-          // Update the message in database
-          const updatedMessage = await db.message.updateMany({
-            where: {
-              slackId: editedMessage.ts,
-              channel: event.channel
-            },
-            data: {
-              text: editedMessage.text,
-              updatedAt: new Date()
-            }
-          })
-
-          console.log(`✏️ Message edited: ${editedMessage.ts} (${updatedMessage.count} records)`)
-          
-          return res.status(200).json({
-            success: true,
-            data: { 
-              editedSlackId: editedMessage.ts,
-              updatedCount: updatedMessage.count,
-              newText: editedMessage.text,
-              previousText: previousMessage.text
-            },
-            message: 'Message edit processed successfully'
-          })
-        }
-
-        // Handle regular message creation
-        if (event.text && event.user) {
-          const message = await db.message.create({
-            data: {
-              slackId: event.ts,
-              text: event.text,
-              userId: event.user,
-              username: formatUsername(event.user),
-              channel: event.channel,
-              timestamp: parseSlackTimestamp(event.ts),
-            }
-          })
-
-          console.log(`✅ Message stored: ${message.id}`)
-          
-          return res.status(200).json({
-            success: true,
-            data: { messageId: message.id },
-            message: 'Message processed successfully'
-          })
-        }
-
-        return res.status(400).json({
-          success: false,
-          error: 'Invalid message event data'
+      
+      case EventProcessingResult.DUPLICATE:
+        logger.warn(`Duplicate event ignored: ${payload.event_id}`)
+        return res.status(200).json({
+          success: true,
+          data: result.data,
+          message: result.message || 'Duplicate event ignored'
         })
-
-      } catch (dbError) {
-        console.error('❌ Database error:', dbError)
+      
+      case EventProcessingResult.SKIPPED:
+        logger.info(`Event skipped: ${payload.event_id}`)
+        return res.status(200).json({
+          success: true,
+          message: result.message || 'Event skipped'
+        })
+      
+      case EventProcessingResult.FAILED:
+        logger.error(`Event processing failed: ${payload.event_id}`, result.error)
         
-        // Handle duplicate message (Slack retries)
-        if (dbError instanceof Error && dbError.message.includes('Unique constraint')) {
-          return res.status(200).json({
-            success: true,
-            message: 'Message already processed'
-          })
-        }
-
-        throw new DatabaseError('Failed to store message', dbError)
-      }
+        // Still return 200 to Slack to prevent retries for permanent failures
+        // The error is logged in our database for manual review
+        return res.status(200).json({
+          success: false,
+          error: result.error?.message || 'Event processing failed',
+          message: 'Event logged for manual review'
+        })
+      
+      default:
+        logger.error(`Unknown processing result: ${result.result}`)
+        return res.status(500).json({
+          success: false,
+          error: 'Unknown processing result'
+        })
     }
-
-    // Unknown event type
-    return res.status(200).json({
-      success: true,
-      message: 'Event type not handled'
-    })
 
   } catch (error) {
     console.error('❌ Webhook handler error:', error)
