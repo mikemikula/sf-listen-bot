@@ -94,6 +94,18 @@ export default async function handler(
   }
 
   try {
+    // Validate database connection first
+    if (!db) {
+      console.error('❌ Database client not initialized')
+      return res.status(500).json({
+        success: false,
+        error: 'Database connection failed - client not initialized'
+      })
+    }
+
+    // Test database connectivity
+    await db.$queryRaw`SELECT 1`
+
     const filters = parseFilters(req.query)
     const page = filters.page || 1
     const limit = Math.min(filters.limit || 20, 100) // Max 100 per page
@@ -143,6 +155,13 @@ export default async function handler(
 
   } catch (error) {
     console.error('❌ Messages API error:', error)
+    console.error('❌ Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : 'No stack trace',
+      name: error instanceof Error ? error.name : 'Unknown error type',
+      databaseUrl: process.env.DATABASE_URL ? 'Set' : 'Not set',
+      nodeEnv: process.env.NODE_ENV || 'Not set'
+    })
     
     return res.status(500).json({
       success: false,
