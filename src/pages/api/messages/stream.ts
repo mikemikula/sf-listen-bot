@@ -138,15 +138,24 @@ export default async function handler(
         const currentMessageCount = await db.message.count()
         const hasDeletedMessages = currentMessageCount < lastMessageCount
         
-        // Check for edits by looking for recently updated messages  
+        // Check for edits by looking for recently updated messages
+        // Skip messages we already processed as "new" to avoid duplicates
+        const processedMessageIds = newMessages.map((m: any) => m.id)
         const recentlyUpdated = await db.message.findMany({
           where: {
-            updatedAt: {
-              gte: lastUpdateTime // Use >= to catch exact timestamps
-            },
-            createdAt: {
-              lt: lastUpdateTime // Only messages that were created before our last check (so they're edits, not new)
-            }
+            AND: [
+              {
+                updatedAt: {
+                  gte: lastUpdateTime
+                }
+              },
+              {
+                id: {
+                  notIn: processedMessageIds // Exclude messages we just processed as "new"
+                }
+              },
+
+            ]
           },
           orderBy: [
             { updatedAt: 'asc' },
@@ -183,15 +192,11 @@ export default async function handler(
         // Use the timestamp of the newest message found, not current time
         if (newMessages.length > 0) {
           const newestMessage = newMessages[newMessages.length - 1]
-          lastCheckTime = new Date(newestMessage.timestamp)
+          // Add a small buffer to prevent re-processing the same message
+          lastCheckTime = new Date(newestMessage.timestamp.getTime() + 1)
         }
         
         lastMessageCount = currentMessageCount
-        
-        if (recentlyUpdated.length > 0) {
-          const newestUpdate = recentlyUpdated[recentlyUpdated.length - 1]
-          lastUpdateTime = new Date(newestUpdate.updatedAt)
-        }
 
         // Send new messages (but handle thread replies differently)
         if (newMessages.length > 0) {
@@ -223,18 +228,40 @@ export default async function handler(
           }
         }
 
-        // Send edited messages
-        if (recentlyUpdated.length > 0) {
-          logger.sse(`Sending ${recentlyUpdated.length} edited messages`)
+        // Send edited messages (filter out any that aren't true edits)
+        const trueEdits = recentlyUpdated.filter((msg: any) => 
+          msg.updatedAt.getTime() > msg.createdAt.getTime()
+        )
+        
+        if (trueEdits.length > 0) {
+          logger.sse(`Sending ${trueEdits.length} edited messages`)
           
-          for (const message of recentlyUpdated) {
+          for (const message of trueEdits) {
             const displayMessage = transformMessage(message)
             
-            res.write(`data: ${JSON.stringify({
-              type: 'message_edited',
-              data: displayMessage
-            })}\n\n`)
+            if (message.isThreadReply) {
+              // For thread reply edits, send a thread update to refresh the parent
+              res.write(`data: ${JSON.stringify({
+                type: 'thread_reply_edited',
+                data: {
+                  parentThreadTs: message.threadTs,
+                  reply: displayMessage, // Use 'reply' to match the interface
+                  channel: message.channel
+                }
+              })}\n\n`)
+            } else {
+              // For parent message edits, send normal edit event
+              res.write(`data: ${JSON.stringify({
+                type: 'message_edited',
+                data: displayMessage
+              })}\n\n`)
+            }
           }
+          
+          // Update edit tracking timestamp after processing
+          const newestUpdate = trueEdits[trueEdits.length - 1]
+          // Add a larger buffer to prevent re-processing the same edit
+          lastUpdateTime = new Date(newestUpdate.updatedAt.getTime() + 100)
         }
 
         // Notify about deletions (simple approach)

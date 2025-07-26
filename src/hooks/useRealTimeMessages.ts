@@ -58,10 +58,11 @@ export const useRealTimeMessages = ({
        const eventSource = new EventSource('/api/messages/stream')
        eventSourceRef.current = eventSource
 
-       eventSource.onopen = () => {
-         logger.sse('Real-time connection established')
-         setIsConnected(true)
-       }
+               eventSource.onopen = () => {
+          console.log('🔌 SSE connection established')
+          logger.sse('Real-time connection established')
+          setIsConnected(true)
+        }
 
        eventSource.onmessage = (event) => {
          try {
@@ -100,9 +101,17 @@ export const useRealTimeMessages = ({
                }
                break
 
-             case 'thread_reply_added':
+                          case 'thread_reply_added':
                logger.sse('Thread reply added')
                if (onThreadReplyAdded && data.data) {
+                 onThreadReplyAdded(data.data as { parentThreadTs: string, reply: any, channel: string })
+               }
+               break
+
+             default:
+               // Handle thread_reply_edited and any other unknown events
+               if (data.type === 'thread_reply_edited' && onThreadReplyAdded && data.data) {
+                 logger.sse('Thread reply edited, refreshing parent')
                  onThreadReplyAdded(data.data as { parentThreadTs: string, reply: any, channel: string })
                }
                break
@@ -123,9 +132,10 @@ export const useRealTimeMessages = ({
          }
        }
 
-       eventSource.onerror = (error) => {
-         logger.warn('SSE connection error, will attempt reconnect')
-         setIsConnected(false)
+               eventSource.onerror = (error) => {
+          console.log('❌ SSE connection error, will attempt reconnect')
+          logger.warn('SSE connection error, will attempt reconnect')
+          setIsConnected(false)
          
          // Attempt to reconnect after 5 seconds
          if (reconnectTimeoutRef.current) {

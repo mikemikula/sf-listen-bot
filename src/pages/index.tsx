@@ -3,7 +3,7 @@
  * Displays Slack messages in a modern, responsive interface with real-time updates
  */
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { MessageFeed } from '@/components/MessageFeed'
 import { FilterBar } from '@/components/FilterBar'
 import { Header } from '@/components/Header'
@@ -45,13 +45,16 @@ const Dashboard: React.FC = () => {
    * Handle new real-time messages
    */
   const handleNewMessage = useCallback((newMessage: MessageDisplay): void => {
+    console.log('📨 New message received via SSE:', newMessage)
     setMessages(prevMessages => {
              // Check if message already exists (prevent duplicates)  
        const messageExists = prevMessages.some(msg => (msg as any).id === (newMessage as any).id)
       if (messageExists) {
+        console.log('⚠️ Duplicate message detected, skipping')
         return prevMessages
       }
 
+      console.log('✅ Adding new message to UI')
       // Add new message to the beginning of the list
       const updatedMessages = [newMessage, ...prevMessages]
       
@@ -86,9 +89,12 @@ const Dashboard: React.FC = () => {
   /**
    * Fetch messages from API
    */
-  const fetchMessages = useCallback(async (newFilters?: MessageFilters): Promise<void> => {
+  const fetchMessages = useCallback(async (newFilters?: MessageFilters, isRealTimeUpdate = false): Promise<void> => {
     try {
-      setLoading(true)
+      // Don't show loading spinner for real-time updates to prevent UI jumps
+      if (!isRealTimeUpdate) {
+        setLoading(true)
+      }
       setError(null)
 
       const activeFilters = newFilters || filters
@@ -133,7 +139,10 @@ const Dashboard: React.FC = () => {
       setError(errorMessage)
       console.error('❌ Error fetching messages:', err)
     } finally {
-      setLoading(false)
+      // Only clear loading if this wasn't a real-time update
+      if (!isRealTimeUpdate) {
+        setLoading(false)
+      }
     }
   }, [filters])
 
@@ -165,13 +174,29 @@ const Dashboard: React.FC = () => {
   }, [pagination.hasNext, filters.page, handlePageChange])
 
   /**
-   * Handle message edits
+   * Handle message edits with deduplication
    */
+  const lastEditRef = useRef<{id: string, timestamp: number} | null>(null)
   const handleMessageEdited = useCallback((editedMessage: MessageDisplay): void => {
+    const messageId = (editedMessage as any).id
+    const now = Date.now()
+    
+    // Prevent duplicate edits within 5 seconds (increased window)
+    if (lastEditRef.current && 
+        lastEditRef.current.id === messageId && 
+        (now - lastEditRef.current.timestamp) < 5000) {
+      console.log('⚠️ Duplicate edit ignored (same message within 5s)')
+      return
+    }
+    
+    lastEditRef.current = { id: messageId, timestamp: now }
+    console.log('✏️ Message edit received via SSE:', editedMessage)
+    
     setMessages(prevMessages => {
       return prevMessages.map(msg => {
         // Match by the database ID or Slack ID to update the edited message
         if ((msg as any).id === (editedMessage as any).id || (msg as any).slackId === (editedMessage as any).slackId) {
+          console.log('✅ Updating edited message in UI')
           return {
             ...editedMessage,
             // Update the timeAgo since the message was just edited
@@ -187,8 +212,9 @@ const Dashboard: React.FC = () => {
    * Handle message deletions
    */
   const handleMessagesDeleted = useCallback((): void => {
+    console.log('🗑️ Messages deleted, refreshing list')
     // Simple approach: refresh the current page of messages
-    fetchMessages(filters)
+    fetchMessages(filters, true)
   }, [fetchMessages, filters])
 
   /**
@@ -200,10 +226,10 @@ const Dashboard: React.FC = () => {
 
   // Handle thread reply updates
   const handleThreadReplyAdded = useCallback((data: { parentThreadTs: string, reply: any, channel: string }) => {
-    // Refresh the messages to get the updated parent with new reply
-    console.log('Thread reply added, refreshing messages...')
-    fetchMessages()
-  }, [fetchMessages])
+    console.log('🧵 Thread reply added, refreshing messages:', data)
+    // Refresh the messages to get the updated parent with new reply (silent update)
+    fetchMessages(filters, true)
+  }, [fetchMessages, filters])
 
   // Setup real-time connection
   const { isConnected, disconnect, reconnect } = useRealTimeMessages({
@@ -214,6 +240,11 @@ const Dashboard: React.FC = () => {
     onError: handleRealTimeError,
     enabled: realTimeEnabled
   })
+
+  // Debug connection status
+  useEffect(() => {
+    console.log('🔌 SSE Connection status:', isConnected ? 'CONNECTED' : 'DISCONNECTED')
+  }, [isConnected])
 
   // Fetch messages when filters change
   useEffect(() => {

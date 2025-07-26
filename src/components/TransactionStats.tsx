@@ -3,7 +3,7 @@
  * Displays Slack event processing statistics and system health
  */
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { logger } from '@/lib/logger'
 import { useRealTimeMessages } from '@/hooks/useRealTimeMessages'
 
@@ -41,24 +41,27 @@ export const TransactionStats: React.FC = () => {
   const [expanded, setExpanded] = useState(false)
   const [activeTab, setActiveTab] = useState<'overview' | 'all' | 'failed'>('overview')
 
-  // Handle real-time transaction updates
-  const handleTransactionUpdate = (data: { stats: EventStats, newEvents: FailedEvent[] }) => {
-    logger.sse('📊 Updating transaction stats from SSE:', data)
+  // Handle real-time transaction updates (optimized to prevent UI jumps)
+  const handleTransactionUpdate = useCallback((data: { stats: EventStats, newEvents: FailedEvent[] }) => {
+    console.log('📊 Transaction update received:', data)
+    
+    // Always update stats (was too restrictive before)
     setStats(data.stats)
     
-    // Add new events to the beginning of the lists
+    // Add new events silently without causing UI jumps
     if (data.newEvents.length > 0) {
+      console.log(`✅ Adding ${data.newEvents.length} new transaction events`)
       setAllEvents(prev => [...data.newEvents, ...prev])
       
-      // Update failed events if any of the new events are failed
       const newFailedEvents = data.newEvents.filter(event => event.status === 'FAILED')
       if (newFailedEvents.length > 0) {
+        console.log(`❌ ${newFailedEvents.length} new failed events`)
         setFailedEvents(prev => [...newFailedEvents, ...prev])
       }
     }
-  }
+  }, [])
 
-  // Set up real-time updates
+  // Set up real-time updates (throttled to prevent UI jumps)
   const { isConnected } = useRealTimeMessages({
     onTransactionUpdate: handleTransactionUpdate
   })
@@ -68,7 +71,7 @@ export const TransactionStats: React.FC = () => {
    */
   const fetchStats = async (): Promise<void> => {
     try {
-      console.log('🔍 Fetching stats from /api/admin/events?action=stats')
+    
       const response = await fetch('/api/admin/events?action=stats')
       console.log('📡 Stats response status:', response.status)
       
