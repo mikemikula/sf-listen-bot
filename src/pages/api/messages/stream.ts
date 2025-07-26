@@ -6,6 +6,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
+import { getEventStats } from '@/lib/eventProcessor'
 import type { MessageDisplay } from '@/types'
 import { formatDistanceToNow } from 'date-fns'
 
@@ -63,8 +64,9 @@ export default async function handler(
     let lastCheckTime = new Date()
     let lastMessageCount = 0
     let lastUpdateTime = new Date()
+    let lastEventCount = 0
     
-    // Get initial message count and last update time
+    // Get initial message count, last update time, and event count
     try {
       lastMessageCount = await db.message.count()
       const latestUpdate = await db.message.findFirst({
@@ -74,8 +76,11 @@ export default async function handler(
       if (latestUpdate) {
         lastUpdateTime = latestUpdate.updatedAt
       }
+      
+      const initialStats = await getEventStats()
+      lastEventCount = initialStats.total
     } catch (error) {
-      logger.warn('Could not get initial message stats:', error)
+      logger.warn('Could not get initial message/event stats:', error)
     }
     
     // Poll for changes every 5 seconds (reduced frequency)
@@ -154,6 +159,46 @@ export default async function handler(
             type: 'messages_deleted',
             message: 'Some messages were deleted. Refreshing feed.'
           })}\n\n`)
+        }
+
+        // Check for new transaction events
+        const currentEventStats = await getEventStats()
+        if (currentEventStats.total > lastEventCount) {
+          logger.sse(`📊 New transaction events: ${lastEventCount} -> ${currentEventStats.total}`)
+          
+          // Get the latest events
+          const latestEvents = await db.slackEvent.findMany({
+            where: {
+              createdAt: {
+                gt: lastCheckTime
+              }
+            },
+            orderBy: { createdAt: 'desc' },
+            take: 10,
+            select: {
+              id: true,
+              slackEventId: true,
+              eventType: true,
+              eventSubtype: true,
+              payload: true,
+              status: true,
+              attempts: true,
+              errorMessage: true,
+              channel: true,
+              createdAt: true,
+              lastAttemptAt: true
+            }
+          })
+
+          res.write(`data: ${JSON.stringify({
+            type: 'transaction_update',
+            data: {
+              stats: currentEventStats,
+              newEvents: latestEvents
+            }
+          })}\n\n`)
+          
+          lastEventCount = currentEventStats.total
         }
 
         // Send heartbeat every 60 seconds (reduced frequency)

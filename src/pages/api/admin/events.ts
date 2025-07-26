@@ -27,9 +27,13 @@ export default async function handler(
   const { action = 'stats', status, limit = '50', page = '1' }: EventsQuery = req.query
 
   try {
+    console.log(`🔍 Admin API called with action: ${action}`)
+    
     switch (action) {
       case 'stats':
+        console.log('📊 Fetching event stats...')
         const stats = await getEventStats()
+        console.log('📊 Event stats result:', stats)
         
         return res.status(200).json({
           success: true,
@@ -53,11 +57,14 @@ export default async function handler(
         })
 
       case 'list':
+        console.log(`📋 Listing events with status=${status}, limit=${limit}, page=${page}`)
+        
         const pageNum = parseInt(page)
         const limitNum = parseInt(limit)
         const skip = (pageNum - 1) * limitNum
 
         const whereClause = status ? { status: status as any } : {}
+        console.log('🔍 Where clause:', whereClause)
         
         const events = await db.slackEvent.findMany({
           where: whereClause,
@@ -69,6 +76,7 @@ export default async function handler(
             slackEventId: true,
             eventType: true,
             eventSubtype: true,
+            payload: true, // Include the payload for content analysis
             status: true,
             attempts: true,
             errorMessage: true,
@@ -79,6 +87,9 @@ export default async function handler(
         })
 
         const total = await db.slackEvent.count({ where: whereClause })
+        
+        console.log(`📊 Found ${events.length} events out of ${total} total`)
+        console.log('📋 Events preview:', events.slice(0, 2))
 
         return res.status(200).json({
           success: true,

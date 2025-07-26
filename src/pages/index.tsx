@@ -9,6 +9,7 @@ import { FilterBar } from '@/components/FilterBar'
 import { Header } from '@/components/Header'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
+import { TransactionStats } from '@/components/TransactionStats'
 import { useRealTimeMessages } from '@/hooks/useRealTimeMessages'
 import type { 
   MessageDisplay, 
@@ -251,6 +252,11 @@ const Dashboard: React.FC = () => {
                 </button>
               )}
             </div>
+          </div>
+
+          {/* Transaction Stats */}
+          <div className="mb-6">
+            <TransactionStats />
           </div>
 
           {/* Filter Bar */}

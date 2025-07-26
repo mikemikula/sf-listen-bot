@@ -8,16 +8,17 @@ import { logger } from '@/lib/logger'
 import type { MessageDisplay } from '@/types'
 
 interface UseRealTimeMessagesProps {
-  onNewMessage: (message: MessageDisplay) => void
+  onNewMessage?: (message: MessageDisplay) => void
   onMessageEdited?: (message: MessageDisplay) => void
   onMessagesDeleted?: () => void
+  onTransactionUpdate?: (data: { stats: any, newEvents: any[] }) => void
   onError?: (error: string) => void
   enabled?: boolean
 }
 
 interface SSEMessage {
-  type: 'connected' | 'message' | 'message_edited' | 'messages_deleted' | 'heartbeat' | 'error'
-  data?: MessageDisplay
+  type: 'connected' | 'message' | 'message_edited' | 'messages_deleted' | 'transaction_update' | 'heartbeat' | 'error'
+  data?: MessageDisplay | { stats: any, newEvents: any[] }
   message?: string
   timestamp?: string
 }
@@ -29,6 +30,7 @@ export const useRealTimeMessages = ({
   onNewMessage,
   onMessageEdited,
   onMessagesDeleted,
+  onTransactionUpdate,
   onError,
   enabled = true
 }: UseRealTimeMessagesProps): {
@@ -69,18 +71,23 @@ export const useRealTimeMessages = ({
                break
                
              case 'message':
-               if (data.data) {
+               if (data.data && onNewMessage) {
                  logger.sse('New message received')
-                 onNewMessage(data.data)
+                 onNewMessage(data.data as MessageDisplay)
                }
                break
 
              case 'message_edited':
-               if (data.data) {
+               if (data.data && onMessageEdited) {
                  logger.sse('Message edit received')
-                 if (onMessageEdited) {
-                   onMessageEdited(data.data)
-                 }
+                 onMessageEdited(data.data as MessageDisplay)
+               }
+               break
+
+             case 'transaction_update':
+               if (data.data && onTransactionUpdate) {
+                 logger.sse('Transaction update received')
+                 onTransactionUpdate(data.data as { stats: any, newEvents: any[] })
                }
                break
 
