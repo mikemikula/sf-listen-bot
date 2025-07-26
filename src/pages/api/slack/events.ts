@@ -10,7 +10,8 @@ import {
   parseSlackTimestamp, 
   formatUsername,
   shouldProcessMessage,
-  isMessageDeletion
+  isMessageDeletion,
+  isMessageEdit
 } from '@/lib/slack'
 import type { 
   SlackWebhookPayload, 
@@ -129,6 +130,44 @@ export default async function handler(
               deletedCount: deletedMessage.count 
             },
             message: 'Message deletion processed successfully'
+          })
+        }
+
+        // Handle message edits
+        if (isMessageEdit(event)) {
+          const editedMessage = event.message
+          const previousMessage = event.previous_message
+
+          if (!editedMessage || !previousMessage) {
+            return res.status(400).json({
+              success: false,
+              error: 'Missing edited message data'
+            })
+          }
+
+          // Update the message in database
+          const updatedMessage = await db.message.updateMany({
+            where: {
+              slackId: editedMessage.ts,
+              channel: event.channel
+            },
+            data: {
+              text: editedMessage.text,
+              updatedAt: new Date()
+            }
+          })
+
+          console.log(`✏️ Message edited: ${editedMessage.ts} (${updatedMessage.count} records)`)
+          
+          return res.status(200).json({
+            success: true,
+            data: { 
+              editedSlackId: editedMessage.ts,
+              updatedCount: updatedMessage.count,
+              newText: editedMessage.text,
+              previousText: previousMessage.text
+            },
+            message: 'Message edit processed successfully'
           })
         }
 

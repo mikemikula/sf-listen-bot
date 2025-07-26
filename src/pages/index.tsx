@@ -155,6 +155,25 @@ const Dashboard: React.FC = () => {
   }, [pagination.hasNext, filters.page, handlePageChange])
 
   /**
+   * Handle message edits
+   */
+  const handleMessageEdited = useCallback((editedMessage: MessageDisplay): void => {
+    setMessages(prevMessages => {
+      return prevMessages.map(msg => {
+        // Match by the database ID or Slack ID to update the edited message
+        if ((msg as any).id === (editedMessage as any).id || (msg as any).slackId === (editedMessage as any).slackId) {
+          return {
+            ...editedMessage,
+            // Update the timeAgo since the message was just edited
+            timeAgo: 'just now (edited)'
+          }
+        }
+        return msg
+      })
+    })
+  }, [])
+
+  /**
    * Handle message deletions
    */
   const handleMessagesDeleted = useCallback((): void => {
@@ -172,6 +191,7 @@ const Dashboard: React.FC = () => {
   // Setup real-time connection
   const { isConnected, disconnect, reconnect } = useRealTimeMessages({
     onNewMessage: handleNewMessage,
+    onMessageEdited: handleMessageEdited,
     onMessagesDeleted: handleMessagesDeleted,
     onError: handleRealTimeError,
     enabled: realTimeEnabled

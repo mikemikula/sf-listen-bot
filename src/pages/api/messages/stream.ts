@@ -62,12 +62,20 @@ export default async function handler(
 
     let lastCheckTime = new Date()
     let lastMessageCount = 0
+    let lastUpdateTime = new Date()
     
-    // Get initial message count
+    // Get initial message count and last update time
     try {
       lastMessageCount = await db.message.count()
+      const latestUpdate = await db.message.findFirst({
+        orderBy: { updatedAt: 'desc' },
+        select: { updatedAt: true }
+      })
+      if (latestUpdate) {
+        lastUpdateTime = latestUpdate.updatedAt
+      }
     } catch (error) {
-      logger.warn('Could not get initial message count:', error)
+      logger.warn('Could not get initial message stats:', error)
     }
     
     // Poll for changes every 5 seconds (reduced frequency)
@@ -88,9 +96,25 @@ export default async function handler(
         const currentMessageCount = await db.message.count()
         const hasDeletedMessages = currentMessageCount < lastMessageCount
         
+        // Check for edits by looking for recently updated messages
+        const recentlyUpdated = await db.message.findMany({
+          where: {
+            updatedAt: {
+              gt: lastUpdateTime
+            },
+            createdAt: {
+              lt: lastUpdateTime // Only messages that were created before our last check (so they're edits, not new)
+            }
+          },
+          orderBy: { updatedAt: 'asc' },
+          take: 10
+        })
+        
         // Update tracking variables
         lastCheckTime = new Date()
         lastMessageCount = currentMessageCount
+        const currentUpdateTime = new Date()
+        lastUpdateTime = currentUpdateTime
 
         // Send new messages
         if (newMessages.length > 0) {
@@ -105,6 +129,20 @@ export default async function handler(
             })}\n\n`)
             
             lastMessageId = message.id
+          }
+        }
+
+        // Send edited messages
+        if (recentlyUpdated.length > 0) {
+          logger.sse(`Sending ${recentlyUpdated.length} edited messages`)
+          
+          for (const message of recentlyUpdated) {
+            const displayMessage = transformMessage(message)
+            
+            res.write(`data: ${JSON.stringify({
+              type: 'message_edited',
+              data: displayMessage
+            })}\n\n`)
           }
         }
 

@@ -67,6 +67,12 @@ export interface SlackWebhookPayload {
     event_ts: string
     subtype?: string
     deleted_ts?: string
+    message?: {
+      type: string
+      user: string
+      text: string
+      ts: string
+    }
     previous_message?: {
       type: string
       user: string

@@ -17,6 +17,12 @@ export interface SlackMessage {
   event_ts: string
   subtype?: string
   deleted_ts?: string // For message deletion events
+  message?: {
+    type: string
+    user: string
+    text: string
+    ts: string
+  }
   previous_message?: {
     type: string
     user: string
@@ -120,8 +126,13 @@ export const shouldProcessMessage = (event: SlackMessage): boolean => {
     return true
   }
 
+  // Process message edits
+  if (event.subtype === 'message_changed') {
+    return true
+  }
+
   // Skip other message subtypes we don't want (file uploads, etc.)
-  if (event.subtype && event.subtype !== 'message_deleted') {
+  if (event.subtype && event.subtype !== 'message_deleted' && event.subtype !== 'message_changed') {
     return false
   }
 
@@ -136,4 +147,13 @@ export const shouldProcessMessage = (event: SlackMessage): boolean => {
  */
 export const isMessageDeletion = (event: SlackMessage): boolean => {
   return event.subtype === 'message_deleted' && Boolean(event.deleted_ts)
+}
+
+/**
+ * Check if event is a message edit
+ * @param event - Slack message event
+ * @returns boolean indicating if this is an edit event
+ */
+export const isMessageEdit = (event: SlackMessage): boolean => {
+  return event.subtype === 'message_changed' && Boolean(event.message) && Boolean(event.previous_message)
 } 
