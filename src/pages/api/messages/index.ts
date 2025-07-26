@@ -96,6 +96,11 @@ export default async function handler(
   res: NextApiResponse<ApiResponse<PaginatedMessages>>
 ): Promise<void> {
   
+  // Disable caching for real-time data
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+  res.setHeader('Pragma', 'no-cache')
+  res.setHeader('Expires', '0')
+  
   // Only accept GET requests
   if (req.method !== 'GET') {
     return res.status(405).json({

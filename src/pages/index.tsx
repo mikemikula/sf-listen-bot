@@ -101,7 +101,16 @@ const Dashboard: React.FC = () => {
         }
       })
 
-      const response = await fetch(`/api/messages?${queryParams.toString()}`)
+      // Add cache-busting timestamp
+      queryParams.append('_t', Date.now().toString())
+
+      const response = await fetch(`/api/messages?${queryParams.toString()}`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache'
+        }
+      })
       const result: ApiResponse<PaginatedMessages> = await response.json()
 
       if (!result.success) {
@@ -109,10 +118,6 @@ const Dashboard: React.FC = () => {
       }
 
       if (result.data) {
-        console.log('🐛 Debug - Messages received from API:', result.data.messages.length)
-        console.log('🐛 Debug - First message:', result.data.messages[0]?.text)
-        console.log('🐛 Debug - All messages:', result.data.messages.map(m => ({ text: m.text, id: m.id })))
-        
         setMessages(result.data.messages)
         setPagination(result.data.pagination)
 
