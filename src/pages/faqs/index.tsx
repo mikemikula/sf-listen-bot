@@ -1,0 +1,531 @@
+/**
+ * FAQs Index Page
+ * Main interface for FAQ management with comprehensive filtering, approval workflows,
+ * creation capabilities, and integration with processing APIs
+ */
+
+import React, { useState, useEffect, useCallback } from 'react'
+import Head from 'next/head'
+import Link from 'next/link'
+import { useRouter } from 'next/router'
+import FAQCard from '@/components/faqs/FAQCard'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { Header } from '@/components/Header'
+import { FAQDisplay, FAQFilters, PaginatedFAQs } from '@/types'
+
+/**
+ * FAQ creation modal interface
+ */
+interface CreateFAQModalProps {
+  isOpen: boolean
+  onClose: () => void
+  onSubmit: (data: any) => void
+}
+
+const CreateFAQModal: React.FC<CreateFAQModalProps> = ({ isOpen, onClose, onSubmit }) => {
+  const [question, setQuestion] = useState('')
+  const [answer, setAnswer] = useState('')
+  const [category, setCategory] = useState('Support')
+  const [submitting, setSubmitting] = useState(false)
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!question.trim() || !answer.trim()) return
+
+    setSubmitting(true)
+    try {
+      await onSubmit({
+        question: question.trim(),
+        answer: answer.trim(),
+        category: category.trim()
+      })
+      
+      // Reset form
+      setQuestion('')
+      setAnswer('')
+      setCategory('Support')
+      onClose()
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  if (!isOpen) return null
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+              Create New FAQ
+            </h2>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Question *
+              </label>
+              <input
+                type="text"
+                value={question}
+                onChange={(e) => setQuestion(e.target.value)}
+                required
+                className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Enter the question..."
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Category
+              </label>
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="Support">Support</option>
+                <option value="Technical">Technical</option>
+                <option value="General">General</option>
+                <option value="Documentation">Documentation</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Answer *
+              </label>
+              <textarea
+                value={answer}
+                onChange={(e) => setAnswer(e.target.value)}
+                required
+                rows={6}
+                className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Enter the answer..."
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={submitting || !question.trim() || !answer.trim()}
+                className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {submitting ? 'Creating...' : 'Create FAQ'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Main FAQs Page
+ */
+const FAQsPage: React.FC = () => {
+  const router = useRouter()
+  const [faqs, setFAQs] = useState<FAQDisplay[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [showCreateModal, setShowCreateModal] = useState(false)
+  const [processing, setProcessing] = useState(false)
+  const [notification, setNotification] = useState<{ type: 'success' | 'error', message: string } | null>(null)
+
+  // Filter state
+  const [statusFilter, setStatusFilter] = useState('')
+  const [categoryFilter, setCategoryFilter] = useState('')
+  const [searchTerm, setSearchTerm] = useState('')
+
+  /**
+   * Show notification temporarily
+   */
+  const showNotification = useCallback((type: 'success' | 'error', message: string) => {
+    setNotification({ type, message })
+    setTimeout(() => setNotification(null), 5000)
+  }, [])
+
+  /**
+   * Fetch FAQs from API
+   */
+  const fetchFAQs = useCallback(async () => {
+    try {
+      setLoading(true)
+      setError(null)
+
+      const queryParams = new URLSearchParams()
+      if (statusFilter) queryParams.append('status', statusFilter)
+      if (categoryFilter) queryParams.append('category', categoryFilter)
+      if (searchTerm) queryParams.append('search', searchTerm)
+
+      const response = await fetch(`/api/faqs?${queryParams.toString()}`)
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch FAQs: ${response.statusText}`)
+      }
+
+      const result = await response.json()
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to fetch FAQs')
+      }
+
+      const data: PaginatedFAQs = result.data
+      setFAQs(data.faqs || [])
+
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred'
+      setError(errorMessage)
+      console.error('Failed to fetch FAQs:', err)
+    } finally {
+      setLoading(false)
+    }
+  }, [statusFilter, categoryFilter, searchTerm])
+
+  // Fetch FAQs on component mount and when filters change
+  useEffect(() => {
+    fetchFAQs()
+  }, [fetchFAQs])
+
+  /**
+   * Handle FAQ creation
+   */
+  const handleCreateFAQ = useCallback(async (data: any) => {
+    try {
+      setProcessing(true)
+      
+      const response = await fetch('/api/faqs', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || 'Failed to create FAQ')
+      }
+
+      showNotification('success', 'FAQ created successfully!')
+      fetchFAQs() // Refresh the FAQ list
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to create FAQ'
+      showNotification('error', errorMessage)
+      console.error('Failed to create FAQ:', error)
+    } finally {
+      setProcessing(false)
+    }
+  }, [showNotification, fetchFAQs])
+
+  /**
+   * Handle FAQ approval
+   */
+  const handleApproveFAQ = useCallback(async (faqId: string) => {
+    try {
+      setProcessing(true)
+      
+      const response = await fetch('/api/faqs', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: faqId,
+          action: 'approve',
+          reviewedBy: 'current-user' // TODO: Get from auth context
+        }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || 'Failed to approve FAQ')
+      }
+
+      showNotification('success', 'FAQ approved successfully!')
+      fetchFAQs() // Refresh the FAQ list
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to approve FAQ'
+      showNotification('error', errorMessage)
+      console.error('Failed to approve FAQ:', error)
+    } finally {
+      setProcessing(false)
+    }
+  }, [showNotification, fetchFAQs])
+
+  /**
+   * Handle FAQ rejection
+   */
+  const handleRejectFAQ = useCallback(async (faqId: string) => {
+    try {
+      setProcessing(true)
+      
+      const response = await fetch('/api/faqs', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: faqId,
+          action: 'reject',
+          reviewedBy: 'current-user' // TODO: Get from auth context
+        }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || 'Failed to reject FAQ')
+      }
+
+      showNotification('success', 'FAQ rejected successfully!')
+      fetchFAQs() // Refresh the FAQ list
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to reject FAQ'
+      showNotification('error', errorMessage)
+      console.error('Failed to reject FAQ:', error)
+    } finally {
+      setProcessing(false)
+    }
+  }, [showNotification, fetchFAQs])
+
+  /**
+   * Handle FAQ deletion
+   */
+  const handleDeleteFAQ = useCallback(async (faqId: string) => {
+    if (!confirm('Are you sure you want to delete this FAQ? This action cannot be undone.')) {
+      return
+    }
+
+    try {
+      setProcessing(true)
+      
+      const response = await fetch('/api/faqs', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ id: faqId }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || 'Failed to delete FAQ')
+      }
+
+      showNotification('success', 'FAQ deleted successfully!')
+      fetchFAQs() // Refresh the FAQ list
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to delete FAQ'
+      showNotification('error', errorMessage)
+      console.error('Failed to delete FAQ:', error)
+    } finally {
+      setProcessing(false)
+    }
+  }, [showNotification, fetchFAQs])
+
+  return (
+    <>
+      <Head>
+        <title>FAQs - SF Listen Bot</title>
+        <meta name="description" content="Manage and review AI-generated FAQs from Slack conversations" />
+      </Head>
+
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+        <Header isConnected={true} onDebugClick={() => {}} />
+        
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {/* Page Header */}
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">FAQs</h1>
+              <p className="text-gray-600 dark:text-gray-400 mt-2">
+                Manage AI-generated FAQs from your Slack conversations
+              </p>
+            </div>
+            
+            <div className="flex items-center gap-4">
+              <Link
+                href="/documents"
+                className="px-4 py-2 text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 border border-blue-300 dark:border-blue-600 rounded-md hover:bg-blue-50 dark:hover:bg-blue-900 transition-colors duration-200"
+              >
+                View Documents
+              </Link>
+              
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors duration-200"
+              >
+                Create FAQ
+              </button>
+            </div>
+          </div>
+
+          {/* Filters */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="flex-1">
+                <input
+                  type="text"
+                  placeholder="Search FAQs..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">All Status</option>
+                  <option value="PENDING">Pending</option>
+                  <option value="APPROVED">Approved</option>
+                  <option value="REJECTED">Rejected</option>
+                </select>
+              </div>
+
+              <div>
+                <select
+                  value={categoryFilter}
+                  onChange={(e) => setCategoryFilter(e.target.value)}
+                  className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">All Categories</option>
+                  <option value="Support">Support</option>
+                  <option value="Technical">Technical</option>
+                  <option value="General">General</option>
+                  <option value="Documentation">Documentation</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Notification */}
+          {notification && (
+            <div className={`mb-6 p-4 rounded-lg border ${
+              notification.type === 'success'
+                ? 'bg-green-50 border-green-200 text-green-800 dark:bg-green-900 dark:border-green-700 dark:text-green-200'
+                : 'bg-red-50 border-red-200 text-red-800 dark:bg-red-900 dark:border-red-700 dark:text-red-200'
+            }`}>
+              <div className="flex items-center gap-2">
+                {notification.type === 'success' ? (
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                ) : (
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                )}
+                <span className="text-sm font-medium">{notification.message}</span>
+              </div>
+            </div>
+          )}
+
+          {/* Processing Overlay */}
+          {processing && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 z-40 flex items-center justify-center">
+              <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-xl">
+                <div className="flex items-center gap-4">
+                  <LoadingSpinner />
+                  <span className="text-gray-900 dark:text-white">Processing...</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Loading State */}
+          {loading && (
+            <div className="flex justify-center py-12">
+              <LoadingSpinner />
+            </div>
+          )}
+
+          {/* Error State */}
+          {error && !loading && (
+            <div className="bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700 rounded-lg p-4">
+              <div className="flex items-center gap-2">
+                <svg className="h-5 w-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span className="text-sm font-medium text-red-800 dark:text-red-200">Error</span>
+              </div>
+              <p className="text-sm text-red-700 dark:text-red-300 mt-1">{error}</p>
+              <button
+                onClick={fetchFAQs}
+                className="text-sm text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-200 mt-2 underline"
+              >
+                Try again
+              </button>
+            </div>
+          )}
+
+          {/* Empty State */}
+          {!loading && !error && faqs.length === 0 && (
+            <div className="text-center py-12">
+              <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">No FAQs found</h3>
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                Get started by creating a FAQ or generating them from documents.
+              </p>
+            </div>
+          )}
+
+          {/* FAQ Grid */}
+          {!loading && !error && faqs.length > 0 && (
+            <div className="space-y-6">
+              {faqs.map((faq) => (
+                <FAQCard
+                  key={faq.id}
+                  faq={faq}
+                  onApprove={handleApproveFAQ}
+                  onReject={handleRejectFAQ}
+                  onDelete={handleDeleteFAQ}
+                />
+              ))}
+            </div>
+          )}
+        </main>
+
+        {/* Create FAQ Modal */}
+        <CreateFAQModal
+          isOpen={showCreateModal}
+          onClose={() => setShowCreateModal(false)}
+          onSubmit={handleCreateFAQ}
+        />
+      </div>
+    </>
+  )
+}
+
+export default FAQsPage 

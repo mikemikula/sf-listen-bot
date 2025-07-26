@@ -59,8 +59,11 @@ export const useRealTimeMessages = ({
        eventSourceRef.current = eventSource
 
                eventSource.onopen = () => {
-          console.log('🔌 SSE connection established')
-          logger.sse('Real-time connection established')
+          // Only log if this is a new connection (not a reconnection)
+          if (!isConnected) {
+            console.log('🔌 SSE connection established')
+            logger.sse('Real-time connection established')
+          }
           setIsConnected(true)
         }
 
@@ -155,7 +158,7 @@ export const useRealTimeMessages = ({
          onError('Failed to establish real-time connection')
        }
      }
-   }, [enabled, onNewMessage, onMessageEdited, onMessagesDeleted, onError]) // eslint-disable-line react-hooks/exhaustive-deps
+   }, [enabled]) // Stable dependency array to prevent frequent reconnections
 
   /**
    * Disconnect from SSE stream
@@ -182,7 +185,7 @@ export const useRealTimeMessages = ({
     setTimeout(connect, 1000) // Wait 1 second before reconnecting
   }, [disconnect, connect])
 
-  // Setup connection on mount
+  // Setup connection on mount and cleanup on unmount
   useEffect(() => {
     if (enabled) {
       connect()
@@ -190,15 +193,11 @@ export const useRealTimeMessages = ({
 
     return () => {
       disconnect()
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current)
+      }
     }
-  }, [enabled, connect, disconnect])
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      disconnect()
-    }
-  }, [disconnect])
+  }, [enabled]) // Only depend on enabled to avoid unnecessary reconnections
 
   return {
     isConnected,

@@ -1,8 +1,10 @@
 /**
- * Header component with Tailwind v4 navigation dropdown
+ * Header component with comprehensive navigation for document processing and FAQ features
  */
 
 import React, { useState, useRef, useEffect } from 'react'
+import Link from 'next/link'
+import { useRouter } from 'next/router'
 
 interface HeaderProps {
   isConnected: boolean
@@ -12,6 +14,7 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({ isConnected, onDebugClick }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
+  const router = useRouter()
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -25,12 +28,16 @@ export const Header: React.FC<HeaderProps> = ({ isConnected, onDebugClick }) => 
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
+  const isActivePage = (path: string) => {
+    return router.pathname === path || router.pathname.startsWith(path + '/')
+  }
+
   return (
     <header className="bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-800 shadow-lg sticky top-0 z-50 border-b border-white/10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Brand */}
-          <div className="flex items-center space-x-3">
+          <Link href="/" className="flex items-center space-x-3 hover:opacity-90 transition-opacity">
             <div className="flex-shrink-0">
               <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center border border-white/20">
                 <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -39,100 +46,174 @@ export const Header: React.FC<HeaderProps> = ({ isConnected, onDebugClick }) => 
               </div>
             </div>
             <div>
-              <h1 className="text-xl font-bold text-white">Listen Bot</h1>
-              <p className="text-sm text-white/80 font-medium">Slack Message Monitor</p>
+              <h1 className="text-xl font-bold text-white">SF Listen Bot</h1>
+              <p className="text-sm text-white/80 font-medium">Document Processing & FAQ Generation</p>
+            </div>
+          </Link>
+
+          {/* Main Navigation */}
+          <nav className="hidden md:flex items-center space-x-1">
+            <Link
+              href="/"
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                isActivePage('/') && router.pathname === '/'
+                  ? 'bg-white/20 text-white shadow-lg'
+                  : 'text-white/80 hover:text-white hover:bg-white/10'
+              }`}
+            >
+              Messages
+            </Link>
+            
+            <Link
+              href="/documents"
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                isActivePage('/documents')
+                  ? 'bg-white/20 text-white shadow-lg'
+                  : 'text-white/80 hover:text-white hover:bg-white/10'
+              }`}
+            >
+              Documents
+            </Link>
+            
+            <Link
+              href="/faqs"
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                isActivePage('/faqs')
+                  ? 'bg-white/20 text-white shadow-lg'
+                  : 'text-white/80 hover:text-white hover:bg-white/10'
+              }`}
+            >
+              FAQs
+            </Link>
+            
+            <Link
+              href="/processing/dashboard"
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                isActivePage('/processing')
+                  ? 'bg-white/20 text-white shadow-lg'
+                  : 'text-white/80 hover:text-white hover:bg-white/10'
+              }`}
+            >
+              Processing
+            </Link>
+          </nav>
+
+          {/* Right Side Actions */}
+          <div className="flex items-center space-x-4">
+            {/* Connection Status */}
+            <div className="hidden sm:flex items-center space-x-2">
+              <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-400' : 'bg-red-400'}`} />
+              <span className="text-sm text-white/80">
+                {isConnected ? 'Connected' : 'Disconnected'}
+              </span>
+            </div>
+
+            {/* Mobile Menu & Actions Dropdown */}
+            <div className="relative" ref={dropdownRef}>
+              <button
+                onClick={() => setIsMenuOpen(!isMenuOpen)}
+                className="flex items-center space-x-2 px-3 py-2 rounded-lg bg-white/10 backdrop-blur-sm text-white hover:bg-white/20 transition-all duration-200 border border-white/20"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+                <span className="text-sm font-medium">Menu</span>
+              </button>
+
+              {isMenuOpen && (
+                <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 py-2 z-50">
+                  {/* Mobile Navigation Links */}
+                  <div className="block md:hidden border-b border-gray-200 dark:border-gray-700 pb-2 mb-2">
+                    <Link
+                      href="/"
+                      onClick={() => setIsMenuOpen(false)}
+                      className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                    >
+                      📧 Messages
+                    </Link>
+                    <Link
+                      href="/documents"
+                      onClick={() => setIsMenuOpen(false)}
+                      className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                    >
+                      📄 Documents
+                    </Link>
+                    <Link
+                      href="/faqs"
+                      onClick={() => setIsMenuOpen(false)}
+                      className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                    >
+                      ❓ FAQs
+                    </Link>
+                    <Link
+                      href="/processing/dashboard"
+                      onClick={() => setIsMenuOpen(false)}
+                      className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                    >
+                      ⚙️ Processing
+                    </Link>
+                  </div>
+
+                  {/* Quick Actions */}
+                  <div className="border-b border-gray-200 dark:border-gray-700 pb-2 mb-2">
+                    <Link
+                      href="/documents?action=create"
+                      onClick={() => setIsMenuOpen(false)}
+                      className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                    >
+                      ➕ Create Document
+                    </Link>
+                    <Link
+                      href="/faqs?action=create"
+                      onClick={() => setIsMenuOpen(false)}
+                      className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                    >
+                      🤖 Generate FAQs
+                    </Link>
+                    <Link
+                      href="/messages/browse"
+                      onClick={() => setIsMenuOpen(false)}
+                      className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                    >
+                      🔍 Browse Messages
+                    </Link>
+                  </div>
+
+                  {/* System Actions */}
+                  <button
+                    onClick={() => {
+                      onDebugClick()
+                      setIsMenuOpen(false)
+                    }}
+                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                  >
+                    🐛 Debug Events
+                  </button>
+                  
+                  <Link
+                    href="/processing/dashboard"
+                    onClick={() => setIsMenuOpen(false)}
+                    className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                  >
+                    📊 System Status
+                  </Link>
+                  
+                  <Link
+                    href="/api/health"
+                    target="_blank"
+                    onClick={() => setIsMenuOpen(false)}
+                    className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                  >
+                    🩺 Health Check
+                  </Link>
+                </div>
+              )}
             </div>
           </div>
-
-          {/* Navigation Menu */}
-          <nav className="relative" ref={dropdownRef}>
-            <button
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="inline-flex items-center space-x-2 px-4 py-2 rounded-lg bg-white/10 backdrop-blur-sm border border-white/20 text-white font-medium transition-all duration-200 hover:bg-white/20 hover:border-white/30 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-white/50"
-              aria-expanded={isMenuOpen}
-            >
-              <span>Menu</span>
-              <svg 
-                className={`w-4 h-4 transition-transform duration-200 ${isMenuOpen ? 'rotate-180' : ''}`}
-                fill="none" 
-                viewBox="0 0 24 24" 
-                stroke="currentColor"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-
-            {/* Dropdown Menu */}
-            {isMenuOpen && (
-              <div className="absolute right-0 mt-2 w-72 bg-white rounded-xl shadow-xl border border-gray-200 py-2 z-50 animate-in slide-in-from-top-2 duration-200">
-                {/* Debug Menu Item */}
-                <button
-                  onClick={() => {
-                    onDebugClick()
-                    setIsMenuOpen(false)
-                  }}
-                  className="w-full px-4 py-3 flex items-center space-x-3 hover:bg-gray-50 transition-colors duration-150 text-left group"
-                >
-                  <div className="flex-shrink-0">
-                    <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center group-hover:bg-indigo-100 transition-colors">
-                      <span className="text-base">🔧</span>
-                    </div>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-semibold text-gray-900 group-hover:text-indigo-900">
-                        System Debug
-                      </p>
-                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                        isConnected 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-red-100 text-red-800'
-                      }`}>
-                        <div className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
-                          isConnected ? 'bg-green-500' : 'bg-red-500'
-                        }`} />
-                        {isConnected ? 'Live' : 'Disconnected'}
-                      </span>
-                    </div>
-                    <p className="text-xs text-gray-500 mt-1">
-                      View system health and transaction logs
-                    </p>
-                  </div>
-                </button>
-
-                {/* Divider */}
-                <div className="my-2 border-t border-gray-100" />
-
-                {/* Documentation Menu Item */}
-                <button
-                  onClick={() => {
-                    window.open('https://github.com', '_blank')
-                    setIsMenuOpen(false)
-                  }}
-                  className="w-full px-4 py-3 flex items-center space-x-3 hover:bg-gray-50 transition-colors duration-150 text-left group"
-                >
-                  <div className="flex-shrink-0">
-                    <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center group-hover:bg-blue-100 transition-colors">
-                      <span className="text-base">📚</span>
-                    </div>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-gray-900 group-hover:text-blue-900">
-                      Documentation
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      Setup guides and API reference
-                    </p>
-                  </div>
-                  <svg className="w-4 h-4 text-gray-400 group-hover:text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                  </svg>
-                </button>
-              </div>
-            )}
-          </nav>
         </div>
       </div>
     </header>
   )
-} 
+}
+
+export default Header 
