@@ -109,6 +109,10 @@ const Dashboard: React.FC = () => {
       }
 
       if (result.data) {
+        console.log('🐛 Debug - Messages received from API:', result.data.messages.length)
+        console.log('🐛 Debug - First message:', result.data.messages[0]?.text)
+        console.log('🐛 Debug - All messages:', result.data.messages.map(m => ({ text: m.text, id: m.id })))
+        
         setMessages(result.data.messages)
         setPagination(result.data.pagination)
 
