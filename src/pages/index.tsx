@@ -9,7 +9,7 @@ import { FilterBar } from '@/components/FilterBar'
 import { Header } from '@/components/Header'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
-import { TransactionStats } from '@/components/TransactionStats'
+import { DebugModal } from '@/components/DebugModal'
 import { useRealTimeMessages } from '@/hooks/useRealTimeMessages'
 import type { 
   MessageDisplay, 
@@ -40,6 +40,7 @@ const Dashboard: React.FC = () => {
   })
   const [channels, setChannels] = useState<string[]>([])
   const [realTimeEnabled, setRealTimeEnabled] = useState(true)
+  const [debugModalOpen, setDebugModalOpen] = useState(false)
 
   /**
    * Handle new real-time messages
@@ -255,7 +256,10 @@ const Dashboard: React.FC = () => {
     <ErrorBoundary>
       <div className="min-h-screen bg-gray-50">
         {/* Header */}
-        <Header />
+        <Header 
+          isConnected={isConnected}
+          onDebugClick={() => setDebugModalOpen(true)}
+        />
 
         {/* Main Content */}
         <main className="container mx-auto px-4 py-6 max-w-6xl">
@@ -302,10 +306,12 @@ const Dashboard: React.FC = () => {
             </div>
           </div>
 
-          {/* Transaction Stats */}
-          <div className="mb-6">
-            <TransactionStats />
-          </div>
+          {/* Debug Modal (opened from header menu) */}
+          <DebugModal 
+            isOpen={debugModalOpen}
+            onClose={() => setDebugModalOpen(false)}
+            isConnected={isConnected}
+          />
 
           {/* Filter Bar */}
           <div className="mb-6">
