@@ -265,8 +265,8 @@ export default async function handler(
           lastEventCount = currentEventStats.total
         }
 
-        // Send heartbeat every 60 seconds (reduced frequency)
-        if (Date.now() % 60000 < 5000) {
+        // Send heartbeat every 30 seconds
+        if (Date.now() % 30000 < 2000) {
           res.write(`data: ${JSON.stringify({
             type: 'heartbeat',
             timestamp: new Date().toISOString()
@@ -280,7 +280,7 @@ export default async function handler(
           message: 'Error fetching new messages'
         })}\n\n`)
       }
-    }, 5000) // Poll every 5 seconds (reduced from 2s)
+    }, 2000) // Poll every 2 seconds for faster updates
 
     // Clean up on client disconnect
     req.on('close', () => {
