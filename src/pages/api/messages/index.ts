@@ -24,7 +24,7 @@ const parseFilters = (query: NextApiRequest['query']): MessageFilters => {
     startDate: query.startDate as string,
     endDate: query.endDate as string,
     page: query.page ? parseInt(query.page as string) : 1,
-    limit: query.limit ? parseInt(query.limit as string) : 20,
+    limit: query.limit ? parseInt(query.limit as string) : 50,
   }
 }
 
@@ -108,7 +108,7 @@ export default async function handler(
 
     const filters = parseFilters(req.query)
     const page = filters.page || 1
-    const limit = Math.min(filters.limit || 20, 100) // Max 100 per page
+    const limit = Math.min(filters.limit || 50, 100) // Max 100 per page
     const skip = (page - 1) * limit
 
     const whereClause = buildWhereClause(filters)

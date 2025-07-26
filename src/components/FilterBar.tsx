@@ -57,7 +57,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
       startDate: '',
       endDate: '',
       page: 1,
-      limit: filters.limit || 20
+      limit: filters.limit || 50
     })
   }, [filters.limit, onFiltersChange])
 

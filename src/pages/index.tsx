@@ -28,7 +28,7 @@ const Dashboard: React.FC = () => {
     channel: '',
     search: '',
     page: 1,
-    limit: 20
+    limit: 50
   })
   const [pagination, setPagination] = useState({
     hasNext: false,
