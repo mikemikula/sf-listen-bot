@@ -12,6 +12,7 @@ import { Header } from '@/components/Header'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { DocumentDisplay, MessageDisplay, FAQDisplay, ApiResponse } from '@/types'
 import { logger } from '@/lib/logger'
+import DuplicateReviewModal from '@/components/documents/DuplicateReviewModal'
 
 /**
  * Document metadata component
@@ -773,16 +774,49 @@ export default function DocumentDetailPage(): JSX.Element {
     }
   }, [document, showNotification, router])
 
+  // State for duplicate review modal
+  const [showDuplicateModal, setShowDuplicateModal] = React.useState(false)
+  const [potentialDuplicates, setPotentialDuplicates] = React.useState<any[]>([])
+
   /**
-   * Handle FAQ generation
+   * Handle FAQ generation with duplicate checking
    */
   const handleGenerateFAQs = useCallback(async () => {
     if (!document) return
 
     try {
       setProcessing(true)
+      showNotification('success', 'Checking for potential duplicates...')
+
+      // First, check for potential duplicates
+      const duplicateCheckResponse = await fetch('/api/faqs/generate-with-review', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          documentId: document.id,
+          userId: 'system'
+        }),
+      })
+
+      const duplicateResult = await duplicateCheckResponse.json()
+
+      if (!duplicateCheckResponse.ok || !duplicateResult.success) {
+        throw new Error(duplicateResult.error || 'Failed to check for duplicates')
+      }
+
+      // If there are potential duplicates, show the review modal
+      if (duplicateResult.data?.potentialDuplicates && duplicateResult.data.potentialDuplicates.length > 0) {
+        setPotentialDuplicates(duplicateResult.data.potentialDuplicates)
+        setShowDuplicateModal(true)
+        setProcessing(false) // Stop processing, wait for user decision
+        return
+      }
+
+      // No duplicates found, proceed with normal FAQ generation
       showNotification('success', 'Generating FAQs from your Q&A pairs...')
-      
+
       const response = await fetch(`/api/faqs/generate`, {
         method: 'POST',
         headers: {
@@ -799,26 +833,81 @@ export default function DocumentDetailPage(): JSX.Element {
         throw new Error(result.error || 'Failed to generate FAQs')
       }
 
-      // Show success message with count
-      const faqCount = result.data?.faqs?.length || 0
-      showNotification('success', `Successfully generated ${faqCount} FAQs! 🎉`)
+      // Show success message
+      showNotification('success', 'Successfully generated FAQs! 🎉')
       
       // Refresh the document data to show new FAQs
       await fetchDocument()
       
-      // Scroll to FAQs section if FAQs were generated
-      if (faqCount > 0) {
+      // Always scroll to FAQs section after generation
+      setTimeout(() => {
+        const faqSection = window.document.getElementById('generated-faqs-section')
+        if (faqSection) {
+          faqSection.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }
+      }, 500)
+
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to generate FAQs'
+      logger.error('FAQ generation failed:', err)
+      showNotification('error', errorMessage)
+    } finally {
+      setProcessing(false)
+    }
+  }, [document, fetchDocument, showNotification])
+
+  /**
+   * Handle duplicate review decisions
+   */
+  const handleDuplicateDecisions = useCallback(async (decisions: Array<{
+    candidateIndex: number
+    action: 'skip' | 'create' | 'enhance'
+    targetFAQId?: string
+  }>) => {
+    try {
+      setProcessing(true)
+      setShowDuplicateModal(false)
+      showNotification('success', 'Processing your decisions...')
+
+      // TODO: Implement API endpoint to handle user decisions
+      // For now, we'll just proceed with normal FAQ generation for 'create' actions
+      const createActions = decisions.filter(d => d.action === 'create')
+      
+      if (createActions.length > 0 && document) {
+        const response = await fetch(`/api/faqs/generate`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            documentId: document.id,
+            skipDuplicateCheck: true // Skip duplicate check since user already reviewed
+          }),
+        })
+
+        const result = await response.json()
+
+        if (!response.ok || !result.success) {
+          throw new Error(result.error || 'Failed to generate FAQs')
+        }
+
+        showNotification('success', 'Successfully processed decisions and generated FAQs! 🎉')
+        
+        await fetchDocument()
+        
         setTimeout(() => {
           const faqSection = window.document.getElementById('generated-faqs-section')
           if (faqSection) {
             faqSection.scrollIntoView({ behavior: 'smooth', block: 'start' })
           }
         }, 500)
+      } else {
+        showNotification('success', 'All FAQ candidates were skipped or enhanced existing FAQs.')
       }
 
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to generate FAQs'
-      logger.error('FAQ generation failed:', err)
+      const errorMessage = err instanceof Error ? err.message : 'Failed to process decisions'
+      logger.error('Duplicate decision processing failed:', err)
       showNotification('error', errorMessage)
     } finally {
       setProcessing(false)
@@ -1062,6 +1151,14 @@ export default function DocumentDetailPage(): JSX.Element {
             </div>
           </div>
         )}
+
+        {/* Duplicate Review Modal */}
+        <DuplicateReviewModal
+          isOpen={showDuplicateModal}
+          onClose={() => setShowDuplicateModal(false)}
+          duplicates={potentialDuplicates}
+          onResolve={handleDuplicateDecisions}
+        />
       </main>
     </div>
   )

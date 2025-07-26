@@ -12,7 +12,6 @@ import {
   FAQ,
   ProcessedDocument,
   FAQGenerationInput,
-  FAQGenerationResult,
   DocumentFAQ,
   MessageFAQ,
   FAQStatus,
@@ -37,6 +36,34 @@ interface FAQGenerationStats {
   newFAQsCreated: number
   processingTime: number
   averageConfidence: number
+}
+
+/**
+ * FAQ generation result with potential duplicates
+ */
+interface FAQGenerationResult {
+  success: boolean
+  stats: FAQGenerationStats
+  error?: string
+  // New: Include potential duplicates for user review
+  potentialDuplicates?: Array<{
+    candidateFAQ: {
+      question: string
+      answer: string
+      category: string
+      confidence: number
+    }
+    duplicateMatches: Array<{
+      id: string
+      score: number
+      metadata: {
+        category: string
+        status: string
+        question: string
+      }
+      existingAnswer?: string
+    }>
+  }>
 }
 
 /**
@@ -84,24 +111,148 @@ class FAQGeneratorService {
       await this.storeFAQEmbeddings(processingResults.createdFAQs)
 
       const result: FAQGenerationResult = {
-        faqs: processingResults.createdFAQs,
-        duplicatesFound: processingResults.duplicatesFound,
-        enhancedExisting: processingResults.enhancedExisting,
-        processingTime: Date.now() - startTime
+        success: true,
+                 stats: {
+           candidatesGenerated: faqCandidates.length,
+           duplicatesFound: processingResults.duplicatesFound,
+           duplicatesEnhanced: processingResults.enhancedExisting,
+           newFAQsCreated: processingResults.createdFAQs.length,
+           processingTime: Date.now() - startTime,
+           averageConfidence: processingResults.createdFAQs.length > 0 
+             ? processingResults.createdFAQs.reduce((sum, faq) => sum + faq.confidenceScore, 0) / processingResults.createdFAQs.length 
+             : 0
+         },
+        potentialDuplicates: undefined // No potential duplicates returned here
       }
 
       // DEBUG: Check existing FAQs after we finish
       const allFAQsAfter = await db.fAQ.count()
       const allDocumentFAQsAfter = await db.documentFAQ.count()
       console.log(`🔍 AFTER FAQ generation - Total FAQs: ${allFAQsAfter}, DocumentFAQ relationships: ${allDocumentFAQsAfter}`)
-      console.log(`📊 FAQ generation results: Created ${result.faqs.length} FAQs, Found ${result.duplicatesFound} duplicates, Enhanced ${result.enhancedExisting} existing`)
+      console.log(`📊 FAQ generation results: Created ${result.stats.newFAQsCreated} FAQs, Found ${result.stats.duplicatesFound} duplicates, Enhanced ${result.stats.duplicatesEnhanced} existing`)
 
-      logger.info(`FAQ generation completed: ${result.faqs.length} FAQs created (${result.processingTime}ms)`)
+      logger.info(`FAQ generation completed: ${result.stats.newFAQsCreated} FAQs created (${result.stats.processingTime}ms)`)
       return result
 
     } catch (error) {
       logger.error(`FAQ generation failed for document ${input.documentId}:`, error)
       throw new ProcessingError(`FAQ generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
+  }
+
+  /**
+   * Generate FAQ candidates and return potential duplicates for user review
+   */
+  async generateFAQCandidatesWithDuplicateCheck(
+    input: FAQGenerationInput
+  ): Promise<FAQGenerationResult> {
+    const startTime = Date.now()
+    
+    try {
+      logger.info(`Starting FAQ candidate generation for document ${input.documentId}`)
+      
+             // Step 1: Fetch document and messages
+       const document = await this.fetchDocumentWithMessages(input.documentId)
+      
+      // Step 2: Generate FAQ candidates using AI
+      const faqCandidates = await this.generateFAQCandidates(document, input)
+      
+      // Step 3: Check for duplicates but don't process them
+      const potentialDuplicates: Array<{
+        candidateFAQ: {
+          question: string
+          answer: string
+          category: string
+          confidence: number
+        }
+        duplicateMatches: Array<{
+          id: string
+          score: number
+          metadata: {
+            category: string
+            status: string
+            question: string
+          }
+          existingAnswer?: string
+        }>
+      }> = []
+
+      for (const candidate of faqCandidates) {
+        try {
+          // Check for duplicates using Pinecone semantic similarity
+          const duplicateCheck = await pineconeService.findDuplicateFAQs({
+            question: candidate.question,
+            answer: candidate.answer,
+            category: candidate.category
+          })
+
+          if (duplicateCheck.isDuplicate && duplicateCheck.matches.length > 0) {
+            // Fetch existing FAQ answers for better comparison
+            const enrichedMatches = await Promise.all(
+              duplicateCheck.matches.map(async (match) => {
+                try {
+                  const existingFAQ = await db.fAQ.findUnique({
+                    where: { id: match.id },
+                    select: { answer: true }
+                  })
+                  return {
+                    ...match,
+                    existingAnswer: existingFAQ?.answer || undefined
+                  }
+                } catch (error) {
+                  return match
+                }
+              })
+            )
+
+            potentialDuplicates.push({
+              candidateFAQ: {
+                question: candidate.question,
+                answer: candidate.answer,
+                category: candidate.category,
+                confidence: candidate.confidence
+              },
+              duplicateMatches: enrichedMatches
+            })
+          }
+        } catch (error) {
+          logger.warn(`Failed to check duplicates for candidate "${candidate.question}":`, error)
+          // Continue processing other candidates
+        }
+      }
+
+      const result: FAQGenerationResult = {
+        success: true,
+        stats: {
+          candidatesGenerated: faqCandidates.length,
+          duplicatesFound: potentialDuplicates.length,
+          duplicatesEnhanced: 0, // No processing done yet
+          newFAQsCreated: 0, // No FAQs created yet
+          processingTime: Date.now() - startTime,
+          averageConfidence: faqCandidates.length > 0 
+            ? faqCandidates.reduce((sum, faq) => sum + faq.confidence, 0) / faqCandidates.length 
+            : 0
+        },
+        potentialDuplicates: potentialDuplicates.length > 0 ? potentialDuplicates : undefined
+      }
+
+      logger.info(`FAQ candidate generation completed: ${faqCandidates.length} candidates, ${potentialDuplicates.length} potential duplicates (${result.stats.processingTime}ms)`)
+      return result
+
+    } catch (error) {
+      logger.error('FAQ candidate generation failed:', error)
+      return {
+        success: false,
+        stats: {
+          candidatesGenerated: 0,
+          duplicatesFound: 0,
+          duplicatesEnhanced: 0,
+          newFAQsCreated: 0,
+          processingTime: Date.now() - startTime,
+          averageConfidence: 0
+        },
+        error: error instanceof Error ? error.message : 'Unknown error occurred'
+      }
     }
   }
 
@@ -137,8 +288,8 @@ class FAQGeneratorService {
 
           const result = await this.generateFAQsFromDocument(input)
           results.push(result)
-          totalFAQs += result.faqs.length
-          totalDuplicates += result.duplicatesFound
+          totalFAQs += result.stats.newFAQsCreated
+          totalDuplicates += result.stats.duplicatesFound
 
         } catch (error) {
           logger.error(`FAQ generation failed for document ${documentId}:`, error)
@@ -221,16 +372,28 @@ class FAQGeneratorService {
 
       // Step 5: Track enhancement relationship if from new document
       if (newContent.sourceDocumentId) {
-        await db.documentFAQ.create({
-          data: {
-            documentId: newContent.sourceDocumentId,
-            faqId: existingFAQId,
-            generationMethod: GenerationMethod.HYBRID,
-            sourceMessageIds: [],
-            confidenceScore: enhanced.confidence,
-            generatedBy: userId
+        // Check if relationship already exists
+        const existingRelation = await db.documentFAQ.findUnique({
+          where: {
+            documentId_faqId: {
+              documentId: newContent.sourceDocumentId,
+              faqId: existingFAQId
+            }
           }
         })
+
+        if (!existingRelation) {
+          await db.documentFAQ.create({
+            data: {
+              documentId: newContent.sourceDocumentId,
+              faqId: existingFAQId,
+              generationMethod: GenerationMethod.HYBRID,
+              sourceMessageIds: [],
+              confidenceScore: enhanced.confidence,
+              generatedBy: userId
+            }
+          })
+        }
       }
 
       logger.info(`FAQ ${existingFAQId} enhanced successfully`)

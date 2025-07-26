@@ -89,8 +89,26 @@ async function handleGenerateFAQs(
     
     const result = await faqGeneratorService.generateFAQsFromDocument(faqInput)
 
+    if (!result.success) {
+      return res.status(500).json({
+        success: false,
+        error: result.error || 'FAQ generation failed'
+      })
+    }
+
+    // Fetch all FAQs for this document
+    const documentFAQs = await db.documentFAQ.findMany({
+      where: { documentId },
+      include: {
+        faq: true
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    })
+
     // Transform FAQs for response
-    const faqs: FAQDisplay[] = result.faqs.map((faq: any) => ({
+    const faqs: FAQDisplay[] = documentFAQs.map(({ faq }) => ({
       id: faq.id,
       question: faq.question,
       answer: faq.answer,
@@ -99,10 +117,10 @@ async function handleGenerateFAQs(
       confidenceScore: faq.confidenceScore,
       createdAt: faq.createdAt,
       updatedAt: faq.updatedAt,
-      approvedBy: faq.approvedBy || undefined,
-      approvedAt: faq.approvedAt || undefined,
+      approvedBy: faq.approvedBy || null,
+      approvedAt: faq.approvedAt || null,
       sourceDocumentCount: 1,
-      sourceMessageCount: result.faqs.length,
+      sourceMessageCount: result.stats.newFAQsCreated,
       timeAgo: getTimeAgo(faq.createdAt)
     }))
 

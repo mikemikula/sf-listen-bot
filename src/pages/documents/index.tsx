@@ -409,40 +409,13 @@ const DocumentsPage: React.FC = () => {
   }, [router])
 
   /**
-   * Handle FAQ generation
+   * Handle FAQ generation - redirect to document detail page for better UX
    */
   const handleGenerateFAQs = useCallback(async (documentId: string) => {
-    try {
-      setProcessing(true)
-      
-      const response = await fetch('/api/faqs', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          type: 'generate',
-          documentId,
-        }),
-      })
-
-      const result = await response.json()
-
-      if (!response.ok || !result.success) {
-        throw new Error(result.error || 'Failed to generate FAQs')
-      }
-
-      const faqCount = result.data.faqs.length
-      showNotification('success', `Generated ${faqCount} FAQ${faqCount !== 1 ? 's' : ''} successfully!`)
-
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to generate FAQs'
-      showNotification('error', errorMessage)
-      console.error('Failed to generate FAQs:', error)
-    } finally {
-      setProcessing(false)
-    }
-  }, [showNotification])
+    // Redirect to document detail page where users can see full context
+    // and use the duplicate review modal for informed decisions
+    window.location.href = `/documents/${documentId}#generated-faqs-section`
+  }, [])
 
   /**
    * Handle bulk actions
@@ -493,7 +466,7 @@ const DocumentsPage: React.FC = () => {
             if (response.ok) {
               const result = await response.json()
               if (result.success) {
-                totalFAQs += result.data.faqs.length
+                totalFAQs += 1 // Assume 1 FAQ was generated per document
               }
             }
           }

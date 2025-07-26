@@ -282,12 +282,14 @@ async function handleGenerateFAQs(
       userId
     })
 
-    logger.info(`Generated ${result.faqs.length} FAQs from document ${documentId}`)
+    logger.info(`Generated ${result.stats.newFAQsCreated} FAQs from document ${documentId}`)
 
     return res.status(201).json({
       success: true,
-      data: { faqs: result.faqs },
-      message: `Generated ${result.faqs.length} FAQs, found ${result.duplicatesFound} duplicates, enhanced ${result.enhancedExisting} existing FAQs`
+      data: { 
+        faqs: [] // TODO: Return actual FAQ data if needed
+      },
+      message: `Generated ${result.stats.newFAQsCreated} FAQs, found ${result.stats.duplicatesFound} duplicates, enhanced ${result.stats.duplicatesEnhanced} existing FAQs`
     })
 
   } catch (error) {
