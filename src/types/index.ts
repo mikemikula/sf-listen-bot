@@ -60,11 +60,19 @@ export interface SlackWebhookPayload {
   api_app_id: string
   event?: {
     type: string
-    user: string
-    text: string
+    user?: string
+    text?: string
     ts: string
     channel: string
     event_ts: string
+    subtype?: string
+    deleted_ts?: string
+    previous_message?: {
+      type: string
+      user: string
+      text: string
+      ts: string
+    }
   }
   type: 'event_callback' | 'url_verification'
   challenge?: string

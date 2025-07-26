@@ -9,12 +9,13 @@ import type { MessageDisplay } from '@/types'
 
 interface UseRealTimeMessagesProps {
   onNewMessage: (message: MessageDisplay) => void
+  onMessagesDeleted?: () => void
   onError?: (error: string) => void
   enabled?: boolean
 }
 
 interface SSEMessage {
-  type: 'connected' | 'message' | 'heartbeat' | 'error'
+  type: 'connected' | 'message' | 'messages_deleted' | 'heartbeat' | 'error'
   data?: MessageDisplay
   message?: string
   timestamp?: string
@@ -25,6 +26,7 @@ interface SSEMessage {
  */
 export const useRealTimeMessages = ({
   onNewMessage,
+  onMessagesDeleted,
   onError,
   enabled = true
 }: UseRealTimeMessagesProps): {
@@ -70,6 +72,13 @@ export const useRealTimeMessages = ({
                  onNewMessage(data.data)
                }
                break
+
+             case 'messages_deleted':
+               logger.sse('Messages deleted, triggering refresh')
+               if (onMessagesDeleted) {
+                 onMessagesDeleted()
+               }
+               break
                
              case 'heartbeat':
                // Connection is alive (no logging to reduce noise)
@@ -109,7 +118,7 @@ export const useRealTimeMessages = ({
          onError('Failed to establish real-time connection')
        }
      }
-   }, [enabled, onNewMessage, onError]) // eslint-disable-line react-hooks/exhaustive-deps
+   }, [enabled, onNewMessage, onMessagesDeleted, onError]) // eslint-disable-line react-hooks/exhaustive-deps
 
   /**
    * Disconnect from SSE stream

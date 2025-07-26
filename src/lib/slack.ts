@@ -10,11 +10,19 @@ import crypto from 'crypto'
  */
 export interface SlackMessage {
   type: string
-  user: string
-  text: string
+  user?: string
+  text?: string
   ts: string
   channel: string
   event_ts: string
+  subtype?: string
+  deleted_ts?: string // For message deletion events
+  previous_message?: {
+    type: string
+    user: string
+    text: string
+    ts: string
+  }
 }
 
 export interface SlackEvent {
@@ -102,16 +110,30 @@ export const parseSlackTimestamp = (slackTimestamp: string): Date => {
  * @returns boolean indicating if event should be processed
  */
 export const shouldProcessMessage = (event: SlackMessage): boolean => {
-  // Skip bot messages
-  if (event.type === 'message' && 'bot_id' in event) {
+  // Skip bot messages (but not for deletions)
+  if (event.type === 'message' && 'bot_id' in event && event.subtype !== 'message_deleted') {
     return false
   }
 
-  // Skip message subtypes we don't want (file uploads, etc.)
-  if ('subtype' in event) {
+  // Process message deletions
+  if (event.subtype === 'message_deleted') {
+    return true
+  }
+
+  // Skip other message subtypes we don't want (file uploads, etc.)
+  if (event.subtype && event.subtype !== 'message_deleted') {
     return false
   }
 
   // Only process regular messages
   return event.type === 'message' && Boolean(event.text) && Boolean(event.user)
+}
+
+/**
+ * Check if event is a message deletion
+ * @param event - Slack message event
+ * @returns boolean indicating if this is a deletion event
+ */
+export const isMessageDeletion = (event: SlackMessage): boolean => {
+  return event.subtype === 'message_deleted' && Boolean(event.deleted_ts)
 } 

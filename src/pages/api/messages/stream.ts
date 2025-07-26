@@ -61,11 +61,19 @@ export default async function handler(
     }
 
     let lastCheckTime = new Date()
+    let lastMessageCount = 0
     
-    // Poll for new messages every 5 seconds (reduced frequency)
+    // Get initial message count
+    try {
+      lastMessageCount = await db.message.count()
+    } catch (error) {
+      logger.warn('Could not get initial message count:', error)
+    }
+    
+    // Poll for changes every 5 seconds (reduced frequency)
     const pollInterval = setInterval(async () => {
       try {
-        // Query for messages newer than our last check time (more efficient)
+        // Check for new messages
         const newMessages = await db.message.findMany({
           where: {
             timestamp: {
@@ -76,10 +84,15 @@ export default async function handler(
           take: 20 // Reasonable limit
         })
 
-        // Update last check time
+        // Check for deletions by comparing message count
+        const currentMessageCount = await db.message.count()
+        const hasDeletedMessages = currentMessageCount < lastMessageCount
+        
+        // Update tracking variables
         lastCheckTime = new Date()
+        lastMessageCount = currentMessageCount
 
-        // Only send if there are new messages (reduces noise)
+        // Send new messages
         if (newMessages.length > 0) {
           logger.sse(`Sending ${newMessages.length} new messages`)
           
@@ -93,6 +106,16 @@ export default async function handler(
             
             lastMessageId = message.id
           }
+        }
+
+        // Notify about deletions (simple approach)
+        if (hasDeletedMessages) {
+          logger.sse('Messages were deleted, notifying client to refresh')
+          
+          res.write(`data: ${JSON.stringify({
+            type: 'messages_deleted',
+            message: 'Some messages were deleted. Refreshing feed.'
+          })}\n\n`)
         }
 
         // Send heartbeat every 60 seconds (reduced frequency)

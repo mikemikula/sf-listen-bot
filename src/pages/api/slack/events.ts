@@ -9,7 +9,8 @@ import {
   verifySlackSignature, 
   parseSlackTimestamp, 
   formatUsername,
-  shouldProcessMessage 
+  shouldProcessMessage,
+  isMessageDeletion
 } from '@/lib/slack'
 import type { 
   SlackWebhookPayload, 
@@ -100,24 +101,62 @@ export default async function handler(
       }
 
       try {
-        // Store message in database
-        const message = await db.message.create({
-          data: {
-            slackId: event.ts,
-            text: event.text,
-            userId: event.user,
-            username: formatUsername(event.user),
-            channel: event.channel,
-            timestamp: parseSlackTimestamp(event.ts),
+        // Handle message deletion
+        if (isMessageDeletion(event)) {
+          const deletedMessageId = event.deleted_ts
+          
+          if (!deletedMessageId) {
+            return res.status(400).json({
+              success: false,
+              error: 'Missing deleted message timestamp'
+            })
           }
-        })
 
-        console.log(`✅ Message stored: ${message.id}`)
-        
-        return res.status(200).json({
-          success: true,
-          data: { messageId: message.id },
-          message: 'Message processed successfully'
+          // Find and delete the message from database
+          const deletedMessage = await db.message.deleteMany({
+            where: {
+              slackId: deletedMessageId,
+              channel: event.channel
+            }
+          })
+
+          console.log(`🗑️ Message deleted: ${deletedMessageId} (${deletedMessage.count} records)`)
+          
+          return res.status(200).json({
+            success: true,
+            data: { 
+              deletedSlackId: deletedMessageId,
+              deletedCount: deletedMessage.count 
+            },
+            message: 'Message deletion processed successfully'
+          })
+        }
+
+        // Handle regular message creation
+        if (event.text && event.user) {
+          const message = await db.message.create({
+            data: {
+              slackId: event.ts,
+              text: event.text,
+              userId: event.user,
+              username: formatUsername(event.user),
+              channel: event.channel,
+              timestamp: parseSlackTimestamp(event.ts),
+            }
+          })
+
+          console.log(`✅ Message stored: ${message.id}`)
+          
+          return res.status(200).json({
+            success: true,
+            data: { messageId: message.id },
+            message: 'Message processed successfully'
+          })
+        }
+
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid message event data'
         })
 
       } catch (dbError) {

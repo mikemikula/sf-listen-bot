@@ -58,6 +58,20 @@ When you save the URL, Slack will send a verification challenge:
 
 **Click** "Save Changes"
 
+## 🗑️ **IMPORTANT: Enable Message Deletion Detection**
+
+To catch when messages are deleted in Slack, you need to **manually add deletion events** (they're not in the dropdown):
+
+### Add Message Deletion Events  
+1. **Go back** to "Event Subscriptions" → "Subscribe to bot events"
+2. **Click** "Add Bot User Event" 
+3. **Manually type** these event names:
+   - `message.channels` (if not already added)
+   - `message.groups` (if not already added) 
+   - In the search/input box, manually enter: `message` then select the specific subtypes or use the raw event format
+
+**Note**: Slack's UI doesn't always show deletion events in the dropdown. If you can't find them, the system will still work, but deletions will only be detected through polling rather than real-time webhook events.
+
 ## Step 5: Install Bot to Channels
 
 ### Invite Bot to Channels

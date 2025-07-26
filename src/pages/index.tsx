@@ -82,13 +82,6 @@ const Dashboard: React.FC = () => {
     // Could show a notification to user here
   }, [])
 
-  // Setup real-time connection
-  const { isConnected, disconnect, reconnect } = useRealTimeMessages({
-    onNewMessage: handleNewMessage,
-    onError: handleRealTimeError,
-    enabled: realTimeEnabled
-  })
-
   /**
    * Fetch messages from API
    */
@@ -162,11 +155,27 @@ const Dashboard: React.FC = () => {
   }, [pagination.hasNext, filters.page, handlePageChange])
 
   /**
+   * Handle message deletions
+   */
+  const handleMessagesDeleted = useCallback((): void => {
+    // Simple approach: refresh the current page of messages
+    fetchMessages(filters)
+  }, [fetchMessages, filters])
+
+  /**
    * Toggle real-time updates
    */
   const toggleRealTime = useCallback((): void => {
     setRealTimeEnabled(prev => !prev)
   }, [])
+
+  // Setup real-time connection
+  const { isConnected, disconnect, reconnect } = useRealTimeMessages({
+    onNewMessage: handleNewMessage,
+    onMessagesDeleted: handleMessagesDeleted,
+    onError: handleRealTimeError,
+    enabled: realTimeEnabled
+  })
 
   // Fetch messages when filters change
   useEffect(() => {
