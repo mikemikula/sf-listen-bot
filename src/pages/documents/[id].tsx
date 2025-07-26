@@ -628,7 +628,7 @@ const GeneratedFAQs: React.FC<GeneratedFAQsProps> = ({
 /**
  * Main Document Detail Page
  */
-const DocumentDetailPage: React.FC = () => {
+export default function DocumentDetailPage(): JSX.Element {
   const router = useRouter()
   const { id } = router.query
 
@@ -640,13 +640,13 @@ const DocumentDetailPage: React.FC = () => {
   const [processing, setProcessing] = useState(false)
   const [editing, setEditing] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [notification, setNotification] = useState<{ type: 'success' | 'error', message: string } | null>(null)
+  const [notification, setNotification] = useState<string | null>(null)
 
   /**
    * Show notification temporarily
    */
   const showNotification = useCallback((type: 'success' | 'error', message: string) => {
-    setNotification({ type, message })
+    setNotification(message)
     setTimeout(() => setNotification(null), 5000)
   }, [])
 
@@ -856,186 +856,432 @@ const DocumentDetailPage: React.FC = () => {
 
   if (loading) {
     return (
-      <>
-        <Head>
-          <title>Loading Document - SF Listen Bot</title>
-        </Head>
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-          <Header isConnected={true} onDebugClick={() => {}} />
-          <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <div className="flex justify-center py-12">
-              <LoadingSpinner />
-            </div>
-          </main>
-        </div>
-      </>
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+        <Header isConnected={true} onDebugClick={() => {}} />
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <LoadingSpinner />
+        </main>
+      </div>
     )
   }
 
-  if (error) {
+  if (error || !document) {
     return (
-      <>
-        <Head>
-          <title>Error - SF Listen Bot</title>
-        </Head>
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-          <Header isConnected={true} onDebugClick={() => {}} />
-          <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <div className="bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700 rounded-lg p-4">
-              <div className="flex items-center gap-2">
-                <svg className="h-5 w-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span className="text-sm font-medium text-red-800 dark:text-red-200">Error</span>
-              </div>
-              <p className="text-sm text-red-700 dark:text-red-300 mt-1">{error}</p>
-              <div className="mt-4 flex gap-2">
-                <button
-                  onClick={fetchDocument}
-                  className="text-sm text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-200 underline"
-                >
-                  Try again
-                </button>
-                <Link
-                  href="/documents"
-                  className="text-sm text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-200 underline"
-                >
-                  Back to documents
-                </Link>
-              </div>
-            </div>
-          </main>
-        </div>
-      </>
-    )
-  }
-
-  if (!document) {
-    return (
-      <>
-        <Head>
-          <title>Document Not Found - SF Listen Bot</title>
-        </Head>
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-          <Header isConnected={true} onDebugClick={() => {}} />
-          <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <div className="text-center py-12">
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Document Not Found</h1>
-              <p className="text-gray-600 dark:text-gray-400 mb-4">
-                The requested document could not be found.
-              </p>
-              <Link
-                href="/documents"
-                className="text-blue-600 hover:text-blue-800 dark:text-blue-400 underline"
-              >
-                Back to documents
-              </Link>
-            </div>
-          </main>
-        </div>
-      </>
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+        <Header isConnected={true} onDebugClick={() => {}} />
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6">
+            <h2 className="text-lg font-semibold text-red-800 dark:text-red-200 mb-2">
+              Document Not Found
+            </h2>
+            <p className="text-red-700 dark:text-red-300">
+              {error || 'The requested document could not be found.'}
+            </p>
+          </div>
+        </main>
+      </div>
     )
   }
 
   return (
-    <>
-      <Head>
-        <title>{document.title} - SF Listen Bot</title>
-        <meta name="description" content={`Document: ${document.description}`} />
-      </Head>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <Header isConnected={true} onDebugClick={() => {}} />
+      
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Breadcrumb */}
+        <nav className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 mb-8">
+          <Link href="/documents" className="hover:text-gray-900 dark:hover:text-white transition-colors">
+            Documents
+          </Link>
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"></path>
+          </svg>
+          <span className="text-gray-900 dark:text-white font-medium">{document.title}</span>
+        </nav>
 
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-        <Header isConnected={true} onDebugClick={() => {}} />
-        
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {/* Breadcrumb */}
-          <nav className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 mb-6">
-            <Link href="/documents" className="hover:text-gray-900 dark:hover:text-white">
-              Documents
-            </Link>
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-            <span className="text-gray-900 dark:text-white">{document.title}</span>
-          </nav>
-
-          {/* Notification */}
-          {notification && (
-            <div className={`mb-6 p-4 rounded-lg border ${
-              notification.type === 'success'
-                ? 'bg-green-50 border-green-200 text-green-800 dark:bg-green-900 dark:border-green-700 dark:text-green-200'
-                : 'bg-red-50 border-red-200 text-red-800 dark:bg-red-900 dark:border-red-700 dark:text-red-200'
-            }`}>
-              <div className="flex items-center gap-2">
-                {notification.type === 'success' ? (
-                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                ) : (
-                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                )}
-                <span className="text-sm font-medium">{notification.message}</span>
-              </div>
-            </div>
-          )}
-
-          {/* Processing Overlay */}
-          {processing && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 z-40 flex items-center justify-center">
-              <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-xl">
-                <div className="flex items-center gap-4">
-                  <LoadingSpinner />
-                  <span className="text-gray-900 dark:text-white">Processing...</span>
+        <div className="space-y-8">
+          {/* Document Header */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+            <div className="p-8">
+              <div className="flex items-start justify-between mb-6">
+                <div className="flex-1">
+                  <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">
+                    {document.title}
+                  </h1>
+                  <p className="text-gray-600 dark:text-gray-300 text-lg leading-relaxed">
+                    {document.description}
+                  </p>
+                </div>
+                <div className="flex items-center gap-3 ml-6">
+                  <button className="px-4 py-2 text-sm font-medium text-blue-600 hover:text-blue-800 dark:text-blue-400 border border-blue-300 dark:border-blue-600 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors">
+                    Edit
+                  </button>
+                  <button className="px-4 py-2 text-sm font-medium text-red-600 hover:text-red-800 dark:text-red-400 border border-red-300 dark:border-red-600 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                    Delete
+                  </button>
                 </div>
               </div>
-            </div>
-          )}
 
-          {/* Debug Info */}
-          {process.env.NODE_ENV === 'development' && (
-            <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 text-sm">
-              <div className="font-medium text-yellow-800 dark:text-yellow-200 mb-2">🐛 Debug Info:</div>
-              <div className="text-yellow-700 dark:text-yellow-300 space-y-1">
-                <div>Document ID: {document.id}</div>
-                <div>Messages loaded: {messages.length}</div>
-                <div>FAQs loaded: {faqs.length}</div>
-                <div>Message count in document: {document.messageCount}</div>
+              {/* Key Metrics */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-gray-900 dark:text-white">{messages.length}</div>
+                  <div className="text-sm text-gray-500 dark:text-gray-400">Messages</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-green-600 dark:text-green-400">
+                    {conversationAnalysis?.patterns?.filter(p => p.type === 'qa_pair').length || 0}
+                  </div>
+                  <div className="text-sm text-gray-500 dark:text-gray-400">Q&A Pairs</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{Math.round((document.confidenceScore || 0) * 100)}%</div>
+                  <div className="text-sm text-gray-500 dark:text-gray-400">Confidence</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
+                    {conversationAnalysis?.faqPotential ? Math.round(conversationAnalysis.faqPotential * 100) : 0}%
+                  </div>
+                  <div className="text-sm text-gray-500 dark:text-gray-400">FAQ Potential</div>
+                </div>
+              </div>
+
+              {/* Topics */}
+              {conversationAnalysis?.overallTopics && conversationAnalysis.overallTopics.length > 0 && (
+                <div className="pt-6 border-t border-gray-200 dark:border-gray-700 mt-6">
+                  <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Topics</div>
+                  <div className="flex flex-wrap gap-2">
+                    {conversationAnalysis.overallTopics.map((topic: string) => (
+                      <span
+                        key={topic}
+                        className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300"
+                      >
+                        {topic}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Quick Actions */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-xl p-6 text-white">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold mb-2">Generate FAQs</h3>
+                  <p className="text-green-100 text-sm">
+                    Ready to create {conversationAnalysis?.patterns?.filter(p => p.type === 'qa_pair').length || 0} high-quality FAQs
+                  </p>
+                </div>
+                <button className="bg-white text-green-600 px-4 py-2 rounded-lg font-medium hover:bg-green-50 transition-colors">
+                  Generate
+                </button>
               </div>
             </div>
-          )}
-
-          {/* Document Content */}
-          <div className="space-y-8">
-            {/* Document Metadata */}
-            <DocumentMetadata
-              document={document}
-              onEdit={handleEditDocument}
-              onDelete={handleDeleteDocument}
-              editing={editing}
-              setEditing={setEditing}
-            />
-
-            {/* Source Messages */}
-            <SourceMessages 
-              messages={messages}
-              conversationAnalysis={conversationAnalysis}
-              onRemoveMessage={handleRemoveMessage}
-              onAddMessages={handleAddMessages}
-            />
-
-            {/* Generated FAQs */}
-            <GeneratedFAQs
-              faqs={faqs}
-              onGenerateFAQs={handleGenerateFAQs}
-              onDeleteFAQ={handleDeleteFAQ}
-            />
+            
+            <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl p-6 text-white">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold mb-2">Add Messages</h3>
+                  <p className="text-blue-100 text-sm">
+                    Expand this document with more conversations
+                  </p>
+                </div>
+                <button 
+                  onClick={handleAddMessages}
+                  className="bg-white text-blue-600 px-4 py-2 rounded-lg font-medium hover:bg-blue-50 transition-colors"
+                >
+                  Add
+                </button>
+              </div>
+            </div>
           </div>
-        </main>
-      </div>
-    </>
+
+          {/* Conversation Analysis */}
+          <ConversationSection 
+            messages={messages}
+            conversationAnalysis={conversationAnalysis}
+            onRemoveMessage={handleRemoveMessage}
+          />
+
+          {/* Generated FAQs */}
+          <GeneratedFAQsSection 
+            faqs={faqs}
+            onGenerateFAQs={handleGenerateFAQs}
+            isProcessing={processing}
+          />
+        </div>
+
+        {/* Success/Error Notifications */}
+        {notification && (
+          <div className="fixed bottom-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg">
+            {notification}
+          </div>
+        )}
+      </main>
+    </div>
   )
 }
 
-export default DocumentDetailPage 
+/**
+ * Conversation Section Component - Clean, focused display
+ */
+interface ConversationSectionProps {
+  messages: MessageDisplay[]
+  conversationAnalysis: ConversationAnalysis | null
+  onRemoveMessage: (messageId: string) => void
+}
+
+const ConversationSection: React.FC<ConversationSectionProps> = ({
+  messages,
+  conversationAnalysis,
+  onRemoveMessage
+}) => {
+  const [showDetails, setShowDetails] = useState(false)
+
+  const messageMap = messages.reduce((map, message) => {
+    map[message.id] = message
+    return map
+  }, {} as Record<string, MessageDisplay>)
+
+  const getConversationPatterns = () => {
+    if (conversationAnalysis && conversationAnalysis.patterns.length > 0) {
+      return conversationAnalysis.patterns.map((pattern: any) => ({
+        ...pattern,
+        id: `ai_${pattern.messageIds.join('_')}`,
+        messages: pattern.messageIds.map((id: string) => messageMap[id]).filter(Boolean)
+      }))
+    }
+    
+    return messages.map(message => ({
+      type: 'context' as const,
+      id: `basic_${message.id}`,
+      messages: [message],
+      confidence: 0.5,
+      reasoning: 'Basic fallback classification',
+      topics: [],
+      messageIds: [message.id]
+    }))
+  }
+
+  const patterns = getConversationPatterns()
+  const qaPatterns = patterns.filter((p: any) => p.type === 'qa_pair')
+
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+      <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+              Conversation Analysis
+            </h2>
+            <p className="text-gray-600 dark:text-gray-400 mt-1">
+              {qaPatterns.length} Q&A pairs • {messages.length} total messages
+            </p>
+          </div>
+          <button
+            onClick={() => setShowDetails(!showDetails)}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+          >
+            {showDetails ? 'Hide Details' : 'Show Details'}
+            <svg 
+              className={`w-4 h-4 transition-transform ${showDetails ? 'rotate-180' : ''}`} 
+              fill="none" 
+              stroke="currentColor" 
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      {showDetails && (
+        <div className="p-6">
+          {/* AI Insight Summary */}
+          {conversationAnalysis && (
+            <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 mb-6">
+              <h3 className="font-medium text-blue-900 dark:text-blue-200 mb-2">AI Analysis Summary</h3>
+              <p className="text-blue-800 dark:text-blue-300 text-sm leading-relaxed">
+                {conversationAnalysis.conversationFlow}
+              </p>
+            </div>
+          )}
+
+          {/* Q&A Pairs */}
+          <div className="space-y-4">
+            {qaPatterns.map((pattern: any) => (
+              <QAPairCard 
+                key={pattern.id}
+                pattern={pattern}
+                onRemoveMessage={onRemoveMessage}
+              />
+            ))}
+            
+            {qaPatterns.length === 0 && (
+              <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                <svg className="w-12 h-12 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-3.582 8-8 8a8.959 8.959 0 01-4.906-1.476L3 21l2.524-5.094A8.959 8.959 0 013 12c0-4.418 3.582-8 8-8s8 3.582 8 8z"></path>
+                </svg>
+                <p>No Q&A patterns identified in this conversation</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/**
+ * Clean Q&A Pair Card Component
+ */
+interface QAPairCardProps {
+  pattern: any
+  onRemoveMessage: (messageId: string) => void
+}
+
+const QAPairCard: React.FC<QAPairCardProps> = ({ pattern, onRemoveMessage }) => {
+  const [showReasoning, setShowReasoning] = useState(false)
+  
+  if (pattern.messages.length < 2) return null
+
+  const question = pattern.messages[0]
+  const answer = pattern.messages[1]
+
+  return (
+    <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+      {/* Question */}
+      <div className="bg-blue-50 dark:bg-blue-900/20 p-4 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex items-start gap-3">
+          <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center flex-shrink-0">
+            <span className="text-sm font-bold text-blue-600 dark:text-blue-400">Q</span>
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="font-medium text-gray-900 dark:text-white">{question.username}</span>
+              <span className="text-sm text-gray-500 dark:text-gray-400">{question.timeAgo}</span>
+              <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                {Math.round(pattern.confidence * 100)}% confidence
+              </span>
+            </div>
+            <p className="text-gray-900 dark:text-white font-medium">{question.text}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Answer */}
+      <div className="bg-green-50 dark:bg-green-900/20 p-4">
+        <div className="flex items-start gap-3">
+          <div className="w-8 h-8 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center flex-shrink-0">
+            <span className="text-sm font-bold text-green-600 dark:text-green-400">A</span>
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="font-medium text-gray-900 dark:text-white">{answer.username}</span>
+              <span className="text-sm text-gray-500 dark:text-gray-400">{answer.timeAgo}</span>
+              {pattern.topics && pattern.topics.length > 0 && (
+                <div className="flex gap-1">
+                  {pattern.topics.slice(0, 2).map((topic: string) => (
+                    <span key={topic} className="px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300">
+                      {topic}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+            <p className="text-gray-900 dark:text-white">{answer.text}</p>
+            
+            {/* AI Reasoning Toggle */}
+            <button
+              onClick={() => setShowReasoning(!showReasoning)}
+              className="mt-2 text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
+            >
+              {showReasoning ? 'Hide' : 'Show'} AI reasoning
+            </button>
+            
+            {showReasoning && (
+              <div className="mt-2 p-3 bg-gray-100 dark:bg-gray-800 rounded text-xs text-gray-600 dark:text-gray-400">
+                {pattern.reasoning}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Generated FAQs Section Component
+ */
+interface GeneratedFAQsSectionProps {
+  faqs: FAQDisplay[]
+  onGenerateFAQs: () => void
+  isProcessing: boolean
+}
+
+const GeneratedFAQsSection: React.FC<GeneratedFAQsSectionProps> = ({
+  faqs,
+  onGenerateFAQs,
+  isProcessing
+}) => {
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+      <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+              Generated FAQs ({faqs.length})
+            </h2>
+            <p className="text-gray-600 dark:text-gray-400 mt-1">
+              {faqs.length === 0 ? 'Ready to generate FAQs from your conversation' : 'Your generated frequently asked questions'}
+            </p>
+          </div>
+          {faqs.length === 0 && (
+            <button
+              onClick={onGenerateFAQs}
+              disabled={isProcessing}
+              className="px-6 py-3 bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white font-medium rounded-lg transition-colors"
+            >
+              {isProcessing ? 'Generating...' : 'Generate FAQs'}
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="p-6">
+        {faqs.length === 0 ? (
+          <div className="text-center py-12">
+            <svg className="w-16 h-16 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No FAQs Generated Yet</h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-6">
+              Click &quot;Generate FAQs&quot; to automatically create frequently asked questions from your conversation.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {faqs.map((faq) => (
+              <div key={faq.id} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                <h4 className="font-medium text-gray-900 dark:text-white mb-2">{faq.question}</h4>
+                <p className="text-gray-700 dark:text-gray-300">{faq.answer}</p>
+                <div className="flex items-center gap-2 mt-3">
+                  <span className="px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300">
+                    {faq.category}
+                  </span>
+                  <span className="px-2 py-1 text-xs rounded-full bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
+                    {Math.round((faq.confidenceScore || 0) * 100)}% confidence
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+} 
