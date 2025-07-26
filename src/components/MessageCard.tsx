@@ -1,19 +1,51 @@
 /**
  * MessageCard Component
- * Displays individual Slack message with metadata
+ * Displays individual Slack message with metadata and thread support
  */
 
-import React from 'react'
+import React, { useState } from 'react'
 import type { MessageCardProps } from '@/types'
 
 /**
- * MessageCard component for displaying individual messages
+ * Individual reply component
+ */
+const ThreadReply: React.FC<{ reply: any, getUserAvatar: (username: string) => string, formatMessageText: (text: string) => string }> = ({ 
+  reply, 
+  getUserAvatar, 
+  formatMessageText 
+}) => (
+  <div className="flex items-start space-x-3 mt-2 pl-6 border-l-2 border-gray-200">
+    <div className={`
+      flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-white font-medium text-xs
+      ${getUserAvatar(reply.username)}
+    `}>
+      {reply.username.charAt(0).toUpperCase()}
+    </div>
+    <div className="flex-1 min-w-0">
+      <div className="flex items-center space-x-2 mb-1">
+        <span className="font-semibold text-xs text-gray-900">{reply.username}</span>
+        <time className="text-xs text-gray-500" title={new Date(reply.timestamp).toLocaleString()}>
+          {reply.timeAgo}
+        </time>
+      </div>
+      <div 
+        className="text-gray-900 text-sm leading-relaxed prose prose-sm max-w-none"
+        dangerouslySetInnerHTML={{ __html: formatMessageText(reply.text) }}
+      />
+    </div>
+  </div>
+)
+
+/**
+ * MessageCard component for displaying individual messages with thread support
  */
 export const MessageCard: React.FC<MessageCardProps> = ({
   message,
   showChannel = false,
   className = ''
 }) => {
+  const [threadsExpanded, setThreadsExpanded] = useState(false)
+
   /**
    * Format message text to handle basic Slack formatting
    */
@@ -52,13 +84,34 @@ export const MessageCard: React.FC<MessageCardProps> = ({
     return channel
   }
 
+  const hasReplies = message.threadReplies && message.threadReplies.length > 0
+
   return (
-    <div className={`message-card ${className}`}>
+    <div className={`message-card ${className} ${message.isThreadReply ? 'ml-6 border-l-4 border-blue-200 pl-4' : ''}`}>
+      {/* Parent Message Context for Thread Replies */}
+      {message.isThreadReply && message.parentMessage && (
+        <div className="mb-3 p-2 bg-gray-50 rounded border-l-4 border-gray-300">
+          <div className="text-xs text-gray-600 mb-1">↳ Replying to:</div>
+          <div className="text-sm text-gray-800 font-medium">{message.parentMessage.username}</div>
+          <div 
+            className="text-sm text-gray-700 line-clamp-2"
+            dangerouslySetInnerHTML={{ __html: formatMessageText(message.parentMessage.text) }}
+          />
+        </div>
+      )}
+
       <div className="flex items-start space-x-3">
+        {/* Thread Indicator */}
+        {message.isThreadReply && (
+          <div className="flex-shrink-0 w-6 h-6 flex items-center justify-center">
+            <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+          </div>
+        )}
+
         {/* User Avatar */}
         <div className={`
           message-card__avatar
-          flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-white font-medium text-sm
+          flex-shrink-0 ${message.isThreadReply ? 'w-8 h-8 text-xs' : 'w-10 h-10 text-sm'} rounded-full flex items-center justify-center text-white font-medium
           ${getUserAvatar(message.username)}
         `}>
           {message.username.charAt(0).toUpperCase()}
@@ -89,6 +142,16 @@ export const MessageCard: React.FC<MessageCardProps> = ({
             >
               {message.timeAgo}
             </time>
+
+            {/* Thread Badge */}
+            {hasReplies && !message.isThreadReply && (
+              <>
+                <span className="text-gray-400">•</span>
+                <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
+                  🧵 {message.threadReplies.length} {message.threadReplies.length === 1 ? 'reply' : 'replies'}
+                </span>
+              </>
+            )}
           </div>
 
           {/* Message Text */}
@@ -101,15 +164,33 @@ export const MessageCard: React.FC<MessageCardProps> = ({
             />
           </div>
 
-          {/* Message Actions (Future Enhancement) */}
-          {/* <div className="message-card__actions mt-2 flex items-center space-x-2">
-            <button className="text-gray-400 hover:text-gray-600 text-xs">
-              Reply
-            </button>
-            <button className="text-gray-400 hover:text-gray-600 text-xs">
-              React
-            </button>
-          </div> */}
+          {/* Thread Replies */}
+          {hasReplies && !message.isThreadReply && (
+            <div className="mt-3">
+              <button 
+                onClick={() => setThreadsExpanded(!threadsExpanded)}
+                className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center space-x-1"
+              >
+                <span>{threadsExpanded ? '▼' : '▶'}</span>
+                <span>
+                  {threadsExpanded ? 'Hide' : 'Show'} {message.threadReplies.length} {message.threadReplies.length === 1 ? 'reply' : 'replies'}
+                </span>
+              </button>
+              
+              {threadsExpanded && (
+                <div className="mt-2 space-y-2 border-l-2 border-blue-200 pl-4">
+                  {message.threadReplies.map((reply) => (
+                    <ThreadReply 
+                      key={reply.id}
+                      reply={reply}
+                      getUserAvatar={getUserAvatar}
+                      formatMessageText={formatMessageText}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>

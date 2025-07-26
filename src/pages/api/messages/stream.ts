@@ -11,14 +11,24 @@ import type { MessageDisplay } from '@/types'
 import { formatDistanceToNow } from 'date-fns'
 
 /**
- * Transform database message to display format
+ * Transform database message to display format with thread support
  */
 const transformMessage = (message: any): MessageDisplay => ({
   ...message,
   timeAgo: formatDistanceToNow(new Date(message.timestamp), { addSuffix: true }),
   channelName: message.channel.startsWith('C') 
     ? `#${message.channel.slice(1, 8)}` 
-    : message.channel
+    : message.channel,
+  isThreadReply: message.isThreadReply || false,
+  threadTs: message.threadTs || null,
+  parentMessage: message.parentMessage || null,
+  threadReplies: message.threadReplies ? message.threadReplies.map((reply: any) => ({
+    ...reply,
+    timeAgo: formatDistanceToNow(new Date(reply.timestamp), { addSuffix: true }),
+    channelName: reply.channel.startsWith('C') 
+      ? `#${reply.channel.slice(1, 8)}` 
+      : reply.channel
+  })) : []
 })
 
 /**
@@ -93,8 +103,35 @@ export default async function handler(
               gt: lastCheckTime
             }
           },
-          orderBy: { timestamp: 'asc' }, // Chronological order
-          take: 20 // Reasonable limit
+          orderBy: [
+            { timestamp: 'asc' }, // Chronological order
+            { isThreadReply: 'asc' }
+          ],
+          take: 20, // Reasonable limit
+          include: {
+            parentMessage: {
+              select: {
+                id: true,
+                text: true,
+                username: true,
+                timestamp: true,
+                slackId: true
+              }
+            },
+            threadReplies: {
+              orderBy: { timestamp: 'asc' },
+              select: {
+                id: true,
+                text: true,
+                username: true,
+                timestamp: true,
+                slackId: true,
+                userId: true,
+                channel: true,
+                isThreadReply: true
+              }
+            }
+          }
         })
 
         // Check for deletions by comparing message count
@@ -111,8 +148,35 @@ export default async function handler(
               lt: lastUpdateTime // Only messages that were created before our last check (so they're edits, not new)
             }
           },
-          orderBy: { updatedAt: 'asc' },
-          take: 10
+          orderBy: [
+            { updatedAt: 'asc' },
+            { isThreadReply: 'asc' }
+          ],
+          take: 10,
+          include: {
+            parentMessage: {
+              select: {
+                id: true,
+                text: true,
+                username: true,
+                timestamp: true,
+                slackId: true
+              }
+            },
+            threadReplies: {
+              orderBy: { timestamp: 'asc' },
+              select: {
+                id: true,
+                text: true,
+                username: true,
+                timestamp: true,
+                slackId: true,
+                userId: true,
+                channel: true,
+                isThreadReply: true
+              }
+            }
+          }
         })
         
         // Update tracking variables

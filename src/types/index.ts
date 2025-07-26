@@ -3,14 +3,59 @@
  * Provides type safety across the entire application
  */
 
-import type { Message } from '@prisma/client'
+/**
+ * Core message data structure matching database schema
+ */
+export interface BaseMessage {
+  id: string
+  slackId: string
+  text: string
+  userId: string
+  username: string
+  channel: string
+  timestamp: Date
+  threadTs: string | null
+  isThreadReply: boolean
+  parentMessageId: string | null
+  createdAt: Date
+  updatedAt: Date
+}
 
 /**
- * Message display data for frontend components
+ * Thread reply data for display 
  */
-export interface MessageDisplay extends Message {
+export interface ThreadReply {
+  id: string
+  text: string
+  username: string
+  timestamp: Date
+  slackId: string
+  userId: string
+  channel: string
+  isThreadReply: boolean
   timeAgo: string
   channelName: string
+}
+
+/**
+ * Parent message data for thread context
+ */
+export interface ParentMessage {
+  id: string
+  text: string
+  username: string
+  timestamp: Date
+  slackId: string
+}
+
+/**
+ * Message display data for frontend components with thread support
+ */
+export interface MessageDisplay extends BaseMessage {
+  timeAgo: string
+  channelName: string
+  parentMessage: ParentMessage | null
+  threadReplies: ThreadReply[]
 }
 
 /**

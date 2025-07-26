@@ -216,6 +216,22 @@ const processMessageEvent = async (
       }
     }
 
+    // Determine thread information
+    const threadTs = event.thread_ts || null
+    const isThreadReply = threadTs && threadTs !== event.ts
+    let parentMessageId = null
+    
+    // If this is a thread reply, find the parent message
+    if (isThreadReply) {
+      const parentMessage = await db.message.findFirst({
+        where: {
+          slackId: threadTs,
+          channel: event.channel
+        }
+      })
+      parentMessageId = parentMessage?.id || null
+    }
+
     const message = await db.message.create({
       data: {
         slackId: event.ts,
@@ -224,6 +240,9 @@ const processMessageEvent = async (
         username: formatUsername(event.user),
         channel: event.channel,
         timestamp: parseSlackTimestamp(event.ts),
+        threadTs: threadTs,
+        isThreadReply: isThreadReply,
+        parentMessageId: parentMessageId,
       }
     })
 

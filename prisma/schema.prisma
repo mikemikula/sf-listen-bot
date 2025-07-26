@@ -34,6 +34,19 @@ model Message {
   /// Slack timestamp (converted to DateTime)
   timestamp DateTime
   
+  /// Thread timestamp - same as timestamp for parent messages, different for replies
+  threadTs String? @map("thread_ts")
+  
+  /// Whether this is a thread reply (has threadTs different from slackId)
+  isThreadReply Boolean @default(false) @map("is_thread_reply")
+  
+  /// Parent message (self-referential for thread support)
+  parentMessageId String? @map("parent_message_id")
+  parentMessage Message? @relation("ThreadReplies", fields: [parentMessageId], references: [id])
+  
+  /// Thread replies (child messages)
+  threadReplies Message[] @relation("ThreadReplies")
+  
   /// Record creation timestamp
   createdAt DateTime @default(now()) @map("created_at")
   
@@ -44,6 +57,9 @@ model Message {
   @@index([channel])
   @@index([timestamp])
   @@index([userId])
+  @@index([threadTs])
+  @@index([isThreadReply])
+  @@index([parentMessageId])
   @@map("messages")
 }
 

@@ -65,7 +65,7 @@ const buildWhereClause = (filters: MessageFilters): object => {
 }
 
 /**
- * Transform database messages to display format
+ * Transform database messages to display format with thread support
  */
 const transformMessages = (messages: any[]): MessageDisplay[] => {
   return messages.map(message => ({
@@ -73,7 +73,18 @@ const transformMessages = (messages: any[]): MessageDisplay[] => {
     timeAgo: formatDistanceToNow(new Date(message.timestamp), { addSuffix: true }),
     channelName: message.channel.startsWith('C') 
       ? `#${message.channel.slice(1, 8)}` 
-      : message.channel
+      : message.channel,
+    // Include thread information
+    isThreadReply: message.isThreadReply || false,
+    threadTs: message.threadTs || null,
+    parentMessage: message.parentMessage || null,
+    threadReplies: message.threadReplies ? message.threadReplies.map((reply: any) => ({
+      ...reply,
+      timeAgo: formatDistanceToNow(new Date(reply.timestamp), { addSuffix: true }),
+      channelName: reply.channel.startsWith('C') 
+        ? `#${reply.channel.slice(1, 8)}` 
+        : reply.channel
+    })) : []
   }))
 }
 
@@ -113,19 +124,51 @@ export default async function handler(
 
     const whereClause = buildWhereClause(filters)
 
-    // Get total count for pagination
+    // Modify where clause to exclude thread replies from the main query
+    const mainMessagesWhere = {
+      ...whereClause,
+      isThreadReply: false // Only get parent messages, not thread replies
+    }
+
+    // Get total count for pagination (only parent messages)
     const total = await db.message.count({
-      where: whereClause
+      where: mainMessagesWhere
     })
 
-    // Get messages with pagination
+    // Get messages with pagination and thread information
     const messages = await db.message.findMany({
-      where: whereClause,
+      where: mainMessagesWhere,
       orderBy: {
         timestamp: 'desc'
       },
       skip,
-      take: limit
+      take: limit,
+      include: {
+        parentMessage: {
+          select: {
+            id: true,
+            text: true,
+            username: true,
+            timestamp: true,
+            slackId: true
+          }
+        },
+        threadReplies: {
+          orderBy: {
+            timestamp: 'asc' // Replies ordered chronologically  
+          },
+          select: {
+            id: true,
+            text: true,
+            username: true,
+            timestamp: true,
+            slackId: true,
+            userId: true,
+            channel: true,
+            isThreadReply: true
+          }
+        }
+      }
     })
 
     // Transform messages for display
