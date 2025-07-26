@@ -218,7 +218,7 @@ const processMessageEvent = async (
 
     // Determine thread information
     const threadTs = event.thread_ts || null
-    const isThreadReply = threadTs && threadTs !== event.ts
+    const isThreadReply = Boolean(threadTs && threadTs !== event.ts)
     let parentMessageId = null
     
     // If this is a thread reply, find the parent message
