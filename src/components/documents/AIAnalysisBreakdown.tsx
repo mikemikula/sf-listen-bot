@@ -75,7 +75,7 @@ export const AIAnalysisBreakdown: React.FC<AIAnalysisBreakdownProps> = ({
   /**
    * Load detailed AI analysis data
    */
-  const loadAnalysisData = async () => {
+  const loadAnalysisData = React.useCallback(async () => {
     if (analysisData) return // Already loaded
 
     setLoading(true)
@@ -91,12 +91,12 @@ export const AIAnalysisBreakdown: React.FC<AIAnalysisBreakdownProps> = ({
     } finally {
       setLoading(false)
     }
-  }
+  }, [documentId, analysisData])
 
   // Load analysis data when component mounts
   React.useEffect(() => {
     loadAnalysisData()
-  }, [documentId, loadAnalysisData])
+  }, [loadAnalysisData])
 
   /**
    * Get message by ID
@@ -429,7 +429,7 @@ export const AIAnalysisBreakdown: React.FC<AIAnalysisBreakdownProps> = ({
                                   </span>
                                 </div>
                                 <p className="text-sm text-gray-700 dark:text-gray-300">
-                                  "{message.text}"
+                                  &ldquo;{message.text}&rdquo;
                                 </p>
                               </div>
                             )
