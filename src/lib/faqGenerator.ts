@@ -526,7 +526,16 @@ class FAQGeneratorService {
    */
   private async createFAQRelationships(
     faqs: FAQ[],
-    documentData: { document: ProcessedDocument },
+    documentData: { 
+      document: ProcessedDocument
+      messages: Array<{
+        id: string
+        text: string
+        username: string
+        role: string
+        timestamp: Date
+      }>
+    },
     candidates: Array<{
       question: string
       answer: string
@@ -548,17 +557,23 @@ class FAQGeneratorService {
             documentId: documentData.document.id,
             faqId: faq.id,
             generationMethod: GenerationMethod.AI_GENERATED,
-            sourceMessageIds: candidate.sourceMessageIds,
+            sourceMessageIds: candidate.sourceMessageIds.map(indexStr => {
+              const index = parseInt(indexStr)
+              return documentData.messages[index]?.id || indexStr
+            }),
             confidenceScore: faq.confidenceScore
           }
         })
 
         // Create MessageFAQ relationships for traceability
-        for (const messageIndex of candidate.sourceMessageIds) {
-          const messageId = messageIndex // Assuming this maps to actual message IDs
+        for (const indexStr of candidate.sourceMessageIds) {
+          const index = parseInt(indexStr)
+          const messageId = documentData.messages[index]?.id
           
+          if (!messageId) continue
+
           // Determine contribution type based on message role
-          const contributionType = this.determineContributionType(messageIndex, i)
+          const contributionType = this.determineContributionType(indexStr, i)
 
           await db.messageFAQ.create({
             data: {

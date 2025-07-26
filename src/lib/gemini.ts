@@ -270,8 +270,7 @@ RESPONSE (JSON only):
   }
 
   /**
-   * Generate FAQs from processed document content
-   * Automatically handles large message sets with intelligent chunking
+   * Generate FAQs from document content using AI
    */
   async generateFAQs(document: {
     title: string
@@ -288,7 +287,7 @@ RESPONSE (JSON only):
     answer: string
     category: string
     confidence: number
-    sourceMessageIds: string[]
+    sourceMessageIds: string[] // These are indices, not database IDs
   }>>> {
     // Handle large message sets with chunking (>150 messages or >50k chars)
     const totalContent = document.messages.map(m => m.text).join(' ')
@@ -320,16 +319,10 @@ RESPONSE (JSON only):
     answer: string
     category: string
     confidence: number
-    sourceMessageIds: string[]
+    sourceMessageIds: string[] // These are indices, not database IDs
   }>>> {
-    const CHUNK_SIZE = 100 // Process 100 messages at a time
-    const chunks: Array<typeof document.messages> = []
-    
-    // Create overlapping chunks to maintain context
-    for (let i = 0; i < document.messages.length; i += CHUNK_SIZE) {
-      const chunk = document.messages.slice(i, i + CHUNK_SIZE + 20) // 20 message overlap
-      chunks.push(chunk)
-    }
+    const CHUNK_SIZE = 100 // Overlap chunks for context
+    const OVERLAP = 10
 
     const allFAQs: Array<{
       question: string
@@ -339,50 +332,40 @@ RESPONSE (JSON only):
       sourceMessageIds: string[]
     }> = []
 
-    // Process each chunk
-    for (let i = 0; i < chunks.length; i++) {
-      const chunk = chunks[i]
+    // Process messages in overlapping chunks
+    for (let i = 0; i < document.messages.length; i += CHUNK_SIZE - OVERLAP) {
+      const chunk = document.messages.slice(i, i + CHUNK_SIZE)
       const chunkDoc = {
         ...document,
-        title: `${document.title} (Part ${i + 1}/${chunks.length})`,
         messages: chunk
       }
 
-      logger.info(`Processing chunk ${i + 1}/${chunks.length} with ${chunk.length} messages`)
-      
       const chunkResult = await this.generateFAQsSingle(chunkDoc)
-      
+        
       if (chunkResult.success && chunkResult.data) {
-        // Adjust sourceMessageIds for global indexing
+        // Adjust indices for global indexing (still indices, not IDs)
         const adjustedFAQs = chunkResult.data.map(faq => ({
           ...faq,
-          sourceMessageIds: faq.sourceMessageIds.map(id => 
-            String(parseInt(id) + (i * CHUNK_SIZE))
-          )
+          sourceMessageIds: faq.sourceMessageIds.map(indexStr => {
+            const adjustedIndex = parseInt(indexStr) + i
+            return adjustedIndex.toString()
+          })
         }))
         allFAQs.push(...adjustedFAQs)
       }
-
-      // Small delay between chunks to respect rate limits
-      await new Promise(resolve => setTimeout(resolve, 500))
     }
 
-    // Deduplicate similar FAQs
+    // Deduplicate FAQs across chunks
     const deduplicatedFAQs = this.deduplicateFAQs(allFAQs)
 
     return {
       success: true,
-      data: deduplicatedFAQs,
-      usage: {
-        promptTokens: 0, // Approximate - would need to sum all chunks
-        completionTokens: 0,
-        totalTokens: 0
-      }
+      data: deduplicatedFAQs
     }
   }
 
   /**
-   * Generate FAQs for a single document (no chunking)
+   * Generate FAQs for a single document (non-chunked)
    */
   private async generateFAQsSingle(document: {
     title: string
@@ -399,7 +382,7 @@ RESPONSE (JSON only):
     answer: string
     category: string
     confidence: number
-    sourceMessageIds: string[]
+    sourceMessageIds: string[] // These are indices, not database IDs
   }>>> {
     const prompt = `
 Generate FAQs from the following document about "${document.title}":

@@ -781,15 +781,15 @@ export default function DocumentDetailPage(): JSX.Element {
 
     try {
       setProcessing(true)
-
-      const response = await fetch('/api/faqs/generate', {
+      showNotification('success', 'Generating FAQs from your Q&A pairs...')
+      
+      const response = await fetch(`/api/faqs/generate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           documentId: document.id,
-          useBackgroundJob: false
         }),
       })
 
@@ -799,18 +799,31 @@ export default function DocumentDetailPage(): JSX.Element {
         throw new Error(result.error || 'Failed to generate FAQs')
       }
 
+      // Show success message with count
       const faqCount = result.data?.faqs?.length || 0
-      showNotification('success', `Generated ${faqCount} FAQs successfully!`)
-      fetchDocument() // Refresh to show new FAQs
+      showNotification('success', `Successfully generated ${faqCount} FAQs! 🎉`)
+      
+      // Refresh the document data to show new FAQs
+      await fetchDocument()
+      
+      // Scroll to FAQs section if FAQs were generated
+      if (faqCount > 0) {
+        setTimeout(() => {
+          const faqSection = window.document.getElementById('generated-faqs-section')
+          if (faqSection) {
+            faqSection.scrollIntoView({ behavior: 'smooth', block: 'start' })
+          }
+        }, 500)
+      }
 
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to generate FAQs'
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to generate FAQs'
+      logger.error('FAQ generation failed:', err)
       showNotification('error', errorMessage)
-      console.error('Failed to generate FAQs:', error)
     } finally {
       setProcessing(false)
     }
-  }, [document, showNotification, fetchDocument])
+  }, [document, fetchDocument, showNotification])
 
   /**
    * Handle FAQ deletion
@@ -935,14 +948,16 @@ export default function DocumentDetailPage(): JSX.Element {
                   <div className="text-sm text-gray-500 dark:text-gray-400">Q&A Pairs</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{Math.round((document.confidenceScore || 0) * 100)}%</div>
-                  <div className="text-sm text-gray-500 dark:text-gray-400">Confidence</div>
+                  <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                    {document.category}
+                  </div>
+                  <div className="text-sm text-gray-500 dark:text-gray-400">Category</div>
                 </div>
                 <div className="text-center">
                   <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-                    {conversationAnalysis?.faqPotential ? Math.round(conversationAnalysis.faqPotential * 100) : 0}%
+                    {conversationAnalysis?.patterns?.filter(p => p.type === 'qa_pair').length || 0 > 0 ? 'Ready' : 'Needs More'}
                   </div>
-                  <div className="text-sm text-gray-500 dark:text-gray-400">FAQ Potential</div>
+                  <div className="text-sm text-gray-500 dark:text-gray-400">FAQ Status</div>
                 </div>
               </div>
 
@@ -975,8 +990,12 @@ export default function DocumentDetailPage(): JSX.Element {
                     Ready to create {conversationAnalysis?.patterns?.filter(p => p.type === 'qa_pair').length || 0} high-quality FAQs
                   </p>
                 </div>
-                <button className="bg-white text-green-600 px-4 py-2 rounded-lg font-medium hover:bg-green-50 transition-colors">
-                  Generate
+                <button 
+                  onClick={handleGenerateFAQs}
+                  disabled={processing}
+                  className="bg-white text-green-600 px-4 py-2 rounded-lg font-medium hover:bg-green-50 transition-colors disabled:opacity-50"
+                >
+                  {processing ? 'Generating...' : 'Generate'}
                 </button>
               </div>
             </div>
@@ -999,25 +1018,48 @@ export default function DocumentDetailPage(): JSX.Element {
             </div>
           </div>
 
-          {/* Conversation Analysis */}
-          <ConversationSection 
+          {/* Q&A Pairs Preview */}
+          <QAPairsPreview 
             messages={messages}
             conversationAnalysis={conversationAnalysis}
             onRemoveMessage={handleRemoveMessage}
           />
 
-          {/* Generated FAQs */}
-          <GeneratedFAQsSection 
-            faqs={faqs}
-            onGenerateFAQs={handleGenerateFAQs}
-            isProcessing={processing}
+          {/* All Messages Overview */}
+          <AllMessagesOverview 
+            messages={messages}
+            conversationAnalysis={conversationAnalysis}
           />
+
+          {/* Generated FAQs */}
+          <div id="generated-faqs-section">
+            <GeneratedFAQsSection 
+              faqs={faqs}
+              onGenerateFAQs={handleGenerateFAQs}
+              isProcessing={processing}
+            />
+          </div>
         </div>
 
         {/* Success/Error Notifications */}
         {notification && (
-          <div className="fixed bottom-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg">
-            {notification}
+          <div className={`fixed bottom-4 right-4 px-6 py-4 rounded-lg shadow-lg text-white font-medium max-w-md ${
+            notification.includes('error') || notification.includes('Failed') 
+              ? 'bg-red-500' 
+              : 'bg-green-500'
+          }`}>
+            <div className="flex items-center gap-2">
+              {notification.includes('error') || notification.includes('Failed') ? (
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+              ) : (
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+              )}
+              <span>{notification}</span>
+            </div>
           </div>
         )}
       </main>
@@ -1026,48 +1068,41 @@ export default function DocumentDetailPage(): JSX.Element {
 }
 
 /**
- * Conversation Section Component - Clean, focused display
+ * Q&A Pairs Preview Component - Shows the actual conversation value
  */
-interface ConversationSectionProps {
+interface QAPairsPreviewProps {
   messages: MessageDisplay[]
   conversationAnalysis: ConversationAnalysis | null
   onRemoveMessage: (messageId: string) => void
 }
 
-const ConversationSection: React.FC<ConversationSectionProps> = ({
+const QAPairsPreview: React.FC<QAPairsPreviewProps> = ({
   messages,
   conversationAnalysis,
   onRemoveMessage
 }) => {
-  const [showDetails, setShowDetails] = useState(false)
+  const [showAll, setShowAll] = useState(false)
 
   const messageMap = messages.reduce((map, message) => {
     map[message.id] = message
     return map
   }, {} as Record<string, MessageDisplay>)
 
-  const getConversationPatterns = () => {
+  const getQAPairs = () => {
     if (conversationAnalysis && conversationAnalysis.patterns.length > 0) {
-      return conversationAnalysis.patterns.map((pattern: any) => ({
-        ...pattern,
-        id: `ai_${pattern.messageIds.join('_')}`,
-        messages: pattern.messageIds.map((id: string) => messageMap[id]).filter(Boolean)
-      }))
+      return conversationAnalysis.patterns
+        .filter((pattern: any) => pattern.type === 'qa_pair')
+        .map((pattern: any) => ({
+          ...pattern,
+          id: `ai_${pattern.messageIds.join('_')}`,
+          messages: pattern.messageIds.map((id: string) => messageMap[id]).filter(Boolean)
+        }))
     }
-    
-    return messages.map(message => ({
-      type: 'context' as const,
-      id: `basic_${message.id}`,
-      messages: [message],
-      confidence: 0.5,
-      reasoning: 'Basic fallback classification',
-      topics: [],
-      messageIds: [message.id]
-    }))
+    return []
   }
 
-  const patterns = getConversationPatterns()
-  const qaPatterns = patterns.filter((p: any) => p.type === 'qa_pair')
+  const qaPairs = getQAPairs()
+  const displayedPairs = showAll ? qaPairs : qaPairs.slice(0, 3)
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
@@ -1075,62 +1110,85 @@ const ConversationSection: React.FC<ConversationSectionProps> = ({
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-              Conversation Analysis
+              Q&A Pairs Found ({qaPairs.length})
             </h2>
             <p className="text-gray-600 dark:text-gray-400 mt-1">
-              {qaPatterns.length} Q&A pairs • {messages.length} total messages
+              {qaPairs.length > 0 
+                ? `These will become ${qaPairs.length} helpful FAQs`
+                : 'No clear questions and answers found in this conversation'
+              }
             </p>
           </div>
-          <button
-            onClick={() => setShowDetails(!showDetails)}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-          >
-            {showDetails ? 'Hide Details' : 'Show Details'}
-            <svg 
-              className={`w-4 h-4 transition-transform ${showDetails ? 'rotate-180' : ''}`} 
-              fill="none" 
-              stroke="currentColor" 
-              viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
-            </svg>
-          </button>
+          {qaPairs.length > 0 && (
+            <div className="px-3 py-1 bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 rounded-full text-sm font-medium">
+              Ready for FAQs
+            </div>
+          )}
         </div>
       </div>
 
-      {showDetails && (
-        <div className="p-6">
-          {/* AI Insight Summary */}
-          {conversationAnalysis && (
-            <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 mb-6">
-              <h3 className="font-medium text-blue-900 dark:text-blue-200 mb-2">AI Analysis Summary</h3>
-              <p className="text-blue-800 dark:text-blue-300 text-sm leading-relaxed">
-                {conversationAnalysis.conversationFlow}
-              </p>
-            </div>
-          )}
-
-          {/* Q&A Pairs */}
-          <div className="space-y-4">
-            {qaPatterns.map((pattern: any) => (
-              <QAPairCard 
-                key={pattern.id}
-                pattern={pattern}
-                onRemoveMessage={onRemoveMessage}
-              />
-            ))}
-            
-            {qaPatterns.length === 0 && (
-              <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                <svg className="w-12 h-12 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-3.582 8-8 8a8.959 8.959 0 01-4.906-1.476L3 21l2.524-5.094A8.959 8.959 0 013 12c0-4.418 3.582-8 8-8s8 3.582 8 8z"></path>
-                </svg>
-                <p>No Q&A patterns identified in this conversation</p>
+      <div className="p-6">
+        {qaPairs.length > 0 ? (
+          <>
+            {/* AI Analysis Summary */}
+            {conversationAnalysis && (
+              <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 mb-6">
+                <h3 className="font-medium text-blue-900 dark:text-blue-200 mb-2">AI Analysis</h3>
+                <p className="text-blue-800 dark:text-blue-300 text-sm leading-relaxed">
+                  {conversationAnalysis.conversationFlow}
+                </p>
               </div>
             )}
+
+            {/* Q&A Pairs */}
+            <div className="space-y-4">
+              {displayedPairs.map((pattern: any) => (
+                <QAPairCard 
+                  key={pattern.id}
+                  pattern={pattern}
+                  onRemoveMessage={onRemoveMessage}
+                />
+              ))}
+            </div>
+
+            {/* Show More Button */}
+            {qaPairs.length > 3 && (
+              <div className="text-center mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+                <button
+                  onClick={() => setShowAll(!showAll)}
+                  className="px-4 py-2 text-sm font-medium text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
+                >
+                  {showAll ? (
+                    <>
+                      Show Less
+                      <svg className="w-4 h-4 ml-1 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 15l7-7 7 7"></path>
+                      </svg>
+                    </>
+                  ) : (
+                    <>
+                      Show {qaPairs.length - 3} More Q&A Pairs
+                      <svg className="w-4 h-4 ml-1 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
+                      </svg>
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="text-center py-12">
+            <svg className="w-12 h-12 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-3.582 8-8 8a8.959 8.959 0 01-4.906-1.476L3 21l2.524-5.094A8.959 8.959 0 013 12c0-4.418 3.582-8 8-8s8 3.582 8 8z"></path>
+            </svg>
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No Q&A Patterns Found</h3>
+            <p className="text-gray-600 dark:text-gray-400">
+              This conversation doesn&apos;t contain clear question-answer patterns. Try adding more conversational messages.
+            </p>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   )
 }
@@ -1163,9 +1221,6 @@ const QAPairCard: React.FC<QAPairCardProps> = ({ pattern, onRemoveMessage }) => 
             <div className="flex items-center gap-2 mb-2">
               <span className="font-medium text-gray-900 dark:text-white">{question.username}</span>
               <span className="text-sm text-gray-500 dark:text-gray-400">{question.timeAgo}</span>
-              <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                {Math.round(pattern.confidence * 100)}% confidence
-              </span>
             </div>
             <p className="text-gray-900 dark:text-white font-medium">{question.text}</p>
           </div>
@@ -1193,20 +1248,6 @@ const QAPairCard: React.FC<QAPairCardProps> = ({ pattern, onRemoveMessage }) => 
               )}
             </div>
             <p className="text-gray-900 dark:text-white">{answer.text}</p>
-            
-            {/* AI Reasoning Toggle */}
-            <button
-              onClick={() => setShowReasoning(!showReasoning)}
-              className="mt-2 text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
-            >
-              {showReasoning ? 'Hide' : 'Show'} AI reasoning
-            </button>
-            
-            {showReasoning && (
-              <div className="mt-2 p-3 bg-gray-100 dark:bg-gray-800 rounded text-xs text-gray-600 dark:text-gray-400">
-                {pattern.reasoning}
-              </div>
-            )}
           </div>
         </div>
       </div>
@@ -1237,48 +1278,242 @@ const GeneratedFAQsSection: React.FC<GeneratedFAQsSectionProps> = ({
               Generated FAQs ({faqs.length})
             </h2>
             <p className="text-gray-600 dark:text-gray-400 mt-1">
-              {faqs.length === 0 ? 'Ready to generate FAQs from your conversation' : 'Your generated frequently asked questions'}
+              {faqs.length === 0 
+                ? 'Click "Generate" above to create FAQs from your Q&A pairs'
+                : 'Your generated frequently asked questions from the conversation'
+              }
             </p>
           </div>
-          {faqs.length === 0 && (
+          {faqs.length === 0 && !isProcessing && (
             <button
               onClick={onGenerateFAQs}
-              disabled={isProcessing}
-              className="px-6 py-3 bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white font-medium rounded-lg transition-colors"
+              className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors"
             >
-              {isProcessing ? 'Generating...' : 'Generate FAQs'}
+              Generate FAQs
             </button>
           )}
         </div>
       </div>
 
       <div className="p-6">
-        {faqs.length === 0 ? (
+        {isProcessing ? (
           <div className="text-center py-12">
-            <svg className="w-16 h-16 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-            </svg>
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No FAQs Generated Yet</h3>
-            <p className="text-gray-600 dark:text-gray-400 mb-6">
-              Click &quot;Generate FAQs&quot; to automatically create frequently asked questions from your conversation.
-            </p>
+            <div className="inline-flex items-center gap-3">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-600"></div>
+              <span className="text-gray-600 dark:text-gray-400">Generating FAQs from your Q&A pairs...</span>
+            </div>
           </div>
-        ) : (
+        ) : faqs.length > 0 ? (
           <div className="space-y-4">
             {faqs.map((faq) => (
               <div key={faq.id} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
                 <h4 className="font-medium text-gray-900 dark:text-white mb-2">{faq.question}</h4>
                 <p className="text-gray-700 dark:text-gray-300">{faq.answer}</p>
                 <div className="flex items-center gap-2 mt-3">
-                  <span className="px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300">
+                  <span className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
                     {faq.category}
-                  </span>
-                  <span className="px-2 py-1 text-xs rounded-full bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
-                    {Math.round((faq.confidenceScore || 0) * 100)}% confidence
                   </span>
                 </div>
               </div>
             ))}
+          </div>
+        ) : (
+          <div className="text-center py-12">
+            <svg className="w-16 h-16 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Ready to Generate FAQs</h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-6">
+              Your Q&A pairs are ready to be converted into helpful FAQs. Click the green &quot;Generate&quot; button above to get started.
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/**
+ * All Messages Overview Component - Shows sampling decisions
+ */
+interface AllMessagesOverviewProps {
+  messages: MessageDisplay[]
+  conversationAnalysis: ConversationAnalysis | null
+}
+
+const AllMessagesOverview: React.FC<AllMessagesOverviewProps> = ({
+  messages,
+  conversationAnalysis
+}) => {
+  const [filter, setFilter] = useState<'questions' | 'answers' | 'ignored' | 'all'>('questions')
+
+  // Get all message IDs that were used in Q&A pairs
+  const usedMessageIds = new Set<string>()
+  const questionIds = new Set<string>()
+  const answerIds = new Set<string>()
+  
+  if (conversationAnalysis?.patterns) {
+    conversationAnalysis.patterns
+      .filter(pattern => pattern.type === 'qa_pair')
+      .forEach(pattern => {
+        pattern.messageIds.forEach((id, index) => {
+          usedMessageIds.add(id)
+          if (index === 0) questionIds.add(id) // First message is question
+          if (index === 1) answerIds.add(id)   // Second message is answer
+        })
+      })
+  }
+
+  const getFilteredMessages = () => {
+    switch (filter) {
+      case 'questions':
+        return messages.filter(msg => questionIds.has(msg.id))
+      case 'answers':
+        return messages.filter(msg => answerIds.has(msg.id))
+      case 'ignored':
+        return messages.filter(msg => !usedMessageIds.has(msg.id))
+      case 'all':
+      default:
+        return messages
+    }
+  }
+
+  const filteredMessages = getFilteredMessages()
+  const questionCount = messages.filter(msg => questionIds.has(msg.id)).length
+  const answerCount = messages.filter(msg => answerIds.has(msg.id)).length
+  const ignoredCount = messages.filter(msg => !usedMessageIds.has(msg.id)).length
+
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+      <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+              All Messages ({messages.length})
+            </h2>
+            <p className="text-gray-600 dark:text-gray-400 mt-1">
+              {questionCount} questions • {answerCount} answers • {ignoredCount} ignored
+            </p>
+          </div>
+        </div>
+
+        {/* Filter Buttons */}
+        <div className="flex gap-2 flex-wrap">
+          <button
+            onClick={() => setFilter('questions')}
+            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+              filter === 'questions'
+                ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
+            }`}
+          >
+            Questions ({questionCount})
+          </button>
+          <button
+            onClick={() => setFilter('answers')}
+            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+              filter === 'answers'
+                ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
+            }`}
+          >
+            Answers ({answerCount})
+          </button>
+          <button
+            onClick={() => setFilter('ignored')}
+            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+              filter === 'ignored'
+                ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
+            }`}
+          >
+            Ignored ({ignoredCount})
+          </button>
+          <button
+            onClick={() => setFilter('all')}
+            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+              filter === 'all'
+                ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
+            }`}
+          >
+            All ({messages.length})
+          </button>
+        </div>
+      </div>
+
+      <div className="p-6">
+        {filteredMessages.length > 0 ? (
+          <div className="space-y-3">
+            {filteredMessages.map((message) => {
+              const isQuestion = questionIds.has(message.id)
+              const isAnswer = answerIds.has(message.id)
+              const isUsed = usedMessageIds.has(message.id)
+              const isIgnored = !isUsed
+              
+              return (
+                <div 
+                  key={message.id} 
+                  className={`flex items-start gap-3 p-4 rounded-lg border ${
+                    isQuestion 
+                      ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800'
+                      : isAnswer
+                      ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
+                      : isIgnored
+                      ? 'bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800'
+                      : 'bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600'
+                  }`}
+                >
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                    isQuestion 
+                      ? 'bg-blue-100 dark:bg-blue-900'
+                      : isAnswer
+                      ? 'bg-green-100 dark:bg-green-900'
+                      : isIgnored
+                      ? 'bg-orange-100 dark:bg-orange-900'
+                      : 'bg-gray-200 dark:bg-gray-600'
+                  }`}>
+                    <span className={`text-sm font-bold ${
+                      isQuestion 
+                        ? 'text-blue-600 dark:text-blue-400'
+                        : isAnswer
+                        ? 'text-green-600 dark:text-green-400'
+                        : isIgnored
+                        ? 'text-orange-600 dark:text-orange-400'
+                        : 'text-gray-600 dark:text-gray-400'
+                    }`}>
+                      {isQuestion ? 'Q' : isAnswer ? 'A' : isIgnored ? '!' : '•'}
+                    </span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="font-medium text-gray-900 dark:text-white">{message.username}</span>
+                      <span className="text-sm text-gray-500 dark:text-gray-400">{message.timeAgo}</span>
+                      {isIgnored && (
+                        <span className="px-2 py-1 text-xs bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300 rounded">
+                          {message.text.toLowerCase().includes('hi') || message.text.toLowerCase().includes('hello') 
+                            ? 'Greeting' 
+                            : message.text.includes('?') 
+                            ? 'Unanswered question' 
+                            : 'Context only'}
+                        </span>
+                      )}
+                    </div>
+                    <p className={`${
+                      isQuestion || isAnswer 
+                        ? 'text-gray-900 dark:text-white font-medium'
+                        : 'text-gray-600 dark:text-gray-400'
+                    }`}>
+                      {message.text}
+                    </p>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        ) : (
+          <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+            <p>No {filter} found in this conversation.</p>
           </div>
         )}
       </div>
