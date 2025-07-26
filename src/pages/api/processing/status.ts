@@ -11,7 +11,6 @@ import { documentProcessorService } from '@/lib/documentProcessor'
 import { faqGeneratorService } from '@/lib/faqGenerator'
 import { piiDetectorService } from '@/lib/piiDetector'
 import { pineconeService } from '@/lib/pinecone'
-import { conversationAnalyzerService } from '@/lib/conversationAnalyzer'
 import { 
   ApiResponse, 
   DocumentProcessingJob,
@@ -31,7 +30,6 @@ interface ProcessingStatusResponse {
       faqGenerator: { status: 'healthy' | 'error'; error?: string; stats?: any }
       piiDetector: { status: 'healthy' | 'error'; error?: string; stats?: any }
       pinecone: { status: 'healthy' | 'error'; error?: string; stats?: any }
-      conversationAnalyzer: { status: 'healthy' | 'error'; error?: string }
     }
   }
   processingJobs: {
@@ -104,15 +102,13 @@ async function handleGetSystemStatus(
       docProcessorHealth,
       faqGeneratorHealth,
       piiDetectorHealth,
-      pineconeHealth,
-      conversationAnalyzerHealth
+      pineconeHealth
     ] = await Promise.allSettled([
       checkDatabaseHealth(),
       documentProcessorService.healthCheck(),
       faqGeneratorService.healthCheck(),
       piiDetectorService.healthCheck(),
-      pineconeService.healthCheck(),
-      conversationAnalyzerService.healthCheck()
+      pineconeService.healthCheck()
     ])
 
     // Get processing jobs status
@@ -132,8 +128,7 @@ async function handleGetSystemStatus(
           docProcessorHealth,
           faqGeneratorHealth,
           piiDetectorHealth,
-          pineconeHealth,
-          conversationAnalyzerHealth
+          pineconeHealth
         ].every(result => result.status === 'fulfilled' && (typeof result.value === 'boolean' ? result.value : result.value?.isHealthy)),
         services: {
           database: {
@@ -142,8 +137,7 @@ async function handleGetSystemStatus(
           },
           documentProcessor: {
             status: docProcessorHealth.status === 'fulfilled' && docProcessorHealth.value?.isHealthy ? 'healthy' : 'error',
-            error: docProcessorHealth.status === 'fulfilled' ? docProcessorHealth.value?.error : String(docProcessorHealth.reason),
-            stats: docProcessorHealth.status === 'fulfilled' ? docProcessorHealth.value?.stats : undefined
+            error: docProcessorHealth.status === 'fulfilled' ? docProcessorHealth.value?.error : String(docProcessorHealth.reason)
           },
           faqGenerator: {
             status: faqGeneratorHealth.status === 'fulfilled' && faqGeneratorHealth.value?.isHealthy ? 'healthy' : 'error',
@@ -159,10 +153,6 @@ async function handleGetSystemStatus(
             status: pineconeHealth.status === 'fulfilled' && pineconeHealth.value?.isHealthy ? 'healthy' : 'error',
             error: pineconeHealth.status === 'fulfilled' ? pineconeHealth.value?.error : String(pineconeHealth.reason),
             stats: pineconeHealth.status === 'fulfilled' ? pineconeHealth.value?.stats : undefined
-          },
-          conversationAnalyzer: {
-            status: conversationAnalyzerHealth.status === 'fulfilled' && conversationAnalyzerHealth.value?.isHealthy ? 'healthy' : 'error',
-            error: conversationAnalyzerHealth.status === 'fulfilled' ? conversationAnalyzerHealth.value?.error : String(conversationAnalyzerHealth.reason)
           }
         }
       },

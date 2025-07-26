@@ -108,7 +108,7 @@ async function handleProcessAllMessages(
         try {
           logger.info(`Processing batch ${index + 1}/${messageGroups.length} (${messageIds.length} messages)`)
           
-          const result = await documentProcessorService.processMessagesIntoDocument(processingInput)
+          const result = await documentProcessorService.processDocument(processingInput)
           
           // Get the created document with stats
           const documentWithStats = await db.processedDocument.findUnique({

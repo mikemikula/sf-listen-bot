@@ -10,7 +10,6 @@ import Link from 'next/link'
 import { useRouter } from 'next/router'
 import { Header } from '@/components/Header'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
-import { AIAnalysisBreakdown } from '@/components/documents/AIAnalysisBreakdown'
 import { DocumentDisplay, MessageDisplay, FAQDisplay, ApiResponse } from '@/types'
 
 /**
@@ -751,13 +750,6 @@ const DocumentDetailPage: React.FC = () => {
               messages={messages}
               onRemoveMessage={handleRemoveMessage}
               onAddMessages={handleAddMessages}
-            />
-
-            {/* AI Analysis Breakdown */}
-            <AIAnalysisBreakdown
-              messages={messages}
-              faqs={faqs}
-              documentId={document.id}
             />
 
             {/* Generated FAQs */}

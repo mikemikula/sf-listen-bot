@@ -81,7 +81,7 @@ async function handleProcessDocument(
     // Synchronous processing
     logger.info(`Processing ${messageIds.length} messages into document with AI analysis`)
     
-    const result = await documentProcessorService.processMessagesIntoDocument(processingInput)
+    const result = await documentProcessorService.processDocument(processingInput)
 
     // Get the created document with stats
     const documentWithStats = await db.processedDocument.findUnique({

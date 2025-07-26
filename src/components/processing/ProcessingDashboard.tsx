@@ -16,7 +16,6 @@ interface SystemHealth {
     faqGenerator: { status: 'healthy' | 'error'; error?: string; stats?: any }
     piiDetector: { status: 'healthy' | 'error'; error?: string; stats?: any }
     pinecone: { status: 'healthy' | 'error'; error?: string; stats?: any }
-    conversationAnalyzer: { status: 'healthy' | 'error'; error?: string }
   }
 }
 

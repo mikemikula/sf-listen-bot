@@ -1,6 +1,7 @@
 /**
  * Gemini AI Service
  * Provides AI-powered document processing, FAQ generation, and embedding creation
+ * Uses Gemini 2.0 Flash for optimal cost-effectiveness and performance
  * Implements rate limiting, error handling, and usage tracking
  */
 
@@ -9,7 +10,8 @@ import { logger } from './logger'
 import { GeminiConfig, GeminiResponse, GeminiError } from '@/types'
 
 // Configuration constants
-const DEFAULT_MODEL = 'gemini-1.5-pro'
+// Using Gemini 2.0 Flash for 5x cost savings with near-Claude quality performance
+const DEFAULT_MODEL = 'gemini-2.0-flash-exp'
 const EMBEDDING_MODEL = 'text-embedding-004'
 const MAX_RETRIES = 3
 const RETRY_DELAY_MS = 1000
@@ -82,11 +84,20 @@ class GeminiService {
 
   /**
    * Generate content using Gemini with error handling
+   * Optimized configuration for Gemini 2.0 Flash
    */
   private async generateContent(prompt: string, context: string): Promise<GeminiResponse<string>> {
     try {
       const result = await this.withRetry(async () => {
-        const response = await this.model.generateContent(prompt)
+        const response = await this.model.generateContent({
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+          generationConfig: {
+            temperature: 0.1, // Lower temperature for more consistent results
+            topK: 40,
+            topP: 0.95,
+            maxOutputTokens: 32768, // Increased for large document processing (Flash 2.0 supports up to 64k)
+          }
+        })
         return response.response.text()
       }, context)
 
@@ -108,82 +119,7 @@ class GeminiService {
     }
   }
 
-  /**
-   * Analyze messages to detect conversation boundaries and Q&A patterns
-   */
-  async analyzeConversation(messages: Array<{
-    id: string
-    text: string
-    username: string
-    timestamp: Date
-    isThreadReply: boolean
-  }>): Promise<GeminiResponse<{
-    conversationBoundaries: Array<{ startIndex: number; endIndex: number; topic: string }>
-    qaPairs: Array<{
-      questionIndex: number
-      answerIndex: number
-      confidence: number
-      topic: string
-    }>
-    messageRoles: Array<{
-      messageId: string
-      role: 'QUESTION' | 'ANSWER' | 'CONTEXT' | 'FOLLOW_UP' | 'CONFIRMATION'
-      confidence: number
-    }>
-  }>> {
-    const prompt = `Analyze this Slack conversation and identify question-answer patterns and message roles.
 
-CONVERSATION:
-${messages.map((msg, idx) => `[${idx}] ${msg.username}: ${msg.text}`).join('\n')}
-
-Look for:
-- Questions (including "what is", "how to", "whats", etc.)
-- Direct answers or explanations
-- Context/greeting messages
-- Follow-up questions
-
-Return JSON in this exact format:
-{
-  "conversationBoundaries": [
-    {"startIndex": 0, "endIndex": ${messages.length - 1}, "topic": "Main Discussion"}
-  ],
-  "qaPairs": [
-    {"questionIndex": 1, "answerIndex": 2, "confidence": 0.9, "topic": "CPQ Definition"}
-  ],
-  "messageRoles": [
-    {"messageId": "${messages[0]?.id}", "role": "CONTEXT", "confidence": 0.8},
-    {"messageId": "${messages[1]?.id}", "role": "QUESTION", "confidence": 0.9},
-    {"messageId": "${messages[2]?.id}", "role": "ANSWER", "confidence": 0.9}
-  ]
-}
-
-Even simple question-answer exchanges should be identified. Be generous in detecting Q&A patterns.`
-
-    const response = await this.generateContent(prompt, 'conversation-analysis')
-    
-    if (!response.success) {
-      return {
-        success: false,
-        error: response.error
-      }
-    }
-
-    try {
-      const data = this.parseJSONResponse(response.data!)
-      return {
-        success: true,
-        data,
-        usage: response.usage
-      }
-    } catch (error) {
-      logger.error('Failed to parse Gemini conversation analysis response:', error)
-      logger.error('Raw response:', response.data)
-      return {
-        success: false,
-        error: 'Failed to parse AI response'
-      }
-    }
-  }
 
   /**
    * Parse JSON response that might be wrapped in markdown code blocks
@@ -300,8 +236,120 @@ Provide response in JSON format:
 
   /**
    * Generate FAQs from processed document content
+   * Automatically handles large message sets with intelligent chunking
    */
   async generateFAQs(document: {
+    title: string
+    description: string
+    category: string
+    messages: Array<{
+      text: string
+      username: string
+      role: string
+      timestamp: Date
+    }>
+  }): Promise<GeminiResponse<Array<{
+    question: string
+    answer: string
+    category: string
+    confidence: number
+    sourceMessageIds: string[]
+  }>>> {
+    // Handle large message sets with chunking (>150 messages or >50k chars)
+    const totalContent = document.messages.map(m => m.text).join(' ')
+    const shouldChunk = document.messages.length > 150 || totalContent.length > 50000
+
+    if (shouldChunk) {
+      logger.info(`Large document detected (${document.messages.length} messages, ${totalContent.length} chars) - using chunked processing`)
+      return this.generateFAQsWithChunking(document)
+    }
+
+    return this.generateFAQsSingle(document)
+  }
+
+  /**
+   * Generate FAQs for large documents using intelligent chunking
+   */
+  private async generateFAQsWithChunking(document: {
+    title: string
+    description: string
+    category: string
+    messages: Array<{
+      text: string
+      username: string
+      role: string
+      timestamp: Date
+    }>
+  }): Promise<GeminiResponse<Array<{
+    question: string
+    answer: string
+    category: string
+    confidence: number
+    sourceMessageIds: string[]
+  }>>> {
+    const CHUNK_SIZE = 100 // Process 100 messages at a time
+    const chunks: Array<typeof document.messages> = []
+    
+    // Create overlapping chunks to maintain context
+    for (let i = 0; i < document.messages.length; i += CHUNK_SIZE) {
+      const chunk = document.messages.slice(i, i + CHUNK_SIZE + 20) // 20 message overlap
+      chunks.push(chunk)
+    }
+
+    const allFAQs: Array<{
+      question: string
+      answer: string
+      category: string
+      confidence: number
+      sourceMessageIds: string[]
+    }> = []
+
+    // Process each chunk
+    for (let i = 0; i < chunks.length; i++) {
+      const chunk = chunks[i]
+      const chunkDoc = {
+        ...document,
+        title: `${document.title} (Part ${i + 1}/${chunks.length})`,
+        messages: chunk
+      }
+
+      logger.info(`Processing chunk ${i + 1}/${chunks.length} with ${chunk.length} messages`)
+      
+      const chunkResult = await this.generateFAQsSingle(chunkDoc)
+      
+      if (chunkResult.success && chunkResult.data) {
+        // Adjust sourceMessageIds for global indexing
+        const adjustedFAQs = chunkResult.data.map(faq => ({
+          ...faq,
+          sourceMessageIds: faq.sourceMessageIds.map(id => 
+            String(parseInt(id) + (i * CHUNK_SIZE))
+          )
+        }))
+        allFAQs.push(...adjustedFAQs)
+      }
+
+      // Small delay between chunks to respect rate limits
+      await new Promise(resolve => setTimeout(resolve, 500))
+    }
+
+    // Deduplicate similar FAQs
+    const deduplicatedFAQs = this.deduplicateFAQs(allFAQs)
+
+    return {
+      success: true,
+      data: deduplicatedFAQs,
+      usage: {
+        promptTokens: 0, // Approximate - would need to sum all chunks
+        completionTokens: 0,
+        totalTokens: 0
+      }
+    }
+  }
+
+  /**
+   * Generate FAQs for a single document (no chunking)
+   */
+  private async generateFAQsSingle(document: {
     title: string
     description: string
     category: string
@@ -667,6 +715,64 @@ Respond in JSON format:
         details
       }
     }
+  }
+
+  /**
+   * Deduplicate similar FAQs based on question similarity
+   */
+  private deduplicateFAQs(faqs: Array<{
+    question: string
+    answer: string
+    category: string
+    confidence: number
+    sourceMessageIds: string[]
+  }>): Array<{
+    question: string
+    answer: string
+    category: string
+    confidence: number
+    sourceMessageIds: string[]
+  }> {
+    const deduplicated: typeof faqs = []
+    const seen = new Set<string>()
+
+    for (const faq of faqs) {
+      // Create a normalized key for similarity detection
+      const normalizedQuestion = faq.question.toLowerCase()
+        .replace(/[?!.,]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim()
+
+      // Check for exact or very similar questions
+      let isDuplicate = false
+      for (const seenKey of Array.from(seen)) {
+        if (this.calculateSimilarity(normalizedQuestion, seenKey) > 0.85) {
+          isDuplicate = true
+          break
+        }
+      }
+
+      if (!isDuplicate) {
+        seen.add(normalizedQuestion)
+        deduplicated.push(faq)
+      }
+    }
+
+    // Sort by confidence score (highest first)
+    return deduplicated.sort((a, b) => b.confidence - a.confidence)
+  }
+
+  /**
+   * Calculate simple string similarity using Jaccard index
+   */
+  private calculateSimilarity(str1: string, str2: string): number {
+    const words1 = new Set(str1.split(' '))
+    const words2 = new Set(str2.split(' '))
+    
+    const intersection = new Set(Array.from(words1).filter(x => words2.has(x)))
+    const union = new Set(Array.from(words1).concat(Array.from(words2)))
+    
+    return intersection.size / union.size
   }
 }
 

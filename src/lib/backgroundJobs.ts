@@ -74,7 +74,7 @@ class BackgroundJobService {
         job.progress(10)
 
                           try {
-           const result = await documentProcessorService.processMessagesIntoDocument(input)
+                       const result = await documentProcessorService.processDocument(input)
            job.progress(100)
            
            logger.info(`Document job ${job.id} completed successfully`)

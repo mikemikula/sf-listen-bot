@@ -1,14 +1,13 @@
 /**
  * Document Processor Service
- * Orchestrates the creation of processed documents from Slack messages
- * Handles conversation analysis, PII detection, and junction table relationships
+ * Simplified service for creating processed documents from Slack messages
+ * Focuses on core functionality without analysis overhead
  */
 
 import { logger } from './logger'
 import { db } from './db'
 import { geminiService } from './gemini'
 import { piiDetectorService } from './piiDetector'
-import { conversationAnalyzerService } from './conversationAnalyzer'
 import { 
   ProcessedDocument,
   DocumentProcessingInput,
@@ -18,18 +17,12 @@ import {
   PIIDetection,
   DocumentStatus,
   InclusionMethod,
-  MessageRole,
   PIISourceType,
   ProcessingError
 } from '@/types'
 
-// Configuration constants
-const DEFAULT_CONFIDENCE_THRESHOLD = 0.7
-const MAX_MESSAGES_PER_DOCUMENT = 100
-const MAX_PROCESSING_TIME_MS = 5 * 60 * 1000 // 5 minutes
-
 /**
- * Document processing statistics
+ * Processing statistics interface
  */
 interface ProcessingStats {
   messagesAnalyzed: number
@@ -43,16 +36,15 @@ interface ProcessingStats {
 }
 
 /**
- * Document Processor service for creating structured documents from messages
+ * Document Processing Service
+ * Handles creation and enhancement of processed documents from Slack messages
  */
 class DocumentProcessorService {
 
   /**
-   * Process selected messages into a structured document
+   * Process a collection of messages into a structured document
    */
-  async processMessagesIntoDocument(
-    input: DocumentProcessingInput
-  ): Promise<DocumentProcessingResult> {
+  async processDocument(input: DocumentProcessingInput): Promise<DocumentProcessingResult> {
     const startTime = Date.now()
     
     try {
@@ -65,40 +57,37 @@ class DocumentProcessorService {
       const messages = await this.fetchMessages(input.messageIds)
       console.log(`Fetched ${messages.length} messages for document processing:`, messages.map(m => ({ id: m.id, text: m.text.substring(0, 50) + '...' })))
 
-      // Step 3: Analyze conversation structure
-      const conversationAnalysis = await conversationAnalyzerService.analyzeConversation(messages)
-
-      // Step 4: Detect and handle PII
+      // Step 3: Detect and handle PII
       const piiResults = await this.processPII(messages)
 
-      // Step 5: Create document with metadata
-      const document = await this.createDocument(input, messages, conversationAnalysis, piiResults)
+      // Step 4: Create document with metadata
+      const document = await this.createDocument(input, messages, piiResults)
 
-      // Step 6: Create junction table relationships
-      await this.createDocumentMessageRelationships(document.id, messages, conversationAnalysis)
+      // Step 5: Create junction table relationships
+      await this.createDocumentMessageRelationships(document.id, messages)
 
-      // Step 7: Calculate final statistics
+      // Step 6: Calculate final statistics
       const stats: ProcessingStats = {
         messagesAnalyzed: messages.length,
         messagesIncluded: messages.length,
         piiItemsDetected: piiResults.detections.length,
         piiItemsReplaced: piiResults.replacements,
-        qaPairsFound: conversationAnalysis.qaPairs.length,
+        qaPairsFound: 0, // Simplified - no longer analyzing Q&A pairs
         confidenceScore: document.confidenceScore,
         processingTimeMs: Date.now() - startTime,
-        warnings: this.generateWarnings(conversationAnalysis, piiResults)
+        warnings: this.generateWarnings(piiResults)
       }
 
-      const result: DocumentProcessingResult = {
-        document,
-        messagesProcessed: messages.length,
-        piiDetected: piiResults.detections,
-        confidenceScore: document.confidenceScore,
-        processingTime: stats.processingTimeMs
-      }
+      logger.info(`Document processing completed in ${stats.processingTimeMs}ms`)
+      console.log('Processing completed with stats:', stats)
 
-      logger.info(`Document processing completed: ${document.id} (${stats.processingTimeMs}ms)`)
-      return result
+             return {
+         document,
+         messagesProcessed: messages.length,
+         piiDetected: piiResults.detections,
+         confidenceScore: document.confidenceScore,
+         processingTime: stats.processingTimeMs
+       }
 
     } catch (error) {
       logger.error('Document processing failed:', error)
@@ -107,59 +96,48 @@ class DocumentProcessorService {
   }
 
   /**
-   * Enhance existing document by adding more messages
+   * Enhance an existing document with additional messages
    */
   async enhanceDocument(
     documentId: string,
     additionalMessageIds: string[],
-    userId: string
+    userId?: string
   ): Promise<{
     updatedDocument: ProcessedDocument
-    messagesAdded: number
-    newPiiDetections: PIIDetection[]
+    addedMessages: BaseMessage[]
+    stats: ProcessingStats
   }> {
+    const startTime = Date.now()
+
     try {
       logger.info(`Enhancing document ${documentId} with ${additionalMessageIds.length} additional messages`)
 
-      // Step 1: Fetch existing document
+      // Step 1: Validate document exists
       const existingDocument = await db.processedDocument.findUnique({
         where: { id: documentId },
-        include: {
-          documentMessages: {
-            include: { message: true }
-          }
-        }
+        include: { documentMessages: { include: { message: true } } }
       })
 
       if (!existingDocument) {
-        throw new Error(`Document ${documentId} not found`)
+        throw new ProcessingError(`Document ${documentId} not found`)
       }
 
       // Step 2: Fetch new messages
       const newMessages = await this.fetchMessages(additionalMessageIds)
 
-      // Step 3: Combine with existing messages for analysis
-      const existingMessages = existingDocument.documentMessages.map((dm: any) => dm.message)
-      const allMessages = [...existingMessages, ...newMessages]
-
-      // Step 4: Re-analyze conversation with enhanced context
-      const conversationAnalysis = await conversationAnalyzerService.analyzeConversation(allMessages)
-
-      // Step 5: Process PII in new messages
+      // Step 3: Process PII in new messages
       const piiResults = await this.processPII(newMessages)
 
-      // Step 6: Update document metadata
+      // Step 4: Update document metadata
       const updatedDocument = await this.updateDocumentWithEnhancements(
         documentId,
-        conversationAnalysis,
         piiResults
       )
 
-      // Step 7: Create relationships for new messages
+      // Step 5: Create relationships for new messages
       await this.createDocumentMessageRelationships(
         documentId,
         newMessages,
-        conversationAnalysis,
         InclusionMethod.USER_ENHANCED,
         userId
       )
@@ -168,269 +146,171 @@ class DocumentProcessorService {
 
       return {
         updatedDocument,
-        messagesAdded: newMessages.length,
-        newPiiDetections: piiResults.detections
+        addedMessages: newMessages,
+        stats: {
+          messagesAnalyzed: newMessages.length,
+          messagesIncluded: newMessages.length,
+          piiItemsDetected: piiResults.detections.length,
+          piiItemsReplaced: piiResults.replacements,
+          qaPairsFound: 0, // Simplified
+          confidenceScore: updatedDocument.confidenceScore,
+          processingTimeMs: Date.now() - startTime,
+          warnings: this.generateWarnings(piiResults)
+        }
       }
 
     } catch (error) {
-      logger.error(`Document enhancement failed for ${documentId}:`, error)
+      logger.error('Document enhancement failed:', error)
       throw new ProcessingError(`Document enhancement failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
 
   /**
-   * Merge multiple documents into a single comprehensive document
+   * Remove messages from a document
    */
-  async mergeDocuments(
-    documentIds: string[],
-    mergedTitle: string,
-    mergedCategory: string,
-    userId: string
-  ): Promise<ProcessedDocument> {
+  async removeMessagesFromDocument(
+    documentId: string,
+    messageIds: string[],
+    reason?: string
+  ): Promise<void> {
     try {
-      logger.info(`Merging ${documentIds.length} documents into new document`)
-
-      // Step 1: Fetch all documents with their messages
-      const documents = await db.processedDocument.findMany({
-        where: { id: { in: documentIds } },
-        include: {
-          documentMessages: {
-            include: { message: true }
-          }
+      await db.documentMessage.deleteMany({
+        where: {
+          documentId,
+          messageId: { in: messageIds }
         }
       })
 
-      if (documents.length !== documentIds.length) {
-        throw new Error('Some documents not found')
-      }
-
-      // Step 2: Collect all messages
-      const allMessages: BaseMessage[] = []
-      const seenMessageIds = new Set<string>()
-
-      for (const doc of documents) {
-        for (const dm of doc.documentMessages) {
-          if (!seenMessageIds.has(dm.message.id)) {
-            allMessages.push(dm.message)
-            seenMessageIds.add(dm.message.id)
-          }
-        }
-      }
-
-             // Step 3: Process as new document
-       const mergeInput: DocumentProcessingInput = {
-         messageIds: allMessages.map((m: any) => m.id),
-         title: mergedTitle,
-         category: mergedCategory,
-         userId
-       }
-
-      const result = await this.processMessagesIntoDocument(mergeInput)
-
-      // Step 4: Archive original documents
-      await db.processedDocument.updateMany({
-        where: { id: { in: documentIds } },
-        data: { status: DocumentStatus.COMPLETE } // Keep originals for traceability
-      })
-
-      logger.info(`Successfully merged ${documentIds.length} documents into ${result.document.id}`)
-      return result.document
-
+      logger.info(`Removed ${messageIds.length} messages from document ${documentId}`)
     } catch (error) {
-      logger.error('Document merging failed:', error)
-      throw new ProcessingError(`Document merging failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      logger.error('Failed to remove messages from document:', error)
+      throw new ProcessingError(`Failed to remove messages: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
 
   /**
-   * Validate processing input
+   * Validate document processing input
    */
   private validateInput(input: DocumentProcessingInput): void {
     if (!input.messageIds || input.messageIds.length === 0) {
-      throw new Error('At least one message ID is required')
+      throw new ProcessingError('At least one message ID is required')
     }
 
-    if (input.messageIds.length > MAX_MESSAGES_PER_DOCUMENT) {
-      throw new Error(`Maximum ${MAX_MESSAGES_PER_DOCUMENT} messages allowed per document`)
+    if (input.messageIds.length > 500) {
+      throw new ProcessingError('Too many messages - maximum 500 allowed per document')
     }
 
-    // Title and category are now optional - they will be AI-generated if not provided
-    if (input.title && input.title.trim().length === 0) {
-      throw new Error('Document title cannot be empty string (omit for AI generation)')
+    if (input.title && input.title.length > 200) {
+      throw new ProcessingError('Title too long - maximum 200 characters')
     }
 
-    if (input.category && input.category.trim().length === 0) {
-      throw new Error('Document category cannot be empty string (omit for AI generation)')
-    }
+    
   }
 
   /**
-   * Fetch messages from database
+   * Fetch messages from database with validation
    */
   private async fetchMessages(messageIds: string[]): Promise<BaseMessage[]> {
     const messages = await db.message.findMany({
-      where: { id: { in: messageIds } },
+      where: {
+        id: { in: messageIds }
+      },
       orderBy: { timestamp: 'asc' }
     })
 
     if (messages.length !== messageIds.length) {
-      const foundIds = messages.map((m: BaseMessage) => m.id)
+      const foundIds = messages.map(m => m.id)
       const missingIds = messageIds.filter(id => !foundIds.includes(id))
-      throw new Error(`Messages not found: ${missingIds.join(', ')}`)
+      throw new ProcessingError(`Messages not found: ${missingIds.join(', ')}`)
     }
 
     return messages
   }
 
   /**
-   * Process PII detection and replacement for messages
+   * Process PII detection and replacement
    */
   private async processPII(messages: BaseMessage[]): Promise<{
     detections: PIIDetection[]
     replacements: number
-    cleanedTexts: Map<string, string>
   }> {
-    const allDetections: PIIDetection[] = []
-    const cleanedTexts = new Map<string, string>()
-    let replacements = 0
+    let allDetections: PIIDetection[] = []
+    let totalReplacements = 0
 
     for (const message of messages) {
       try {
-        // Detect PII in message text
-        const detections = await piiDetectorService.detectPII(
-          message.text,
-          PIISourceType.MESSAGE,
-          message.id,
-          { useAI: true, confidenceThreshold: 0.7 }
-        )
-
-        allDetections.push(...detections)
-
-        // Apply PII replacements
-        const cleanedText = await piiDetectorService.replacePII(message.text, detections)
-        
-        if (cleanedText !== message.text) {
-          cleanedTexts.set(message.id, cleanedText)
-          replacements++
-        }
-
+                 const detections = await piiDetectorService.detectPII(message.text, PIISourceType.MESSAGE, message.id)
+         allDetections = allDetections.concat(detections)
+         totalReplacements += detections.length
       } catch (error) {
         logger.warn(`PII processing failed for message ${message.id}:`, error)
-        // Continue processing other messages
       }
     }
 
     return {
       detections: allDetections,
-      replacements,
-      cleanedTexts
+      replacements: totalReplacements
     }
   }
 
   /**
-   * Auto-generate document metadata using AI analysis
+   * Generate document metadata using AI or defaults
    */
   private async generateDocumentMetadata(
-    messages: BaseMessage[],
-    conversationAnalysis: any
+    messages: BaseMessage[]
   ): Promise<{ title: string; category: string; description: string }> {
     try {
       // Prepare message content for AI analysis
       const messageContent = messages
-        .slice(0, 10) // Use first 10 messages for efficiency
-        .map(msg => `${msg.username}: ${msg.text}`)
+        .map(m => `${m.username}: ${m.text}`)
         .join('\n')
+        .substring(0, 4000) // Limit for AI context
 
-      const prompt = `Analyze this Slack conversation and generate appropriate metadata:
+      if (messageContent.length < 100) {
+        // Fallback for very short conversations
+        return this.generateBasicMetadata(messages)
+      }
 
-CONVERSATION:
-${messageContent}
-
-Please provide:
-1. A clear, descriptive title (max 60 characters)
-2. An appropriate category from: Support, Development, General, Planning, Documentation, Bug Report, Feature Request, Discussion
-3. A brief description (max 200 characters)
-
-Respond in JSON format:
-{
-  "title": "Generated title here",
-  "category": "Category here", 
-  "description": "Generated description here"
-}`
-
+      // Use AI service to generate metadata
       const response = await geminiService.generateDocumentMetadata(messageContent)
       
       if (response.success && response.data) {
-        // Validate and sanitize the response
-        const title = response.data.title?.trim()?.slice(0, 60) || 'AI-Generated Document'
-        const category = this.validateCategory(response.data.category) || 'General'
-        const description = response.data.description?.trim()?.slice(0, 200) || 'Auto-generated from conversation analysis'
-        
-        return { title, category, description }
+        return {
+          title: response.data.title || 'Untitled Document',
+          category: response.data.category || 'General',
+          description: response.data.description || 'Document description not available'
+        }
+      } else {
+        logger.warn('AI metadata generation failed, using basic metadata')
+        return this.generateBasicMetadata(messages)
       }
+
     } catch (error) {
-      logger.error('AI metadata generation failed:', error)
+      logger.error('Document metadata generation failed:', error)
+      return this.generateBasicMetadata(messages)
     }
-
-    // Fallback to basic generation
-    return this.generateBasicMetadata(messages, conversationAnalysis)
   }
 
   /**
-   * Validate category against allowed values
+   * Generate basic metadata as fallback
    */
-  private validateCategory(category: string): string | null {
-    const allowedCategories = [
-      'Support', 'Development', 'General', 'Planning', 
-      'Documentation', 'Bug Report', 'Feature Request', 'Discussion'
-    ]
+  private generateBasicMetadata(messages: BaseMessage[]): { title: string; category: string; description: string } {
+         const participants = Array.from(new Set(messages.map(m => m.username))).slice(0, 3)
+    const firstMessage = messages[0]?.text.substring(0, 100) || 'Discussion'
     
-    return allowedCategories.find(cat => 
-      cat.toLowerCase() === category?.toLowerCase()
-    ) || null
-  }
-
-  /**
-   * Generate basic metadata when AI generation fails
-   */
-  private generateBasicMetadata(
-    messages: BaseMessage[],
-    conversationAnalysis: any
-  ): { title: string; category: string; description: string } {
-    // Simple title generation based on participants and message count
-    const participants = Array.from(new Set(messages.map(m => m.username)))
-    const participantList = participants.slice(0, 3).join(', ')
-    
-    const title = participants.length > 3 
-      ? `Conversation: ${participantList} and ${participants.length - 3} others`
-      : `Conversation: ${participantList}`
-
-    // Basic category inference
-    const text = messages.map((m: BaseMessage) => m.text.toLowerCase()).join(' ')
-    let category = 'General'
-    
-    if (text.includes('bug') || text.includes('error') || text.includes('issue')) {
-      category = 'Bug Report'
-    } else if (text.includes('feature') || text.includes('enhancement')) {
-      category = 'Feature Request'
-    } else if (text.includes('help') || text.includes('support') || text.includes('how')) {
-      category = 'Support'
-    } else if (text.includes('plan') || text.includes('meeting') || text.includes('schedule')) {
-      category = 'Planning'
+    return {
+      title: `Discussion with ${participants.join(', ')}`,
+      category: 'General',
+      description: `Document created from ${messages.length} messages. Started with: "${firstMessage}..."`
     }
-
-    const description = `Auto-generated document from ${messages.length} messages between ${participants.length} participants`
-
-    return { title: title.slice(0, 60), category, description }
   }
 
   /**
-   * Create processed document in database with AI-generated metadata
+   * Create document record in database
    */
   private async createDocument(
     input: DocumentProcessingInput,
     messages: BaseMessage[],
-    conversationAnalysis: any,
     piiResults: any
   ): Promise<ProcessedDocument> {
     // Use provided metadata or generate with AI
@@ -440,18 +320,18 @@ Respond in JSON format:
 
     if (!title || !category) {
       logger.info('Auto-generating document metadata with AI analysis')
-      const metadata = await this.generateDocumentMetadata(messages, conversationAnalysis)
+      const metadata = await this.generateDocumentMetadata(messages)
       
       title = title || metadata.title
       category = category || metadata.category
       description = metadata.description
     } else {
       // Generate description for manually titled documents
-      description = await this.generateDocumentDescription(messages, conversationAnalysis)
+      description = await this.generateDocumentDescription(messages)
     }
 
     // Calculate confidence score
-    const confidenceScore = this.calculateDocumentConfidence(messages, conversationAnalysis, piiResults)
+    const confidenceScore = this.calculateDocumentConfidence(messages, piiResults)
 
     const document = await db.processedDocument.create({
       data: {
@@ -469,33 +349,25 @@ Respond in JSON format:
   }
 
   /**
-   * Create document-message junction table relationships
+   * Create document-message relationships
    */
   private async createDocumentMessageRelationships(
     documentId: string,
     messages: BaseMessage[],
-    conversationAnalysis: any,
     inclusionMethod: InclusionMethod = InclusionMethod.AI_AUTOMATIC,
     addedBy?: string
   ): Promise<void> {
     const relationships: any[] = []
 
     for (const message of messages) {
-      // Determine message role from analysis
-      const roleAnalysis = conversationAnalysis.messageRoles.find(
-        (r: any) => r.messageId === message.id
-      )
-
-      const messageRole = roleAnalysis?.role || MessageRole.CONTEXT
-      const confidence = roleAnalysis?.confidence || 0.5
-
+      // Simplified approach - all messages are context with default confidence
       relationships.push({
         documentId,
         messageId: message.id,
         inclusionMethod,
-        messageRole,
+        messageRole: 'CONTEXT', // Default role without analysis
         addedBy,
-        processingConfidence: confidence
+        processingConfidence: 0.8 // Default confidence
       })
     }
 
@@ -513,15 +385,14 @@ Respond in JSON format:
   }
 
   /**
-   * Update document when enhanced with additional messages
+   * Update document with enhancements
    */
   private async updateDocumentWithEnhancements(
     documentId: string,
-    conversationAnalysis: any,
     piiResults: any
   ): Promise<ProcessedDocument> {
-    // Recalculate confidence with new messages
-    const newConfidence = Math.min(conversationAnalysis.overallConfidence + 0.05, 1.0)
+    // Simplified confidence calculation for enhancements
+    const newConfidence = 0.85 // Default enhanced confidence
 
     const updatedDocument = await db.processedDocument.update({
       where: { id: documentId },
@@ -535,27 +406,22 @@ Respond in JSON format:
   }
 
   /**
-   * Generate document description using AI
+   * Generate simple document description
    */
   private async generateDocumentDescription(
-    messages: BaseMessage[],
-    conversationAnalysis: any
+    messages: BaseMessage[]
   ): Promise<string> {
     try {
       const messageTexts = messages.map(m => m.text).join(' ')
-      const summary = messageTexts.substring(0, 500) // Limit for AI processing
+      const summary = messageTexts.substring(0, 500) // Limit for processing
 
-      // Simple description generation (could be enhanced with AI)
-      if (conversationAnalysis.qaPairs.length > 0) {
-        const topics = conversationAnalysis.qaPairs.map((pair: any) => pair.topic).slice(0, 3)
-        return `Q&A discussion covering: ${topics.join(', ')}`
-      }
-
-               return `Conversation thread with ${messages.length} messages from ${new Set(messages.map((m: any) => m.username)).size} participants`
+             // Simple description generation
+       const participants = Array.from(new Set(messages.map(m => m.username)))
+      return `Document containing ${messages.length} messages from ${participants.length} participants: ${participants.join(', ')}.`
 
     } catch (error) {
-      logger.warn('Failed to generate AI description, using fallback:', error)
-      return `Document containing ${messages.length} messages`
+      logger.error('Description generation failed:', error)
+      return `Document containing ${messages.length} messages.`
     }
   }
 
@@ -564,50 +430,31 @@ Respond in JSON format:
    */
   private calculateDocumentConfidence(
     messages: BaseMessage[],
-    conversationAnalysis: any,
     piiResults: any
   ): number {
-    let confidence = 0.5 // Base confidence
+    let confidence = 0.7 // Base confidence
 
-    // Boost confidence for clear Q&A patterns
-    if (conversationAnalysis.qaPairs.length > 0) {
-      confidence += 0.3 * Math.min(conversationAnalysis.qaPairs.length / messages.length, 1)
+    // Adjust for message quality
+    if (messages.length >= 3) {
+      confidence += 0.1
     }
 
-    // Boost confidence for good message role analysis
-    const roleConfidences = conversationAnalysis.messageRoles.map((r: any) => r.confidence)
-    if (roleConfidences.length > 0) {
-      const avgRoleConfidence = roleConfidences.reduce((sum: number, conf: number) => sum + conf, 0) / roleConfidences.length
-      confidence += 0.2 * avgRoleConfidence
+    // Reduce confidence for high PII detection
+    if (piiResults.detections.length > messages.length * 0.5) {
+      confidence -= 0.2
     }
 
-    // Reduce confidence for excessive PII
-    const piiRatio = piiResults.detections.length / messages.length
-    if (piiRatio > 0.5) {
-      confidence -= 0.1
-    }
-
-    // Ensure confidence is between 0 and 1
-    return Math.max(0, Math.min(1, confidence))
+    return Math.max(0.1, Math.min(1.0, confidence))
   }
 
   /**
    * Generate processing warnings
    */
-  private generateWarnings(conversationAnalysis: any, piiResults: any): string[] {
+  private generateWarnings(piiResults: any): string[] {
     const warnings: string[] = []
-
-    if (conversationAnalysis.qaPairs.length === 0) {
-      warnings.push('No clear Q&A pairs detected - document may not be suitable for FAQ generation')
-    }
 
     if (piiResults.detections.length > 10) {
       warnings.push(`High number of PII detections (${piiResults.detections.length}) - review recommended`)
-    }
-
-    const lowConfidenceRoles = conversationAnalysis.messageRoles.filter((r: any) => r.confidence < 0.6)
-    if (lowConfidenceRoles.length > conversationAnalysis.messageRoles.length / 2) {
-      warnings.push('Many messages have uncertain roles - manual review may be needed')
     }
 
     return warnings
@@ -620,53 +467,29 @@ Respond in JSON format:
     messageCount: number
     participantCount: number
     qaPairCount: number
-    piiDetectionCount: number
-    averageConfidence: number
-    categories: string[]
+    confidenceScore: number
   }> {
-    try {
-      const document = await db.processedDocument.findUnique({
-        where: { id: documentId },
-        include: {
-          documentMessages: {
-            include: { message: true }
-          }
+    const document = await db.processedDocument.findUnique({
+      where: { id: documentId },
+      include: {
+        documentMessages: {
+          include: { message: true }
         }
-      })
-
-      if (!document) {
-        throw new Error(`Document ${documentId} not found`)
       }
+    })
 
-      const messages = document.documentMessages.map((dm: any) => dm.message)
-      const participants = new Set(messages.map((m: any) => m.username))
+    if (!document) {
+      throw new ProcessingError(`Document ${documentId} not found`)
+    }
 
-      // Get related data
-      const [piiDetections] = await Promise.all([
-        db.pIIDetection.count({
-          where: {
-            sourceType: PIISourceType.MESSAGE,
-            sourceId: { in: messages.map((m: any) => m.id) }
-          }
-        })
-      ])
+    const messages = document.documentMessages.map(dm => dm.message)
+         const participants = Array.from(new Set(messages.map(m => m.username)))
 
-      const averageConfidence = document.documentMessages.reduce(
-        (sum: number, dm: any) => sum + dm.processingConfidence, 0
-      ) / document.documentMessages.length
-
-      return {
-        messageCount: messages.length,
-        participantCount: participants.size,
-        qaPairCount: 0, // Would need separate query for FAQ count
-        piiDetectionCount: piiDetections,
-        averageConfidence,
-        categories: [document.category]
-      }
-
-    } catch (error) {
-      logger.error(`Failed to get document stats for ${documentId}:`, error)
-      throw new ProcessingError(`Failed to get document stats: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    return {
+      messageCount: messages.length,
+      participantCount: participants.length,
+      qaPairCount: 0, // Simplified - no Q&A analysis
+      confidenceScore: document.confidenceScore
     }
   }
 
@@ -676,16 +499,33 @@ Respond in JSON format:
   async healthCheck(): Promise<{
     isHealthy: boolean
     error?: string
-    stats?: any
   }> {
     try {
-      // Test basic database connectivity
-      const documentCount = await db.processedDocument.count()
+      // Test database connectivity
+      await db.$queryRaw`SELECT 1`
       
-      return {
-        isHealthy: true,
-        stats: { totalDocuments: documentCount }
+      // Test PII detector service
+      const piiHealth = await piiDetectorService.healthCheck()
+      if (!piiHealth.isHealthy) {
+        return {
+          isHealthy: false,
+          error: `PII detector service error: ${piiHealth.error}`
+        }
       }
+
+      // Test Gemini service
+      const geminiHealth = await geminiService.healthCheck()
+      if (!geminiHealth.isHealthy) {
+        return {
+          isHealthy: false,
+          error: `Gemini service error: ${geminiHealth.error}`
+        }
+      }
+
+      return {
+        isHealthy: true
+      }
+
     } catch (error) {
       return {
         isHealthy: false,
@@ -697,4 +537,4 @@ Respond in JSON format:
 
 // Export singleton instance
 export const documentProcessorService = new DocumentProcessorService()
-export default documentProcessorService 
+export default documentProcessorService

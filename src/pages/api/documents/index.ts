@@ -204,7 +204,7 @@ async function handleCreateDocument(
       userId
     }
 
-    const result = await documentProcessorService.processMessagesIntoDocument(input)
+    const result = await documentProcessorService.processDocument(input)
 
     logger.info(`Created document ${result.document.id} from ${messageIds.length} messages`)
 
