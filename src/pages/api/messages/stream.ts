@@ -5,6 +5,7 @@
 
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { db } from '@/lib/db'
+import { logger } from '@/lib/logger'
 import type { MessageDisplay } from '@/types'
 import { formatDistanceToNow } from 'date-fns'
 
@@ -59,38 +60,43 @@ export default async function handler(
       lastMessageId = latestMessage.id
     }
 
-    // Poll for new messages every 2 seconds
+    let lastCheckTime = new Date()
+    
+    // Poll for new messages every 5 seconds (reduced frequency)
     const pollInterval = setInterval(async () => {
       try {
-        // Query for messages newer than our last seen message
-        const whereClause = lastMessageId 
-          ? {
-              timestamp: {
-                gt: latestMessage?.timestamp || new Date(0)
-              }
-            }
-          : {}
-
+        // Query for messages newer than our last check time (more efficient)
         const newMessages = await db.message.findMany({
-          where: whereClause,
-          orderBy: { timestamp: 'desc' },
-          take: 10 // Limit to prevent overwhelming
+          where: {
+            timestamp: {
+              gt: lastCheckTime
+            }
+          },
+          orderBy: { timestamp: 'asc' }, // Chronological order
+          take: 20 // Reasonable limit
         })
 
-        // Send new messages to client
-        for (const message of newMessages.reverse()) { // Send in chronological order
-          const displayMessage = transformMessage(message)
+        // Update last check time
+        lastCheckTime = new Date()
+
+        // Only send if there are new messages (reduces noise)
+        if (newMessages.length > 0) {
+          logger.sse(`Sending ${newMessages.length} new messages`)
           
-          res.write(`data: ${JSON.stringify({
-            type: 'message',
-            data: displayMessage
-          })}\n\n`)
-          
-          lastMessageId = message.id
+          for (const message of newMessages) {
+            const displayMessage = transformMessage(message)
+            
+            res.write(`data: ${JSON.stringify({
+              type: 'message',
+              data: displayMessage
+            })}\n\n`)
+            
+            lastMessageId = message.id
+          }
         }
 
-        // Send heartbeat every 30 seconds to keep connection alive
-        if (Date.now() % 30000 < 2000) {
+        // Send heartbeat every 60 seconds (reduced frequency)
+        if (Date.now() % 60000 < 5000) {
           res.write(`data: ${JSON.stringify({
             type: 'heartbeat',
             timestamp: new Date().toISOString()
@@ -98,27 +104,27 @@ export default async function handler(
         }
 
       } catch (error) {
-        console.error('❌ SSE polling error:', error)
+        logger.error('SSE polling error:', error)
         res.write(`data: ${JSON.stringify({
           type: 'error',
           message: 'Error fetching new messages'
         })}\n\n`)
       }
-    }, 2000) // Poll every 2 seconds
+    }, 5000) // Poll every 5 seconds (reduced from 2s)
 
     // Clean up on client disconnect
     req.on('close', () => {
       clearInterval(pollInterval)
-      console.log('🔌 SSE client disconnected')
+      logger.sse('Client disconnected')
     })
 
     req.on('error', (error) => {
       clearInterval(pollInterval)
-      console.error('❌ SSE connection error:', error)
+      logger.error('SSE connection error:', error)
     })
 
   } catch (error) {
-    console.error('❌ SSE setup error:', error)
+    logger.error('SSE setup error:', error)
     res.write(`data: ${JSON.stringify({
       type: 'error',
       message: 'Failed to setup real-time connection'

@@ -15,7 +15,7 @@ declare global {
  * Uses singleton pattern to prevent multiple connections in development
  */
 export const db = globalThis.prisma || new PrismaClient({
-  log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
+  log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
   errorFormat: 'pretty',
 })
 

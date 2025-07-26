@@ -4,6 +4,7 @@
  */
 
 import { useEffect, useRef, useCallback } from 'react'
+import { logger } from '@/lib/logger'
 import type { MessageDisplay } from '@/types'
 
 interface UseRealTimeMessagesProps {
@@ -44,13 +45,13 @@ export const useRealTimeMessages = ({
      }
 
      try {
-       console.log('🔌 Connecting to real-time message stream...')
+       logger.sse('Connecting to real-time message stream')
        
        const eventSource = new EventSource('/api/messages/stream')
        eventSourceRef.current = eventSource
 
        eventSource.onopen = () => {
-         console.log('✅ Real-time connection established')
+         logger.sse('Real-time connection established')
          isConnectedRef.current = true
        }
 
@@ -60,34 +61,34 @@ export const useRealTimeMessages = ({
            
            switch (data.type) {
              case 'connected':
-               console.log('✅ SSE connection confirmed')
+               logger.sse('SSE connection confirmed')
                break
                
              case 'message':
                if (data.data) {
-                                  console.log('📨 New message received')
+                 logger.sse('New message received')
                  onNewMessage(data.data)
                }
                break
                
              case 'heartbeat':
-               // Connection is alive
+               // Connection is alive (no logging to reduce noise)
                break
                
              case 'error':
-               console.error('❌ SSE error:', data.message)
+               logger.error('SSE error:', data.message)
                if (onError) {
                  onError(data.message || 'Unknown error')
                }
                break
            }
          } catch (error) {
-           console.error('❌ Error parsing SSE message:', error)
+           logger.error('Error parsing SSE message:', error)
          }
        }
 
        eventSource.onerror = (error) => {
-         console.error('❌ SSE connection error:', error)
+         logger.warn('SSE connection error, will attempt reconnect')
          isConnectedRef.current = false
          
          // Attempt to reconnect after 5 seconds
@@ -96,14 +97,14 @@ export const useRealTimeMessages = ({
          }
          
          reconnectTimeoutRef.current = setTimeout(() => {
-           console.log('🔄 Attempting to reconnect...')
+           logger.sse('Attempting to reconnect')
            disconnect()
            connect()
          }, 5000)
        }
 
      } catch (error) {
-       console.error('❌ Failed to establish SSE connection:', error)
+       logger.error('Failed to establish SSE connection:', error)
        if (onError) {
          onError('Failed to establish real-time connection')
        }
@@ -113,13 +114,13 @@ export const useRealTimeMessages = ({
   /**
    * Disconnect from SSE stream
    */
-  const disconnect = useCallback(() => {
-    if (eventSourceRef.current) {
-      console.log('🔌 Disconnecting from real-time stream')
-      eventSourceRef.current.close()
-      eventSourceRef.current = null
-      isConnectedRef.current = false
-    }
+     const disconnect = useCallback(() => {
+     if (eventSourceRef.current) {
+       logger.sse('Disconnecting from real-time stream')
+       eventSourceRef.current.close()
+       eventSourceRef.current = null
+       isConnectedRef.current = false
+     }
 
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current)
