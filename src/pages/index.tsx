@@ -1,6 +1,6 @@
 /**
  * Main Dashboard Page
- * Displays Slack messages in a modern, responsive interface
+ * Displays Slack messages in a modern, responsive interface with real-time updates
  */
 
 import React, { useState, useEffect, useCallback } from 'react'
@@ -9,6 +9,7 @@ import { FilterBar } from '@/components/FilterBar'
 import { Header } from '@/components/Header'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
+import { useRealTimeMessages } from '@/hooks/useRealTimeMessages'
 import type { 
   MessageDisplay, 
   MessageFilters, 
@@ -37,6 +38,56 @@ const Dashboard: React.FC = () => {
     totalPages: 0
   })
   const [channels, setChannels] = useState<string[]>([])
+  const [realTimeEnabled, setRealTimeEnabled] = useState(true)
+
+  /**
+   * Handle new real-time messages
+   */
+  const handleNewMessage = useCallback((newMessage: MessageDisplay): void => {
+    setMessages(prevMessages => {
+             // Check if message already exists (prevent duplicates)  
+       const messageExists = prevMessages.some(msg => (msg as any).id === (newMessage as any).id)
+      if (messageExists) {
+        return prevMessages
+      }
+
+      // Add new message to the beginning of the list
+      const updatedMessages = [newMessage, ...prevMessages]
+      
+             // Update channels list if new channel appears
+       setChannels(prevChannels => {
+         const newChannel = (newMessage as any).channel
+         const channelExists = prevChannels.includes(newChannel)
+         if (!channelExists) {
+           return [newChannel, ...prevChannels].sort()
+         }
+         return prevChannels
+       })
+
+      return updatedMessages
+    })
+
+    // Update pagination total count
+    setPagination(prev => ({
+      ...prev,
+      total: prev.total + 1
+    }))
+  }, [])
+
+  /**
+   * Handle real-time connection errors
+   */
+  const handleRealTimeError = useCallback((errorMessage: string): void => {
+    console.error('Real-time connection error:', errorMessage)
+    // Could show a notification to user here
+  }, [])
+
+  // Setup real-time connection
+  const { isConnected, disconnect, reconnect } = useRealTimeMessages({
+    onNewMessage: handleNewMessage,
+    onError: handleRealTimeError,
+    enabled: realTimeEnabled
+  })
 
   /**
    * Fetch messages from API
@@ -69,7 +120,7 @@ const Dashboard: React.FC = () => {
 
         // Extract unique channels for filter dropdown
         const uniqueChannels = Array.from(
-          new Set(result.data.messages.map(msg => msg.channel))
+          new Set(result.data.messages.map(msg => (msg as any).channel))
         ).sort()
         setChannels(uniqueChannels)
       }
@@ -110,21 +161,17 @@ const Dashboard: React.FC = () => {
     }
   }, [pagination.hasNext, filters.page, handlePageChange])
 
+  /**
+   * Toggle real-time updates
+   */
+  const toggleRealTime = useCallback((): void => {
+    setRealTimeEnabled(prev => !prev)
+  }, [])
+
   // Fetch messages when filters change
   useEffect(() => {
     fetchMessages(filters)
   }, [filters, fetchMessages])
-
-  // Auto-refresh messages every 30 seconds
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (!loading) {
-        fetchMessages()
-      }
-    }, 30000)
-
-    return () => clearInterval(interval)
-  }, [loading, fetchMessages])
 
   return (
     <ErrorBoundary>
@@ -134,6 +181,49 @@ const Dashboard: React.FC = () => {
 
         {/* Main Content */}
         <main className="container mx-auto px-4 py-6 max-w-6xl">
+          {/* Real-time Status & Controls */}
+          <div className="mb-4 flex items-center justify-between bg-white px-4 py-2 rounded-lg shadow-sm border border-gray-200">
+            <div className="flex items-center space-x-3">
+              <div className="flex items-center space-x-2">
+                <div 
+                  className={`w-2 h-2 rounded-full ${
+                    isConnected ? 'bg-green-500' : 'bg-red-500'
+                  }`}
+                />
+                <span className={`text-sm font-medium ${
+                  isConnected ? 'text-green-700' : 'text-red-700'
+                }`}>
+                  {isConnected ? 'Live' : 'Disconnected'}
+                </span>
+              </div>
+              <span className="text-gray-400 text-sm">
+                {isConnected ? 'Messages appear instantly' : 'Real-time updates unavailable'}
+              </span>
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={toggleRealTime}
+                className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                  realTimeEnabled
+                    ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                {realTimeEnabled ? 'Live On' : 'Live Off'}
+              </button>
+              
+              {!isConnected && realTimeEnabled && (
+                <button
+                  onClick={reconnect}
+                  className="px-3 py-1 bg-blue-100 text-blue-700 hover:bg-blue-200 rounded-md text-sm font-medium transition-colors"
+                >
+                  Reconnect
+                </button>
+              )}
+            </div>
+          </div>
+
           {/* Filter Bar */}
           <div className="mb-6">
             <FilterBar
@@ -218,7 +308,7 @@ const Dashboard: React.FC = () => {
                 </svg>
                 <h3 className="text-lg font-medium text-gray-900 mb-2">No Messages Found</h3>
                 <p className="text-gray-500">
-                  {Object.values(filters).some(v => v && v !== '' && v !== 1 && v !== 20)
+                  {Object.values(filters).some(v => v && v !== '' && v !== 1 && v !== 50)
                     ? 'Try adjusting your filters or search terms.'
                     : 'No messages have been received yet. Make sure your Slack bot is configured correctly.'
                   }

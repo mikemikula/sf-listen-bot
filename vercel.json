@@ -13,6 +13,9 @@
   "functions": {
     "src/pages/api/**/*.ts": {
       "maxDuration": 30
+    },
+    "src/pages/api/messages/stream.ts": {
+      "maxDuration": 300
     }
   },
   "headers": [
