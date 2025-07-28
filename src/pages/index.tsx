@@ -317,70 +317,98 @@ const Dashboard: React.FC = () => {
             isConnected={isConnected}
           />
 
-          {/* Filter Bar */}
-          <div className="mb-6">
+          {/* Page Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
+                Messages Dashboard
+              </h1>
+              <div className="mt-1 flex flex-wrap items-center gap-2 text-xs sm:text-sm text-gray-600">
+                <span>{pagination.total} total messages</span>
+                {loading && (
+                  <>
+                    <span>•</span>
+                    <div className="flex items-center space-x-1">
+                      <LoadingSpinner size="sm" />
+                      <span>Loading...</span>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Stats Cards - Mobile Optimized */}
+            <div className="flex flex-wrap gap-2 sm:gap-4">
+              {/* TransactionStats component is not defined in the original file,
+                  so this section is commented out or removed as per instructions. */}
+              {/* <TransactionStats 
+                totalSent={transactionStats.totalSent}
+                totalReceived={transactionStats.totalReceived}
+                successRate={transactionStats.successRate}
+                className="text-xs sm:text-sm"
+              /> */}
+            </div>
+          </div>
+
+          {/* Filters */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
             <FilterBar
               filters={filters}
               onFiltersChange={handleFiltersChange}
-              channels={channels}
               loading={loading}
+              channels={channels}
             />
           </div>
 
-          {/* View Mode Controls */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 mb-6">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-              <div className="flex items-center gap-4">
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">View:</span>
-                <div className="flex rounded-lg border border-gray-300 dark:border-gray-600 overflow-hidden">
-                  <button
-                    onClick={() => setViewMode('feed')}
-                    className={`px-3 py-2 text-sm transition-colors ${
-                      viewMode === 'feed'
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600'
-                    }`}
-                  >
-                    Feed
-                  </button>
-                  <button
-                    onClick={() => setViewMode('table')}
-                    className={`px-3 py-2 text-sm transition-colors border-l border-gray-300 dark:border-gray-600 ${
-                      viewMode === 'table'
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600'
-                    }`}
-                  >
-                    Table
-                  </button>
-                  <button
-                    onClick={() => setViewMode('grouped')}
-                    className={`px-3 py-2 text-sm transition-colors border-l border-gray-300 dark:border-gray-600 ${
-                      viewMode === 'grouped'
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600'
-                    }`}
-                  >
-                    Grouped
-                  </button>
-                </div>
-              </div>
-
-              {viewMode === 'grouped' && (
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Group by:</span>
-                  <select
-                    value={groupBy}
-                    onChange={(e) => setGroupBy(e.target.value as 'document' | 'channel' | 'date')}
-                    className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="document">Document</option>
-                    <option value="channel">Channel</option>
-                    <option value="date">Date</option>
-                  </select>
-                </div>
-              )}
+          {/* View Controls */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => setViewMode('feed')}
+                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                  viewMode === 'feed'
+                    ? 'bg-blue-100 text-blue-700'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Feed
+              </button>
+              <button
+                onClick={() => setViewMode('table')}
+                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                  viewMode === 'table'
+                    ? 'bg-blue-100 text-blue-700'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Table
+              </button>
+              <button
+                onClick={() => setViewMode('grouped')}
+                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                  viewMode === 'grouped'
+                    ? 'bg-blue-100 text-blue-700'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Grouped
+              </button>
             </div>
+
+            {viewMode === 'grouped' && (
+              <div className="flex items-center space-x-2">
+                <label className="text-sm font-medium text-gray-700">Group by:</label>
+                <select
+                  value={groupBy}
+                  onChange={(e) => setGroupBy(e.target.value as 'document' | 'channel' | 'date')}
+                  className="px-2 py-1 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="document">Document</option>
+                  <option value="channel">Channel</option>
+                  <option value="date">Date</option>
+                </select>
+              </div>
+            )}
           </div>
 
           {/* Message Views */}
