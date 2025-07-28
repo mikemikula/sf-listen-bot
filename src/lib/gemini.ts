@@ -642,7 +642,7 @@ Respond in JSON format:
     channel?: string
   }>): Promise<GeminiResponse<{
     patterns: Array<{
-      type: 'qa_pair' | 'question_only' | 'answer_only' | 'context' | 'greeting'
+      type: 'question' | 'answer' | 'follow_up' | 'context' | 'confirmation'
       messageIds: string[]
       confidence: number
       reasoning: string
@@ -678,11 +678,13 @@ ANALYSIS REQUIREMENTS:
 5. **FAQ Assessment**: Evaluate how well this conversation would convert to FAQs
 
 CLASSIFICATION RULES:
-- **qa_pair**: Question followed by relevant answer (include both message IDs)
-- **question_only**: Question without clear answer in conversation
-- **answer_only**: Answer/explanation without preceding question
-- **context**: Supporting information, examples, or background
-- **greeting**: Social pleasantries, acknowledgments
+- **question**: Primary question message seeking information
+- **answer**: Primary answer/response providing information
+- **follow_up**: Follow-up questions or clarifications to previous answers
+- **context**: Supporting information, examples, or background details
+- **confirmation**: Greetings, acknowledgments, "thanks", "got it" messages
+
+IMPORTANT: Each message gets ONE role. For Q&A pairs, classify each message individually as either 'question' or 'answer' based on its content, not as a pair.
 
 IMPORTANT CONTEXT CLUES:
 - Time gaps between messages matter
@@ -695,8 +697,8 @@ RESPONSE FORMAT (JSON only):
 {
   "patterns": [
     {
-      "type": "qa_pair",
-      "messageIds": ["msg1_id", "msg2_id"],
+      "type": "question",
+      "messageIds": ["msg1_id"],
       "confidence": 0.95,
       "reasoning": "Clear question about CPQ followed by detailed explanation",
       "topics": ["salesforce", "cpq", "quoting"]

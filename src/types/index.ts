@@ -60,6 +60,13 @@ export interface MessageDisplay extends BaseMessage {
   parentMessage: ParentMessage | null
   threadReplies: ThreadReply[]
   role?: string // Message role in document context (QUESTION, ANSWER, CONTEXT, etc.)
+  // Processing status information
+  isProcessed: boolean
+  documentId: string | null
+  documentTitle: string | null
+  documentStatus: string | null
+  messageRole: string | null
+  processingConfidence: number | null
 }
 
 // ===== AI ANALYSIS TYPES =====

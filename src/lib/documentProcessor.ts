@@ -84,6 +84,7 @@ class DocumentProcessorService {
       await this.createDocumentMessageRelationships(
         document.id,
         messages,
+        conversationAnalysisResult.data,
         InclusionMethod.AI_AUTOMATIC,
         input.userId
       )
@@ -160,6 +161,7 @@ class DocumentProcessorService {
       await this.createDocumentMessageRelationships(
         documentId,
         newMessages,
+        null, // No conversation analysis for manually added messages
         InclusionMethod.USER_ENHANCED,
         userId
       )
@@ -345,25 +347,62 @@ class DocumentProcessorService {
   }
 
   /**
-   * Create document-message relationships
+   * Create document-message relationships with AI-determined roles
    */
   private async createDocumentMessageRelationships(
     documentId: string,
     messages: Message[],
+    conversationAnalysis: any,
     inclusionMethod: InclusionMethod = InclusionMethod.AI_AUTOMATIC,
     addedBy?: string
   ): Promise<void> {
     const relationships: any[] = []
 
+    // Create a map of message ID to role based on AI analysis
+    const messageRoleMap = new Map<string, { role: string; confidence: number }>()
+    
+    if (conversationAnalysis?.patterns) {
+      for (const pattern of conversationAnalysis.patterns) {
+        const { type, messageIds, confidence } = pattern
+        
+        for (const messageId of messageIds) {
+          let role: string
+          
+          // Map AI analysis types to database roles (direct 1:1 mapping)
+          switch (type) {
+            case 'question':
+              role = 'QUESTION'
+              break
+            case 'answer':
+              role = 'ANSWER'
+              break
+            case 'follow_up':
+              role = 'FOLLOW_UP'
+              break
+            case 'confirmation':
+              role = 'CONFIRMATION'
+              break
+            case 'context':
+            default:
+              role = 'CONTEXT'
+              break
+          }
+          
+          messageRoleMap.set(messageId, { role, confidence })
+        }
+      }
+    }
+
     for (const message of messages) {
-      // Simplified approach - all messages are context with default confidence
+      const roleInfo = messageRoleMap.get(message.id) || { role: 'CONTEXT', confidence: 0.8 }
+      
       relationships.push({
         documentId,
         messageId: message.id,
         inclusionMethod,
-        messageRole: 'CONTEXT', // Default role without analysis
+        messageRole: roleInfo.role,
         addedBy,
-        processingConfidence: 0.8 // Default confidence
+        processingConfidence: roleInfo.confidence
       })
     }
 
@@ -371,12 +410,13 @@ class DocumentProcessorService {
       data: relationships
     })
 
-    logger.info(`Created ${relationships.length} document-message relationships`)
+    logger.info(`Created ${relationships.length} document-message relationships with AI-determined roles`)
     console.log('Document-message relationships created:', relationships.map(r => ({
       documentId: r.documentId,
       messageId: r.messageId,
       role: r.messageRole,
-      method: r.inclusionMethod
+      method: r.inclusionMethod,
+      confidence: r.processingConfidence
     })))
   }
 

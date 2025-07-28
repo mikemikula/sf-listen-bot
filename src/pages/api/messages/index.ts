@@ -68,24 +68,36 @@ const buildWhereClause = (filters: MessageFilters): object => {
  * Transform database messages to display format with thread support
  */
 const transformMessages = (messages: any[]): MessageDisplay[] => {
-  return messages.map(message => ({
-    ...message,
-    timeAgo: formatDistanceToNow(new Date(message.timestamp), { addSuffix: true }),
-    channelName: message.channel.startsWith('C') 
-      ? `#${message.channel.slice(1, 8)}` 
-      : message.channel,
-    // Include thread information
-    isThreadReply: message.isThreadReply || false,
-    threadTs: message.threadTs || null,
-    parentMessage: message.parentMessage || null,
-    threadReplies: message.threadReplies ? message.threadReplies.map((reply: any) => ({
-      ...reply,
-      timeAgo: formatDistanceToNow(new Date(reply.timestamp), { addSuffix: true }),
-      channelName: reply.channel.startsWith('C') 
-        ? `#${reply.channel.slice(1, 8)}` 
-        : reply.channel
-    })) : []
-  }))
+  return messages.map(message => {
+    // Get the primary document relationship (there should only be one per message)
+    const primaryDocRelation = message.documentMessages?.[0]
+    
+    return {
+      ...message,
+      timeAgo: formatDistanceToNow(new Date(message.timestamp), { addSuffix: true }),
+      channelName: message.channel.startsWith('C') 
+        ? `#channel-${message.channel.slice(-4)}` // Show last 4 chars for readability
+        : message.channel,
+      // Include thread information
+      isThreadReply: message.isThreadReply || false,
+      threadTs: message.threadTs || null,
+      parentMessage: message.parentMessage || null,
+      threadReplies: message.threadReplies ? message.threadReplies.map((reply: any) => ({
+        ...reply,
+        timeAgo: formatDistanceToNow(new Date(reply.timestamp), { addSuffix: true }),
+        channelName: reply.channel.startsWith('C') 
+          ? `#${reply.channel.slice(1, 8)}` 
+          : reply.channel
+      })) : [],
+      // Include processing status information
+      isProcessed: !!primaryDocRelation,
+      documentId: primaryDocRelation?.documentId || null,
+      documentTitle: primaryDocRelation?.document?.title || null,
+      documentStatus: primaryDocRelation?.document?.status || null,
+      messageRole: primaryDocRelation?.messageRole || null,
+      processingConfidence: primaryDocRelation?.processingConfidence || null
+    }
+  })
 }
 
 /**
@@ -171,6 +183,22 @@ export default async function handler(
             userId: true,
             channel: true,
             isThreadReply: true
+          }
+        },
+        // Include document relationship information
+        documentMessages: {
+          select: {
+            documentId: true,
+            messageRole: true,
+            processingConfidence: true,
+            document: {
+              select: {
+                id: true,
+                title: true,
+                status: true,
+                createdAt: true
+              }
+            }
           }
         }
       }

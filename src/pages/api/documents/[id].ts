@@ -98,7 +98,14 @@ async function handleGetDocument(
           channelName: msg.channel, // Using channel as channelName
           parentMessage: null, // TODO: Implement if needed
           threadReplies: [], // TODO: Implement thread replies if needed
-          role: dm.messageRole || undefined
+          role: dm.messageRole || undefined,
+          // Processing status information (always processed in document context)
+          isProcessed: true,
+          documentId: document.id,
+          documentTitle: document.title,
+          documentStatus: document.status,
+          messageRole: dm.messageRole,
+          processingConfidence: dm.processingConfidence
         }
       })
 

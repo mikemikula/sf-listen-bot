@@ -5,6 +5,8 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { MessageFeed } from '@/components/MessageFeed'
+import { MessageTableView } from '@/components/MessageTableView'
+import { MessageGroupedView } from '@/components/MessageGroupedView'
 import { FilterBar } from '@/components/FilterBar'
 import { Header } from '@/components/Header'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
@@ -41,6 +43,8 @@ const Dashboard: React.FC = () => {
   const [channels, setChannels] = useState<string[]>([])
   const [realTimeEnabled, setRealTimeEnabled] = useState(true)
   const [debugModalOpen, setDebugModalOpen] = useState(false)
+  const [viewMode, setViewMode] = useState<'feed' | 'table' | 'grouped'>('feed')
+  const [groupBy, setGroupBy] = useState<'document' | 'channel' | 'date'>('document')
 
   /**
    * Handle new real-time messages
@@ -323,48 +327,129 @@ const Dashboard: React.FC = () => {
             />
           </div>
 
-          {/* Message Feed */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-            {loading && messages.length === 0 ? (
-              <div className="flex items-center justify-center py-12">
-                <LoadingSpinner size="lg" />
-              </div>
-            ) : error ? (
-              <div className="text-center py-12">
-                <div className="text-red-600 mb-4">
-                  <svg 
-                    className="mx-auto h-12 w-12 mb-4" 
-                    fill="none" 
-                    viewBox="0 0 24 24" 
-                    stroke="currentColor"
+          {/* View Mode Controls */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 mb-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div className="flex items-center gap-4">
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">View:</span>
+                <div className="flex rounded-lg border border-gray-300 dark:border-gray-600 overflow-hidden">
+                  <button
+                    onClick={() => setViewMode('feed')}
+                    className={`px-3 py-2 text-sm transition-colors ${
+                      viewMode === 'feed'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600'
+                    }`}
                   >
-                    <path 
-                      strokeLinecap="round" 
-                      strokeLinejoin="round" 
-                      strokeWidth={2} 
-                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.996-.833-2.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" 
-                    />
-                  </svg>
-                  <h3 className="text-lg font-medium">Error Loading Messages</h3>
-                  <p className="text-gray-500 mt-2">{error}</p>
+                    Feed
+                  </button>
+                  <button
+                    onClick={() => setViewMode('table')}
+                    className={`px-3 py-2 text-sm transition-colors border-l border-gray-300 dark:border-gray-600 ${
+                      viewMode === 'table'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600'
+                    }`}
+                  >
+                    Table
+                  </button>
+                  <button
+                    onClick={() => setViewMode('grouped')}
+                    className={`px-3 py-2 text-sm transition-colors border-l border-gray-300 dark:border-gray-600 ${
+                      viewMode === 'grouped'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600'
+                    }`}
+                  >
+                    Grouped
+                  </button>
                 </div>
-                <button
-                  onClick={() => fetchMessages()}
-                  className="bg-slack-blue text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
-                >
-                  Try Again
-                </button>
               </div>
-            ) : (
-              <MessageFeed
-                messages={messages}
-                loading={loading}
-                error={error || undefined}
-                onLoadMore={handleLoadMore}
-                hasMore={pagination.hasNext}
-              />
-            )}
+
+              {viewMode === 'grouped' && (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Group by:</span>
+                  <select
+                    value={groupBy}
+                    onChange={(e) => setGroupBy(e.target.value as 'document' | 'channel' | 'date')}
+                    className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="document">Document</option>
+                    <option value="channel">Channel</option>
+                    <option value="date">Date</option>
+                  </select>
+                </div>
+              )}
+            </div>
           </div>
+
+          {/* Message Views */}
+          {loading && messages.length === 0 ? (
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 flex items-center justify-center py-12">
+              <LoadingSpinner size="lg" />
+            </div>
+          ) : error ? (
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 text-center py-12">
+              <div className="text-red-600 mb-4">
+                <svg 
+                  className="mx-auto h-12 w-12 mb-4" 
+                  fill="none" 
+                  viewBox="0 0 24 24" 
+                  stroke="currentColor"
+                >
+                  <path 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round" 
+                    strokeWidth={2} 
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.996-.833-2.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" 
+                  />
+                </svg>
+                <h3 className="text-lg font-medium">Error Loading Messages</h3>
+                <p className="text-gray-500 mt-2">{error}</p>
+              </div>
+              <button
+                onClick={() => fetchMessages()}
+                className="bg-slack-blue text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
+              >
+                Try Again
+              </button>
+            </div>
+          ) : (
+            <>
+              {viewMode === 'feed' && (
+                <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+                  <MessageFeed
+                    messages={messages}
+                    loading={loading}
+                    error={error || undefined}
+                    onLoadMore={handleLoadMore}
+                    hasMore={pagination.hasNext}
+                  />
+                </div>
+              )}
+              
+              {viewMode === 'table' && (
+                <MessageTableView
+                  messages={messages}
+                  loading={loading}
+                  error={error || undefined}
+                  onLoadMore={handleLoadMore}
+                  hasMore={pagination.hasNext}
+                />
+              )}
+              
+              {viewMode === 'grouped' && (
+                <MessageGroupedView
+                  messages={messages}
+                  loading={loading}
+                  error={error || undefined}
+                  onLoadMore={handleLoadMore}
+                  hasMore={pagination.hasNext}
+                  groupBy={groupBy}
+                />
+              )}
+            </>
+          )}
 
           {/* Pagination Info */}
           {!loading && messages.length > 0 && (
