@@ -101,18 +101,37 @@ class DocumentProcessorService {
         warnings: this.generateWarnings(piiResults)
       }
 
+      // Step 8: Mark document as complete
+      const completedDocument = await db.processedDocument.update({
+        where: { id: document.id },
+        data: { status: 'COMPLETE' }
+      })
+
       logger.info(`Document processing completed in ${stats.processingTimeMs}ms`)
       console.log('Processing completed with stats:', stats)
 
-             return {
-         document,
-         messagesProcessed: messages.length,
-         piiDetected: piiResults.detections,
-         confidenceScore: document.confidenceScore,
-         processingTime: stats.processingTimeMs
-       }
+      return {
+        document: completedDocument,
+        messagesProcessed: messages.length,
+        piiDetected: piiResults.detections,
+        confidenceScore: completedDocument.confidenceScore,
+        processingTime: stats.processingTimeMs
+      }
 
     } catch (error) {
+      // If we have a document ID, mark it as ERROR status
+      if (document) {
+        try {
+          await db.processedDocument.update({
+            where: { id: (document as any).id },
+            data: { status: 'ERROR' }
+          })
+          logger.info(`Marked document ${(document as any).id} as ERROR status`)
+        } catch (updateError) {
+          logger.error('Failed to update document status to ERROR:', updateError)
+        }
+      }
+
       logger.error('Document processing failed:', error)
       throw new ProcessingError(`Document processing failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
