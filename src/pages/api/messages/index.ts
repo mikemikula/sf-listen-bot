@@ -12,6 +12,7 @@ import type {
   MessageDisplay 
 } from '@/types'
 import { formatDistanceToNow } from 'date-fns'
+import { piiDetectorService } from '@/lib/piiDetector'
 
 /**
  * Parse query parameters into MessageFilters
@@ -65,15 +66,61 @@ const buildWhereClause = (filters: MessageFilters): object => {
 }
 
 /**
- * Transform database messages to display format with thread support
+ * Transform database messages to display format with thread support and PII replacements
  */
-const transformMessages = (messages: any[]): MessageDisplay[] => {
-  return messages.map(message => {
+const transformMessages = async (messages: any[]): Promise<MessageDisplay[]> => {
+  const transformedMessages = await Promise.all(messages.map(async (message) => {
     // Get the primary document relationship (there should only be one per message)
     const primaryDocRelation = message.documentMessages?.[0]
     
+    // Apply PII replacements to message text
+    let processedText = message.text
+    if (message.piiDetections && message.piiDetections.length > 0) {
+      try {
+        processedText = await piiDetectorService.replacePII(message.text, message.piiDetections)
+      } catch (error) {
+        console.error(`Failed to apply PII replacements for message ${message.id}:`, error)
+        // Fallback to original text if PII replacement fails
+        processedText = message.text
+      }
+    }
+    
+    // Process thread replies with PII replacements
+    const processedThreadReplies = message.threadReplies ? await Promise.all(
+      message.threadReplies.map(async (reply: any) => {
+        let processedReplyText = reply.text
+        
+        // Apply PII replacements to thread reply text
+        if (reply.piiDetections && reply.piiDetections.length > 0) {
+          try {
+            processedReplyText = await piiDetectorService.replacePII(reply.text, reply.piiDetections)
+          } catch (error) {
+            console.error(`Failed to apply PII replacements for thread reply ${reply.id}:`, error)
+            processedReplyText = reply.text
+          }
+        }
+        
+        return {
+          ...reply,
+          text: processedReplyText,
+          timeAgo: formatDistanceToNow(new Date(reply.timestamp), { addSuffix: true }),
+          channelName: reply.channel.startsWith('C') 
+            ? `#${reply.channel.slice(1, 8)}` 
+            : reply.channel,
+          // Include PII detection status information for thread replies
+          hasPIIDetections: !!reply.piiDetections?.length,
+          piiDetectionCount: reply.piiDetections?.length || 0,
+          piiPendingReview: reply.piiDetections?.filter((d: any) => d.status === 'PENDING_REVIEW').length || 0,
+          piiWhitelisted: reply.piiDetections?.filter((d: any) => d.status === 'WHITELISTED').length || 0,
+          piiAutoReplaced: reply.piiDetections?.filter((d: any) => d.status === 'AUTO_REPLACED').length || 0,
+          piiDetections: reply.piiDetections || []
+        }
+      })
+    ) : []
+    
     return {
       ...message,
+      text: processedText, // Use processed text with PII replacements
       timeAgo: formatDistanceToNow(new Date(message.timestamp), { addSuffix: true }),
       channelName: message.channel.startsWith('C') 
         ? `#channel-${message.channel.slice(-4)}` // Show last 4 chars for readability
@@ -82,22 +129,25 @@ const transformMessages = (messages: any[]): MessageDisplay[] => {
       isThreadReply: message.isThreadReply || false,
       threadTs: message.threadTs || null,
       parentMessage: message.parentMessage || null,
-      threadReplies: message.threadReplies ? message.threadReplies.map((reply: any) => ({
-        ...reply,
-        timeAgo: formatDistanceToNow(new Date(reply.timestamp), { addSuffix: true }),
-        channelName: reply.channel.startsWith('C') 
-          ? `#${reply.channel.slice(1, 8)}` 
-          : reply.channel
-      })) : [],
+      threadReplies: processedThreadReplies,
       // Include processing status information
       isProcessed: !!primaryDocRelation,
       documentId: primaryDocRelation?.documentId || null,
       documentTitle: primaryDocRelation?.document?.title || null,
       documentStatus: primaryDocRelation?.document?.status || null,
       messageRole: primaryDocRelation?.messageRole || null,
-      processingConfidence: primaryDocRelation?.processingConfidence || null
+      processingConfidence: primaryDocRelation?.processingConfidence || null,
+      // Include PII detection status information
+      hasPIIDetections: !!message.piiDetections?.length,
+      piiDetectionCount: message.piiDetections?.length || 0,
+      piiPendingReview: message.piiDetections?.filter((d: any) => d.status === 'PENDING_REVIEW').length || 0,
+      piiWhitelisted: message.piiDetections?.filter((d: any) => d.status === 'WHITELISTED').length || 0,
+      piiAutoReplaced: message.piiDetections?.filter((d: any) => d.status === 'AUTO_REPLACED').length || 0,
+      piiDetections: message.piiDetections || []
     }
-  })
+  }))
+  
+  return transformedMessages
 }
 
 /**
@@ -174,15 +224,21 @@ export default async function handler(
           orderBy: {
             timestamp: 'asc' // Replies ordered chronologically  
           },
-          select: {
-            id: true,
-            text: true,
-            username: true,
-            timestamp: true,
-            slackId: true,
-            userId: true,
-            channel: true,
-            isThreadReply: true
+          include: {
+            // Include PII detection information for thread replies
+            piiDetections: {
+              select: {
+                id: true,
+                piiType: true,
+                originalText: true,
+                replacementText: true,
+                confidence: true,
+                status: true,
+                reviewedBy: true,
+                reviewedAt: true,
+                createdAt: true
+              }
+            }
           }
         },
         // Include document relationship information
@@ -200,12 +256,26 @@ export default async function handler(
               }
             }
           }
+        },
+        // Include PII detection information
+        piiDetections: {
+          select: {
+            id: true,
+            piiType: true,
+            originalText: true,
+            replacementText: true,
+            confidence: true,
+            status: true,
+            reviewedBy: true,
+            reviewedAt: true,
+            createdAt: true
+          }
         }
       }
     })
 
-    // Transform messages for display
-    const displayMessages = transformMessages(messages)
+    // Transform messages for display with PII replacements
+    const displayMessages = await transformMessages(messages)
 
     // Calculate pagination info
     const totalPages = Math.ceil(total / limit)

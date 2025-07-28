@@ -270,6 +270,111 @@ RESPONSE (JSON only):
   }
 
   /**
+   * Detect PII in text with business context awareness using Gemini AI
+   * Distinguishes between personal PII and business-critical information
+   */
+  async detectBusinessAwarePII(text: string): Promise<GeminiResponse<Array<{
+    type: 'EMAIL' | 'PHONE' | 'NAME' | 'URL' | 'CUSTOM'
+    originalText: string
+    startIndex: number
+    endIndex: number
+    confidence: number
+    replacement: string
+    isBusinessEmail?: boolean
+  }>>> {
+    const prompt = `
+TASK: Analyze text for Personally Identifiable Information (PII) with BUSINESS CONTEXT AWARENESS. Return ONLY valid JSON.
+
+TEXT TO ANALYZE:
+"${text}"
+
+DETECTION RULES:
+1. PRESERVE business emails (support@, sales@, info@, billing@, admin@, help@, etc.)
+2. PRESERVE vendor/service emails from known business domains
+3. DETECT personal emails (john.doe@gmail.com, personal addresses)
+4. DETECT personal phone numbers (avoid business lines like "call our support at...")
+5. DETECT person names (avoid business roles like "Support Team", "Sales Manager")
+6. DETECT sensitive URLs (avoid public business websites)
+
+BUSINESS EMAIL PATTERNS TO PRESERVE:
+- support@, help@, sales@, info@, contact@, admin@, billing@, accounts@
+- team@, office@, service@, hello@, inquiries@, customer@
+- Emails from major business domains (salesforce.com, stripe.com, etc.)
+
+IMPORTANT: 
+- Return ONLY valid JSON array
+- If NO personal PII found, return: []
+- DO NOT flag business-critical information as PII
+- Mark business emails with "isBusinessEmail": true (these should be preserved)
+- Focus on protecting personal data, not business information
+
+JSON FORMAT:
+[
+  {
+    "type": "EMAIL",
+    "originalText": "john.personal@gmail.com",
+    "startIndex": 25,
+    "endIndex": 47,
+    "confidence": 0.95,
+    "replacement": "[PERSONAL_EMAIL]",
+    "isBusinessEmail": false
+  },
+  {
+    "type": "EMAIL", 
+    "originalText": "support@company.com",
+    "startIndex": 60,
+    "endIndex": 79,
+    "confidence": 0.90,
+    "replacement": "support@company.com",
+    "isBusinessEmail": true
+  }
+]
+
+RESPONSE (JSON only):
+`
+
+    const response = await this.generateContent(prompt, 'business-aware-pii-detection')
+    
+    if (!response.success) {
+      return {
+        success: false,
+        error: response.error
+      }
+    }
+
+    try {
+      const data = this.parseJSONResponse(response.data!)
+      return {
+        success: true,
+        data: Array.isArray(data) ? data : [],
+        usage: response.usage
+      }
+    } catch (error) {
+      logger.error('Failed to parse Gemini business-aware PII detection response:', error)
+      logger.error('Raw response:', response.data)
+      
+      // Fallback: If response indicates no PII, return empty array
+      const responseText = response.data!.toLowerCase()
+      if (responseText.includes('no pii') || 
+          responseText.includes('does not contain') ||
+          responseText.includes('not considered pii') ||
+          responseText.includes('no personally identifiable')) {
+        logger.info('Business-aware PII detection returned natural language "no PII" response, using empty array fallback')
+        return {
+          success: true,
+          data: [],
+          usage: response.usage
+        }
+      }
+      
+      return {
+        success: false,
+        error: 'Failed to parse AI response'
+      }
+    }
+  }
+
+  /**
    * Generate FAQs from document content using AI
    */
   async generateFAQs(document: {

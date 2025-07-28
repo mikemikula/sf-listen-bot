@@ -96,6 +96,17 @@ export const Header: React.FC<HeaderProps> = ({ isConnected, onDebugClick }) => 
             >
               Processing
             </Link>
+            
+            <Link
+              href="/pii/review"
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                isActivePage('/pii')
+                  ? 'bg-white/20 text-white shadow-lg'
+                  : 'text-white/80 hover:text-white hover:bg-white/10'
+              }`}
+            >
+              PII Review
+            </Link>
           </nav>
 
           {/* Right Side Actions */}

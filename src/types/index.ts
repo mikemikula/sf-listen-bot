@@ -67,6 +67,13 @@ export interface MessageDisplay extends BaseMessage {
   documentStatus: string | null
   messageRole: string | null
   processingConfidence: number | null
+  // PII detection status information
+  hasPIIDetections: boolean
+  piiDetectionCount: number
+  piiPendingReview: number
+  piiWhitelisted: number
+  piiAutoReplaced: number
+  piiDetections?: PIIDetection[]
 }
 
 // ===== AI ANALYSIS TYPES =====
@@ -699,6 +706,11 @@ export interface MessageCardProps {
   message: MessageDisplay
   showChannel?: boolean
   className?: string
+  showChannelName?: boolean
+  showDocumentBadge?: boolean
+  showTimestamp?: boolean
+  getUserAvatar: (username: string) => string
+  onPIIStatusUpdate?: () => void
 }
 
 export interface MessageFeedProps {
@@ -707,6 +719,7 @@ export interface MessageFeedProps {
   error?: string
   onLoadMore?: () => void
   hasMore?: boolean
+  onPIIStatusUpdate?: () => void
 }
 
 export interface FilterBarProps {

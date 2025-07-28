@@ -1,7 +1,8 @@
 /**
- * PII Detector Service
- * Combines AI-powered contextual detection with rule-based patterns
- * Provides comprehensive PII identification, replacement, and audit trails
+ * Business-Aware PII Detector Service
+ * Intelligently distinguishes between personal PII and business-critical information
+ * Preserves essential business data while protecting personal information
+ * Implements SOLID principles with comprehensive error handling
  */
 
 import { logger } from './logger'
@@ -15,47 +16,95 @@ import {
   ProcessingError 
 } from '@/types'
 
-// Regular expression patterns for basic PII detection
+// Business email patterns that should NOT be treated as PII
+const BUSINESS_EMAIL_PATTERNS = [
+  // Support and customer service
+  /\b(support|help|customer|service|assist|care)@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b/gi,
+  // Sales and business development
+  /\b(sales|biz|business|bd|partnerships|deals)@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b/gi,
+  // Technical and operations
+  /\b(admin|ops|tech|engineering|dev|devops|api|noreply|no-reply)@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b/gi,
+  // Billing and finance
+  /\b(billing|invoice|payments|finance|accounting|accounts)@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b/gi,
+  // Legal and compliance
+  /\b(legal|compliance|security|privacy|dmca)@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b/gi,
+  // General business functions
+  /\b(info|contact|hello|inquiries|team|office)@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b/gi,
+  // Marketing and communications
+  /\b(marketing|press|media|pr|communications|newsletter)@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b/gi
+]
+
+// Well-known business domains that are typically not PII
+const BUSINESS_DOMAINS = new Set([
+  // Major vendors and services
+  'salesforce.com', 'hubspot.com', 'mailchimp.com', 'stripe.com', 'paypal.com',
+  'aws.amazon.com', 'microsoft.com', 'google.com', 'adobe.com', 'oracle.com',
+  'atlassian.com', 'slack.com', 'zoom.us', 'dropbox.com', 'box.com',
+  // Common business email providers
+  'company.com', 'corp.com', 'inc.com', 'llc.com', 'ltd.com',
+  // Support domains
+  'support.com', 'help.com', 'service.com'
+])
+
+// Regular expression patterns for PII detection
 const PII_PATTERNS = {
+  // Personal email pattern (will be filtered against business patterns)
   EMAIL: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g,
-  PHONE: /(\+?1[-.\s]?)?\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})/g,
-  URL: /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/g,
-  // Credit card patterns (basic)
+  
+  // Personal phone numbers (not business lines)
+  PERSONAL_PHONE: /(\+?1[-.\s]?)?\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})/g,
+  
+  // Sensitive URLs (not public business URLs)
+  SENSITIVE_URL: /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/g,
+  
+  // Financial information
   CREDIT_CARD: /\b(?:\d{4}[-\s]?){3}\d{4}\b/g,
-  // Social Security Number (US format)
-  SSN: /\b\d{3}-?\d{2}-?\d{4}\b/g
+  SSN: /\b\d{3}-?\d{2}-?\d{4}\b/g,
+  
+  // Personal identifiers
+  PERSONAL_ID: /\b\d{9,12}\b/g // Generic ID numbers
 }
 
 // Replacement templates
 const PII_REPLACEMENTS = {
-  EMAIL: '[EMAIL]',
-  PHONE: '[PHONE]',
+  EMAIL: '[PERSONAL_EMAIL]',
+  PHONE: '[PERSONAL_PHONE]',
   NAME: '[PERSON_NAME]',
-  URL: '[URL]',
+  URL: '[SENSITIVE_URL]',
   CUSTOM: '[REDACTED]',
   CREDIT_CARD: '[CREDIT_CARD]',
-  SSN: '[SSN]'
+  SSN: '[SSN]',
+  PERSONAL_ID: '[ID_NUMBER]'
 }
 
-// Words that are commonly mistaken for names but are not PII
+// Terms that are commonly mistaken for names but are not PII
 const NAME_WHITELIST = new Set([
   // Technical terms
   'api', 'url', 'http', 'https', 'json', 'xml', 'css', 'html', 'js', 'javascript',
   'react', 'node', 'npm', 'yarn', 'git', 'github', 'gitlab', 'docker', 'aws',
-  // Common usernames/handles
+  // Business roles and functions
   'admin', 'user', 'guest', 'bot', 'system', 'support', 'help', 'service',
+  'manager', 'director', 'executive', 'team', 'staff', 'department',
   // Generic terms
   'password', 'username', 'email', 'phone', 'name', 'address', 'login',
-  'signin', 'signup', 'account', 'profile', 'settings', 'config'
+  'signin', 'signup', 'account', 'profile', 'settings', 'config',
+  // Business terms
+  'company', 'corporation', 'business', 'organization', 'enterprise'
 ])
 
 /**
- * PII Detection service with AI enhancement and rule-based fallbacks
+ * Business-aware PII Detection service
+ * Preserves essential business information while protecting personal data
  */
-class PIIDetectorService {
+class BusinessAwarePIIDetectorService {
   
   /**
-   * Detect PII in text using hybrid approach (AI + rules)
+   * Detect PII in text with business context awareness
+   * @param text - Text to analyze
+   * @param sourceType - Source type (MESSAGE, DOCUMENT)
+   * @param sourceId - Source entity ID
+   * @param options - Detection options
+   * @returns Array of PII detections
    */
   async detectPII(
     text: string,
@@ -65,22 +114,35 @@ class PIIDetectorService {
       useAI?: boolean
       skipRulesBased?: boolean
       confidenceThreshold?: number
+      preserveBusinessEmails?: boolean
     } = {}
   ): Promise<PIIDetection[]> {
     const detections: PIIDetection[] = []
     
     try {
-      // Step 1: Rule-based detection (fast, reliable for common patterns)
+      logger.info(`Starting business-aware PII detection for ${sourceType} ${sourceId}`)
+      
+      // Step 1: Rule-based detection with business awareness
       if (!options.skipRulesBased) {
-        const ruleBasedDetections = await this.detectWithRules(text, sourceType, sourceId)
+        const ruleBasedDetections = await this.detectWithBusinessRules(
+          text, 
+          sourceType, 
+          sourceId,
+          options.preserveBusinessEmails !== false
+        )
         detections.push(...ruleBasedDetections)
       }
 
-      // Step 2: AI-powered detection (contextual, better for names and edge cases)
+      // Step 2: AI-powered detection with business context
       if (options.useAI !== false) {
-        const aiDetections = await this.detectWithAI(text, sourceType, sourceId, options.confidenceThreshold)
+        const aiDetections = await this.detectWithBusinessAI(
+          text, 
+          sourceType, 
+          sourceId, 
+          options.confidenceThreshold
+        )
         
-        // Merge AI detections with rule-based, avoiding duplicates
+        // Merge AI detections, avoiding duplicates
         for (const aiDetection of aiDetections) {
           const isDuplicate = detections.some(existing => 
             this.isOverlapping(existing, aiDetection)
@@ -95,39 +157,52 @@ class PIIDetectorService {
       // Step 3: Store detections in database
       if (detections.length > 0) {
         await this.storeDetections(detections)
-        logger.info(`Detected ${detections.length} PII items in ${sourceType} ${sourceId}`)
+        logger.info(`Detected ${detections.length} PII items (business emails preserved) in ${sourceType} ${sourceId}`)
+      } else {
+        logger.info(`No personal PII detected in ${sourceType} ${sourceId} (business information preserved)`)
       }
 
       return detections
 
     } catch (error) {
-      logger.error(`PII detection failed for ${sourceType} ${sourceId}:`, error)
+      logger.error(`Business-aware PII detection failed for ${sourceType} ${sourceId}:`, error)
       throw new ProcessingError(`PII detection failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
 
   /**
-   * Rule-based PII detection using regex patterns
+   * Business-aware rule-based PII detection
+   * Preserves business-critical email addresses and contact information
    */
-  private async detectWithRules(
+  private async detectWithBusinessRules(
     text: string,
     sourceType: PIISourceType,
-    sourceId: string
+    sourceId: string,
+    preserveBusinessEmails: boolean = true
   ): Promise<PIIDetection[]> {
     const detections: PIIDetection[] = []
 
-    // Email detection
+    // Email detection with business awareness
     const emailMatches = Array.from(text.matchAll(PII_PATTERNS.EMAIL))
     for (const match of emailMatches) {
       if (match.index !== undefined) {
+        const email = match[0]
+        
+        // Skip business emails if preservation is enabled
+        if (preserveBusinessEmails && this.isBusinessEmail(email)) {
+          logger.debug(`Preserving business email: ${email}`)
+          continue
+        }
+        
+        // Only flag personal emails as PII
         detections.push({
           id: '', // Will be set when stored
           sourceType,
           sourceId,
           piiType: PIIType.EMAIL,
-          originalText: match[0],
+          originalText: email,
           replacementText: PII_REPLACEMENTS.EMAIL,
-          confidence: 0.95, // High confidence for email regex
+          confidence: 0.95,
           status: PIIStatus.AUTO_REPLACED,
           reviewedBy: null,
           reviewedAt: null,
@@ -136,10 +211,10 @@ class PIIDetectorService {
       }
     }
 
-    // Phone number detection
-    const phoneMatches = Array.from(text.matchAll(PII_PATTERNS.PHONE))
+    // Personal phone number detection (excluding business lines)
+    const phoneMatches = Array.from(text.matchAll(PII_PATTERNS.PERSONAL_PHONE))
     for (const match of phoneMatches) {
-      if (match.index !== undefined) {
+      if (match.index !== undefined && this.isLikelyPersonalPhone(match[0], text)) {
         detections.push({
           id: '',
           sourceType,
@@ -147,8 +222,8 @@ class PIIDetectorService {
           piiType: PIIType.PHONE,
           originalText: match[0],
           replacementText: PII_REPLACEMENTS.PHONE,
-          confidence: 0.9, // High confidence for phone regex
-          status: PIIStatus.AUTO_REPLACED,
+          confidence: 0.85, // Lower confidence for context-dependent detection
+          status: PIIStatus.PENDING_REVIEW, // Require review for phone numbers
           reviewedBy: null,
           reviewedAt: null,
           createdAt: new Date()
@@ -156,8 +231,8 @@ class PIIDetectorService {
       }
     }
 
-    // URL detection (for potentially sensitive URLs)
-    const urlMatches = Array.from(text.matchAll(PII_PATTERNS.URL))
+    // Sensitive URL detection (excluding public business URLs)
+    const urlMatches = Array.from(text.matchAll(PII_PATTERNS.SENSITIVE_URL))
     for (const match of urlMatches) {
       if (match.index !== undefined && this.isSensitiveURL(match[0])) {
         detections.push({
@@ -176,23 +251,43 @@ class PIIDetectorService {
       }
     }
 
+    // Financial information detection
+    const creditCardMatches = Array.from(text.matchAll(PII_PATTERNS.CREDIT_CARD))
+    for (const match of creditCardMatches) {
+      if (match.index !== undefined) {
+        detections.push({
+          id: '',
+          sourceType,
+          sourceId,
+          piiType: PIIType.CUSTOM,
+          originalText: match[0],
+          replacementText: PII_REPLACEMENTS.CREDIT_CARD,
+          confidence: 0.98,
+          status: PIIStatus.AUTO_REPLACED,
+          reviewedBy: null,
+          reviewedAt: null,
+          createdAt: new Date()
+        })
+      }
+    }
+
     return detections
   }
 
   /**
-   * AI-powered PII detection using Gemini
+   * AI-powered PII detection with business context
    */
-  private async detectWithAI(
+  private async detectWithBusinessAI(
     text: string,
     sourceType: PIISourceType,
     sourceId: string,
     confidenceThreshold: number = 0.7
   ): Promise<PIIDetection[]> {
     try {
-      const response = await geminiService.detectPII(text)
+      const response = await geminiService.detectBusinessAwarePII(text)
       
       if (!response.success || !response.data) {
-        logger.warn(`AI PII detection failed for ${sourceType} ${sourceId}: ${response.error}`)
+        logger.warn(`AI business-aware PII detection failed for ${sourceType} ${sourceId}: ${response.error}`)
         return []
       }
 
@@ -201,6 +296,11 @@ class PIIDetectorService {
       for (const aiDetection of response.data) {
         // Filter by confidence threshold
         if (aiDetection.confidence < confidenceThreshold) {
+          continue
+        }
+
+        // Skip business emails identified by AI
+        if (aiDetection.type === 'EMAIL' && aiDetection.isBusinessEmail) {
           continue
         }
 
@@ -227,7 +327,7 @@ class PIIDetectorService {
       return detections
 
     } catch (error) {
-      logger.error(`AI PII detection failed for ${sourceType} ${sourceId}:`, error)
+      logger.error(`AI business-aware PII detection failed for ${sourceType} ${sourceId}:`, error)
       return []
     }
   }
@@ -446,6 +546,84 @@ class PIIDetectorService {
   }
 
   /**
+   * Determine if an email address is business-related
+   * @param email - Email address to check
+   * @returns True if email appears to be business-related
+   */
+  private isBusinessEmail(email: string): boolean {
+    const emailLower = email.toLowerCase()
+    
+    // Check against business email patterns
+    for (const pattern of BUSINESS_EMAIL_PATTERNS) {
+      if (pattern.test(emailLower)) {
+        logger.debug(`Email ${email} matches business pattern: ${pattern}`)
+        return true
+      }
+    }
+    
+    // Check against known business domains
+    const domain = emailLower.split('@')[1]
+    if (domain && BUSINESS_DOMAINS.has(domain)) {
+      logger.debug(`Email ${email} has business domain: ${domain}`)
+      return true
+    }
+    
+    // Check for generic business indicators in local part
+    const localPart = emailLower.split('@')[0]
+    const businessIndicators = [
+      'support', 'help', 'sales', 'info', 'contact', 'admin', 'service',
+      'billing', 'accounts', 'team', 'office', 'hello', 'inquiries'
+    ]
+    
+    for (const indicator of businessIndicators) {
+      if (localPart.includes(indicator)) {
+        logger.debug(`Email ${email} has business indicator: ${indicator}`)
+        return true
+      }
+    }
+    
+    return false
+  }
+
+  /**
+   * Determine if a phone number is likely personal vs business
+   * @param phone - Phone number
+   * @param context - Surrounding text context
+   * @returns True if phone appears to be personal
+   */
+  private isLikelyPersonalPhone(phone: string, context: string): boolean {
+    const contextLower = context.toLowerCase()
+    
+    // Business phone indicators
+    const businessIndicators = [
+      'support', 'customer service', 'sales', 'office', 'main line',
+      'headquarters', 'help desk', 'call center', 'business hours'
+    ]
+    
+    // Check if phone appears in business context
+    for (const indicator of businessIndicators) {
+      if (contextLower.includes(indicator)) {
+        return false // Not personal
+      }
+    }
+    
+    // Personal phone indicators
+    const personalIndicators = [
+      'my number', 'personal', 'mobile', 'cell', 'direct line',
+      'reach me at', 'call me', 'text me'
+    ]
+    
+    for (const indicator of personalIndicators) {
+      if (contextLower.includes(indicator)) {
+        return true // Likely personal
+      }
+    }
+    
+    // Default to requiring review
+    return false
+  }
+
+  /**
    * Check if a detected name is in the whitelist
    */
   private isWhitelistedName(name: string): boolean {
@@ -501,5 +679,5 @@ class PIIDetectorService {
 }
 
 // Export singleton instance
-export const piiDetectorService = new PIIDetectorService()
+export const piiDetectorService = new BusinessAwarePIIDetectorService()
 export default piiDetectorService 

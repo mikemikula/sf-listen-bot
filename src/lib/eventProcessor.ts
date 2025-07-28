@@ -5,13 +5,14 @@
 
 import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
+import { piiDetectorService } from '@/lib/piiDetector'
 import { 
   parseSlackTimestamp, 
   formatUsername, 
   isMessageDeletion, 
   isMessageEdit 
 } from '@/lib/slack'
-import type { SlackWebhookPayload } from '@/types'
+import type { SlackWebhookPayload, PIISourceType } from '@/types'
 
 export enum EventProcessingResult {
   SUCCESS = 'SUCCESS',
@@ -143,6 +144,27 @@ const processMessageEvent = async (
       throw new Error('Missing deleted message timestamp')
     }
 
+    logger.info(`Processing message deletion for slackId: ${deletedMessageId}, channel: ${event.channel}`)
+
+    // Get message records before deletion to clean up PII detections
+    const messagesToDelete = await db.message.findMany({
+      where: {
+        slackId: deletedMessageId,
+        channel: event.channel
+      },
+      select: { id: true, isThreadReply: true, text: true }
+    })
+
+    if (messagesToDelete.length === 0) {
+      logger.warn(`No messages found for deletion with slackId: ${deletedMessageId}`)
+      return {
+        result: EventProcessingResult.SKIPPED,
+        message: 'No messages found for deletion'
+      }
+    }
+
+    logger.info(`Found ${messagesToDelete.length} message(s) to delete:`, messagesToDelete.map(m => ({ id: m.id, isThreadReply: m.isThreadReply, text: m.text.substring(0, 50) })))
+
     const deletedMessage = await db.message.deleteMany({
       where: {
         slackId: deletedMessageId,
@@ -150,14 +172,35 @@ const processMessageEvent = async (
       }
     })
 
-    logger.slack(`Message deleted: ${deletedMessageId} (${deletedMessage.count} records)`)
+    // Clean up associated PII detections
+    if (messagesToDelete.length > 0) {
+      try {
+        const messageIds = messagesToDelete.map(m => m.id)
+        const deletedPII = await db.pIIDetection.deleteMany({
+          where: {
+            sourceType: 'MESSAGE',
+            sourceId: { in: messageIds }
+          }
+        })
+        
+        if (deletedPII.count > 0) {
+          logger.info(`Cleaned up ${deletedPII.count} PII detections for deleted messages`)
+        }
+        
+      } catch (piiError) {
+        logger.error(`Failed to clean up PII detections for deleted message ${deletedMessageId}:`, piiError)
+      }
+    }
+
+    logger.slack(`Message deleted: ${deletedMessageId} in channel ${event.channel} (${deletedMessage.count} records deleted, including ${messagesToDelete.filter(m => m.isThreadReply).length} thread replies)`)
     
     return {
       result: EventProcessingResult.SUCCESS,
       message: 'Message deletion processed',
       data: { 
         deletedSlackId: deletedMessageId,
-        deletedCount: deletedMessage.count 
+        deletedCount: deletedMessage.count,
+        threadRepliesDeleted: messagesToDelete.filter(m => m.isThreadReply).length
       }
     }
   }
@@ -183,6 +226,49 @@ const processMessageEvent = async (
     })
 
     logger.slack(`Message edited: ${editedMessage.ts} (${updatedMessage.count} records)`)
+    
+    // Re-run PII detection on edited message
+    if (updatedMessage.count > 0) {
+      try {
+        // Get the updated message record to get its ID
+        const messageRecord = await db.message.findFirst({
+          where: {
+            slackId: editedMessage.ts,
+            channel: event.channel
+          }
+        })
+        
+        if (messageRecord) {
+          // Remove old PII detections for this message
+          await db.pIIDetection.deleteMany({
+            where: {
+              sourceType: 'MESSAGE',
+              sourceId: messageRecord.id
+            }
+          })
+          
+          // Run new PII detection
+          const piiDetections = await piiDetectorService.detectPII(
+            editedMessage.text,
+            'MESSAGE' as PIISourceType,
+            messageRecord.id,
+            {
+              useAI: true,
+              preserveBusinessEmails: true,
+              confidenceThreshold: 0.7
+            }
+          )
+          
+          if (piiDetections.length > 0) {
+            logger.info(`PII detection re-run for edited message ${messageRecord.id}: ${piiDetections.length} items detected`)
+          }
+        }
+        
+      } catch (piiError) {
+        // Don't fail message edit processing if PII detection fails
+        logger.error(`PII detection failed for edited message ${editedMessage.ts}:`, piiError)
+      }
+    }
     
     return {
       result: EventProcessingResult.SUCCESS,
@@ -246,12 +332,41 @@ const processMessageEvent = async (
       }
     })
 
-    logger.slack(`Message stored: ${message.id}`)
+    logger.slack(`Message stored: ${message.id} (isThreadReply: ${isThreadReply})`)
+    
+    // Perform PII detection on new message
+    try {
+      logger.info(`Starting PII detection for message ${message.id} (isThreadReply: ${isThreadReply}, text length: ${message.text.length})`)
+      
+      const piiDetections = await piiDetectorService.detectPII(
+        message.text,
+        'MESSAGE' as PIISourceType,
+        message.id,
+        {
+          useAI: true,
+          preserveBusinessEmails: true,
+          confidenceThreshold: 0.7
+        }
+      )
+      
+      if (piiDetections.length > 0) {
+        logger.info(`✅ PII detection completed for message ${message.id} (isThreadReply: ${isThreadReply}): ${piiDetections.length} items detected`)
+      } else {
+        logger.info(`✅ PII detection completed for message ${message.id} (isThreadReply: ${isThreadReply}): No PII detected`)
+      }
+      
+    } catch (piiError) {
+      // Don't fail message processing if PII detection fails
+      logger.error(`❌ PII detection FAILED for message ${message.id} (isThreadReply: ${isThreadReply}):`, piiError)
+    }
     
     return {
       result: EventProcessingResult.SUCCESS,
       message: 'Message processed successfully',
-      data: { messageId: message.id }
+      data: { 
+        messageId: message.id,
+        piiDetected: true // Always true since we attempted detection
+      }
     }
   }
 

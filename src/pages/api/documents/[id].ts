@@ -105,7 +105,14 @@ async function handleGetDocument(
           documentTitle: document.title,
           documentStatus: document.status,
           messageRole: dm.messageRole,
-          processingConfidence: dm.processingConfidence
+          processingConfidence: dm.processingConfidence,
+          // PII detection status information (not loaded in document context)
+          hasPIIDetections: false,
+          piiDetectionCount: 0,
+          piiPendingReview: 0,
+          piiWhitelisted: 0,
+          piiAutoReplaced: 0,
+          piiDetections: []
         }
       })
 

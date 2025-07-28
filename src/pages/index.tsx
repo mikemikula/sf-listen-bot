@@ -424,6 +424,7 @@ const Dashboard: React.FC = () => {
                     error={error || undefined}
                     onLoadMore={handleLoadMore}
                     hasMore={pagination.hasNext}
+                    onPIIStatusUpdate={() => fetchMessages(undefined, false)}
                   />
                 </div>
               )}

@@ -11,12 +11,13 @@ import type { MessageFeedProps } from '@/types'
 /**
  * MessageFeed component with infinite scroll
  */
-export const MessageFeed: React.FC<MessageFeedProps> = ({
-  messages,
-  loading = false,
-  error,
+export const MessageFeed: React.FC<MessageFeedProps> = ({ 
+  messages, 
+  loading = false, 
+  error, 
   onLoadMore,
-  hasMore = false
+  hasMore = false,
+  onPIIStatusUpdate
 }) => {
   const observerRef = useRef<IntersectionObserver | null>(null)
   const lastMessageRef = useCallback((node: HTMLDivElement | null) => {
@@ -83,6 +84,14 @@ export const MessageFeed: React.FC<MessageFeedProps> = ({
                 message={message} 
                 showChannel={true}
                 className="p-4 hover:bg-gray-50 transition-colors"
+                getUserAvatar={(username: string) => {
+                  const colors = [
+                    'bg-red-500', 'bg-blue-500', 'bg-green-500', 'bg-purple-500',
+                    'bg-yellow-500', 'bg-pink-500', 'bg-indigo-500', 'bg-gray-500'
+                  ]
+                  return colors[username.charCodeAt(0) % colors.length]
+                }}
+                onPIIStatusUpdate={onPIIStatusUpdate}
               />
             </div>
           )
