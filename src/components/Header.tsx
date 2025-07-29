@@ -148,120 +148,241 @@ export const Header: React.FC<HeaderProps> = ({ isConnected, onDebugClick }) => 
               </button>
 
               {isMenuOpen && (
-                <div className="absolute right-0 mt-2 w-72 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 py-3 z-50">
-                  
-                  {/* Mobile Navigation - Main Pages */}
-                  <div className="block md:hidden">
-                    <div className="px-4 py-2 border-b border-gray-200 dark:border-gray-700 mb-3">
-                      <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                        Navigation
-                      </h3>
-                    </div>
-                    
-                    <Link
-                      href="/"
+                <>
+                  {/* Mobile Full-Screen Navigation Overlay */}
+                  <div className="fixed inset-0 z-50 md:hidden">
+                    {/* Background Overlay */}
+                    <div 
+                      className="fixed inset-0 bg-black/50 backdrop-blur-sm"
                       onClick={() => setIsMenuOpen(false)}
-                      className={`flex items-center justify-between px-4 py-3 text-sm transition-colors ${
-                        isActivePage('/') && router.pathname === '/'
-                          ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border-r-2 border-blue-500'
-                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-                      }`}
-                    >
-                      <div className="flex items-center space-x-3">
-                        <span className="text-lg">💬</span>
-                        <span className="font-medium">Messages</span>
-                      </div>
-                      {isActivePage('/') && router.pathname === '/' && (
-                        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                      )}
-                    </Link>
+                    />
                     
-                    <Link
-                      href="/documents"
-                      onClick={() => setIsMenuOpen(false)}
-                      className={`flex items-center justify-between px-4 py-3 text-sm transition-colors ${
-                        isActivePage('/documents')
-                          ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border-r-2 border-blue-500'
-                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-                      }`}
-                    >
-                      <div className="flex items-center space-x-3">
-                        <span className="text-lg">📄</span>
-                        <span className="font-medium">Documents</span>
+                    {/* Full-Screen Navigation Panel */}
+                    <div className="fixed inset-0 bg-white dark:bg-gray-900">
+                      {/* Navigation Header */}
+                      <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-800 px-4 py-4 flex items-center justify-between">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-8 h-8 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center border border-white/20">
+                            <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                            </svg>
+                          </div>
+                          <div>
+                            <h2 className="text-lg font-bold text-white">Navigation</h2>
+                            <p className="text-xs text-white/80">SF Listen Bot</p>
+                          </div>
+                        </div>
+                        
+                        <button
+                          onClick={() => setIsMenuOpen(false)}
+                          className="p-2 rounded-lg bg-white/10 text-white hover:bg-white/20 transition-colors"
+                          aria-label="Close navigation"
+                        >
+                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
                       </div>
-                      {isActivePage('/documents') && (
-                        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                      )}
-                    </Link>
-                    
-                    <Link
-                      href="/faqs"
-                      onClick={() => setIsMenuOpen(false)}
-                      className={`flex items-center justify-between px-4 py-3 text-sm transition-colors ${
-                        isActivePage('/faqs')
-                          ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border-r-2 border-blue-500'
-                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-                      }`}
-                    >
-                      <div className="flex items-center space-x-3">
-                        <span className="text-lg">❓</span>
-                        <span className="font-medium">FAQs</span>
-                      </div>
-                      {isActivePage('/faqs') && (
-                        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                      )}
-                    </Link>
-                    
-                    <Link
-                      href="/processing/dashboard"
-                      onClick={() => setIsMenuOpen(false)}
-                      className={`flex items-center justify-between px-4 py-3 text-sm transition-colors ${
-                        isActivePage('/processing')
-                          ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border-r-2 border-blue-500'
-                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-                      }`}
-                    >
-                      <div className="flex items-center space-x-3">
-                        <span className="text-lg">⚙️</span>
-                        <span className="font-medium">Processing</span>
-                      </div>
-                      {isActivePage('/processing') && (
-                        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                      )}
-                    </Link>
-                    
-                    <Link
-                      href="/pii/review"
-                      onClick={() => setIsMenuOpen(false)}
-                      className={`flex items-center justify-between px-4 py-3 text-sm transition-colors ${
-                        isActivePage('/pii')
-                          ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border-r-2 border-blue-500'
-                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-                      }`}
-                    >
-                      <div className="flex items-center space-x-3">
-                        <span className="text-lg">🔒</span>
-                        <span className="font-medium">PII Review</span>
-                      </div>
-                      {isActivePage('/pii') && (
-                        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                      )}
-                    </Link>
 
-                    {/* Mobile Connection Status */}
-                    <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700 mt-3">
-                      <div className="flex items-center space-x-3">
-                        <div className={`w-3 h-3 rounded-full ${isConnected ? 'bg-green-400' : 'bg-red-400'}`} />
-                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                          {isConnected ? 'Connected to Slack' : 'Slack Disconnected'}
-                        </span>
+                      {/* Navigation Content */}
+                      <div className="flex-1 overflow-y-auto">
+                        {/* Main Navigation */}
+                        <div className="py-6">
+                          <div className="px-6 mb-4">
+                            <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                              Main Navigation
+                            </h3>
+                          </div>
+                          
+                          <Link
+                            href="/"
+                            onClick={() => setIsMenuOpen(false)}
+                            className={`flex items-center justify-between px-6 py-4 text-base transition-colors ${
+                              isActivePage('/') && router.pathname === '/'
+                                ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border-r-4 border-blue-500'
+                                : 'text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-800'
+                            }`}
+                          >
+                            <div className="flex items-center space-x-4">
+                              <span className="text-2xl">💬</span>
+                              <div>
+                                <div className="font-semibold">Messages</div>
+                                <div className="text-sm text-gray-500 dark:text-gray-400">View and filter Slack messages</div>
+                              </div>
+                            </div>
+                            {isActivePage('/') && router.pathname === '/' && (
+                              <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                            )}
+                          </Link>
+                          
+                          <Link
+                            href="/documents"
+                            onClick={() => setIsMenuOpen(false)}
+                            className={`flex items-center justify-between px-6 py-4 text-base transition-colors ${
+                              isActivePage('/documents')
+                                ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border-r-4 border-blue-500'
+                                : 'text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-800'
+                            }`}
+                          >
+                            <div className="flex items-center space-x-4">
+                              <span className="text-2xl">📄</span>
+                              <div>
+                                <div className="font-semibold">Documents</div>
+                                <div className="text-sm text-gray-500 dark:text-gray-400">Manage processed documents</div>
+                              </div>
+                            </div>
+                            {isActivePage('/documents') && (
+                              <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                            )}
+                          </Link>
+                          
+                          <Link
+                            href="/faqs"
+                            onClick={() => setIsMenuOpen(false)}
+                            className={`flex items-center justify-between px-6 py-4 text-base transition-colors ${
+                              isActivePage('/faqs')
+                                ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border-r-4 border-blue-500'
+                                : 'text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-800'
+                            }`}
+                          >
+                            <div className="flex items-center space-x-4">
+                              <span className="text-2xl">❓</span>
+                              <div>
+                                <div className="font-semibold">FAQs</div>
+                                <div className="text-sm text-gray-500 dark:text-gray-400">Browse and manage FAQs</div>
+                              </div>
+                            </div>
+                            {isActivePage('/faqs') && (
+                              <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                            )}
+                          </Link>
+                          
+                          <Link
+                            href="/processing/dashboard"
+                            onClick={() => setIsMenuOpen(false)}
+                            className={`flex items-center justify-between px-6 py-4 text-base transition-colors ${
+                              isActivePage('/processing')
+                                ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border-r-4 border-blue-500'
+                                : 'text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-800'
+                            }`}
+                          >
+                            <div className="flex items-center space-x-4">
+                              <span className="text-2xl">⚙️</span>
+                              <div>
+                                <div className="font-semibold">Processing</div>
+                                <div className="text-sm text-gray-500 dark:text-gray-400">Monitor system processing</div>
+                              </div>
+                            </div>
+                            {isActivePage('/processing') && (
+                              <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                            )}
+                          </Link>
+                          
+                          <Link
+                            href="/pii/review"
+                            onClick={() => setIsMenuOpen(false)}
+                            className={`flex items-center justify-between px-6 py-4 text-base transition-colors ${
+                              isActivePage('/pii')
+                                ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border-r-4 border-blue-500'
+                                : 'text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-800'
+                            }`}
+                          >
+                            <div className="flex items-center space-x-4">
+                              <span className="text-2xl">🔒</span>
+                              <div>
+                                <div className="font-semibold">PII Review</div>
+                                <div className="text-sm text-gray-500 dark:text-gray-400">Review privacy detections</div>
+                              </div>
+                            </div>
+                            {isActivePage('/pii') && (
+                              <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                            )}
+                          </Link>
+                        </div>
+
+                        {/* Connection Status */}
+                        <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700">
+                          <div className="flex items-center space-x-4">
+                            <div className={`w-4 h-4 rounded-full ${isConnected ? 'bg-green-400' : 'bg-red-400'}`} />
+                            <div>
+                              <div className="font-semibold text-gray-900 dark:text-gray-100">
+                                {isConnected ? 'Connected to Slack' : 'Slack Disconnected'}
+                              </div>
+                              <div className="text-sm text-gray-500 dark:text-gray-400">
+                                {isConnected ? 'Real-time updates enabled' : 'Check your connection'}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Quick Actions */}
+                        <div className="px-6 py-6 border-t border-gray-200 dark:border-gray-700">
+                          <div className="mb-4">
+                            <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                              Quick Actions
+                            </h3>
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <Link
+                              href="/documents?action=create"
+                              onClick={() => setIsMenuOpen(false)}
+                              className="flex items-center space-x-4 px-4 py-3 rounded-lg bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                            >
+                              <span className="text-xl">➕</span>
+                              <span className="font-medium text-gray-900 dark:text-gray-100">Create Document</span>
+                            </Link>
+                            
+                            <Link
+                              href="/faqs?action=generate"
+                              onClick={() => setIsMenuOpen(false)}
+                              className="flex items-center space-x-4 px-4 py-3 rounded-lg bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                            >
+                              <span className="text-xl">🤖</span>
+                              <span className="font-medium text-gray-900 dark:text-gray-100">Generate FAQs</span>
+                            </Link>
+                          </div>
+                        </div>
+
+                        {/* System Actions */}
+                        <div className="px-6 py-6 border-t border-gray-200 dark:border-gray-700">
+                          <div className="mb-4">
+                            <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                              System Tools
+                            </h3>
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <button
+                              onClick={() => {
+                                onDebugClick()
+                                setIsMenuOpen(false)
+                              }}
+                              className="flex items-center space-x-4 w-full text-left px-4 py-3 rounded-lg bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                            >
+                              <span className="text-xl">🐛</span>
+                              <span className="font-medium text-gray-900 dark:text-gray-100">Debug Events</span>
+                            </button>
+                            
+                            <Link
+                              href="/api/health"
+                              target="_blank"
+                              onClick={() => setIsMenuOpen(false)}
+                              className="flex items-center space-x-4 px-4 py-3 rounded-lg bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                            >
+                              <span className="text-xl">🩺</span>
+                              <span className="font-medium text-gray-900 dark:text-gray-100">Health Check</span>
+                            </Link>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
 
-                  {/* Quick Actions - Both Mobile & Desktop */}
-                  <div className={`${!isMenuOpen ? 'md:block' : ''}`}>
-                    <div className="px-4 py-2 border-t md:border-t-0 border-gray-200 dark:border-gray-700 mt-3 md:mt-0 mb-3">
+                  {/* Desktop Dropdown - Keep existing for desktop */}
+                  <div className="hidden md:block absolute right-0 mt-2 w-72 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 py-3 z-50">
+                    {/* Quick Actions - Desktop Only */}
+                    <div className="px-4 py-2 border-b border-gray-200 dark:border-gray-700 mb-3">
                       <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
                         Quick Actions
                       </h3>
@@ -284,10 +405,8 @@ export const Header: React.FC<HeaderProps> = ({ isConnected, onDebugClick }) => 
                       <span className="text-lg">🤖</span>
                       <span className="font-medium">Generate FAQs</span>
                     </Link>
-                  </div>
 
-                  {/* System Actions */}
-                  <div>
+                    {/* System Actions */}
                     <div className="px-4 py-2 border-t border-gray-200 dark:border-gray-700 mt-3 mb-3">
                       <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
                         System
@@ -315,7 +434,7 @@ export const Header: React.FC<HeaderProps> = ({ isConnected, onDebugClick }) => 
                       <span className="font-medium">Health Check</span>
                     </Link>
                   </div>
-                </div>
+                </>
               )}
             </div>
           </div>
