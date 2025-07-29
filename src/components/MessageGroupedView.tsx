@@ -127,34 +127,34 @@ export const MessageGroupedView: React.FC<MessageGroupedViewProps> = ({
    const getMessageTypeInfo = (message: MessageDisplay) => {
      if (!message.isProcessed) {
        return { 
-         icon: <MessageSquare className="h-6 w-6 text-gray-600" />, 
+         icon: <MessageSquare className="h-6 w-6 text-gray-600 dark:text-gray-400" />, 
          label: 'Unprocessed', 
-         color: 'text-gray-600',
-         bg: 'bg-gray-50'
+         color: 'text-gray-600 dark:text-gray-400',
+         bg: 'bg-gray-50 dark:bg-gray-700/50'
        }
      }
      
      if (message.messageRole) {
        const typeInfo = {
-         'QUESTION': { icon: <HelpCircle className="h-6 w-6 text-blue-700" />, label: 'Question', color: 'text-blue-700', bg: 'bg-blue-50' },
-         'ANSWER': { icon: <Eye className="h-6 w-6 text-green-700" />, label: 'Answer', color: 'text-green-700', bg: 'bg-green-50' },
-         'CONTEXT': { icon: <MessageSquare className="h-6 w-6 text-gray-700" />, label: 'Discussion', color: 'text-gray-700', bg: 'bg-gray-50' },
-         'FOLLOW_UP': { icon: <MessageSquare className="h-6 w-6 text-orange-700" />, label: 'Follow-up', color: 'text-orange-700', bg: 'bg-orange-50' },
-         'CONFIRMATION': { icon: <Eye className="h-6 w-6 text-purple-700" />, label: 'Greeting', color: 'text-purple-700', bg: 'bg-purple-50' }
+         'QUESTION': { icon: <HelpCircle className="h-6 w-6 text-blue-700 dark:text-blue-400" />, label: 'Question', color: 'text-blue-700 dark:text-blue-400', bg: 'bg-blue-50 dark:bg-blue-900/20' },
+         'ANSWER': { icon: <Eye className="h-6 w-6 text-green-700 dark:text-green-400" />, label: 'Answer', color: 'text-green-700 dark:text-green-400', bg: 'bg-green-50 dark:bg-green-900/20' },
+         'CONTEXT': { icon: <MessageSquare className="h-6 w-6 text-gray-700 dark:text-gray-400" />, label: 'Discussion', color: 'text-gray-700 dark:text-gray-400', bg: 'bg-gray-50 dark:bg-gray-700/50' },
+         'FOLLOW_UP': { icon: <MessageSquare className="h-6 w-6 text-orange-700 dark:text-orange-400" />, label: 'Follow-up', color: 'text-orange-700 dark:text-orange-400', bg: 'bg-orange-50 dark:bg-orange-900/20' },
+         'CONFIRMATION': { icon: <Eye className="h-6 w-6 text-purple-700 dark:text-purple-400" />, label: 'Greeting', color: 'text-purple-700 dark:text-purple-400', bg: 'bg-purple-50 dark:bg-purple-900/20' }
        }
        
        return typeInfo[message.messageRole as keyof typeof typeInfo] || 
-              { icon: <MessageSquare className="h-6 w-6 text-gray-700" />, label: 'Message', color: 'text-gray-700', bg: 'bg-gray-50' }
+              { icon: <MessageSquare className="h-6 w-6 text-gray-700 dark:text-gray-400" />, label: 'Message', color: 'text-gray-700 dark:text-gray-400', bg: 'bg-gray-50 dark:bg-gray-700/50' }
      }
      
-     return { icon: <MessageSquare className="h-6 w-6 text-gray-700" />, label: 'Message', color: 'text-gray-700', bg: 'bg-gray-50' }
+     return { icon: <MessageSquare className="h-6 w-6 text-gray-700 dark:text-gray-400" />, label: 'Message', color: 'text-gray-700 dark:text-gray-400', bg: 'bg-gray-50 dark:bg-gray-700/50' }
    }
 
   if (error) {
     return (
       <div className="text-center py-8">
-        <div className="text-red-600 mb-4">Error loading messages</div>
-        <p className="text-gray-600">{error}</p>
+        <div className="text-red-600 dark:text-red-400 mb-4">Error loading messages</div>
+        <p className="text-gray-600 dark:text-gray-400">{error}</p>
       </div>
     )
   }
@@ -162,26 +162,26 @@ export const MessageGroupedView: React.FC<MessageGroupedViewProps> = ({
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h3 className="text-lg font-medium text-gray-900">Messages Grouped by {groupBy.charAt(0).toUpperCase() + groupBy.slice(1)}</h3>
-        <p className="text-sm text-gray-600 mt-1">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+        <h3 className="text-lg font-medium text-gray-900 dark:text-white">Messages Grouped by {groupBy.charAt(0).toUpperCase() + groupBy.slice(1)}</h3>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
           {messages.length} messages in {groupedMessages.length} groups
         </p>
       </div>
 
       {/* Groups */}
       {groupedMessages.map((group) => (
-        <div key={group.key} className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <div key={group.key} className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
                      {/* Group Header */}
-           <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-gray-100">
+           <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-600">
              <div className="flex items-center justify-between">
                <div>
-                 <h4 className="text-lg font-medium text-gray-900 flex items-center gap-2">
+                 <h4 className="text-lg font-medium text-gray-900 dark:text-white flex items-center gap-2">
                    {group.title}
                    {group.documentId && (
                      <Link
                        href={`/documents/${group.documentId}`}
-                       className="inline-flex items-center text-sm text-blue-600 hover:text-blue-800 hover:underline"
+                       className="inline-flex items-center text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline"
                      >
                        <FileText className="h-4 w-4 mr-1" />
                        View Document
@@ -189,7 +189,7 @@ export const MessageGroupedView: React.FC<MessageGroupedViewProps> = ({
                    )}
                  </h4>
                  {group.subtitle && (
-                   <p className="text-sm text-gray-600 mt-1">{group.subtitle}</p>
+                   <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{group.subtitle}</p>
                  )}
                </div>
                <div className="text-right">
@@ -241,8 +241,8 @@ export const MessageGroupedView: React.FC<MessageGroupedViewProps> = ({
                    </div>
                    
                    <div className="text-right">
-                     <div className="text-2xl font-bold text-gray-900">{group.count}</div>
-                     <div className="text-sm text-gray-500">total</div>
+                     <div className="text-2xl font-bold text-gray-900 dark:text-white">{group.count}</div>
+                     <div className="text-sm text-gray-500 dark:text-gray-400">total</div>
                    </div>
                  </div>
                </div>
@@ -250,16 +250,16 @@ export const MessageGroupedView: React.FC<MessageGroupedViewProps> = ({
            </div>
 
                      {/* Group Messages */}
-           <div className="divide-y divide-gray-200">
+           <div className="divide-y divide-gray-200 dark:divide-gray-700">
              {group.messages.slice(0, 10).map((message) => {
                const messageType = getMessageTypeInfo(message)
                
                return (
-                 <div key={message.id} className={`px-6 py-4 hover:bg-gray-50 transition-colors ${messageType.bg} border-l-4 ${
-                   messageType.color === 'text-blue-700' ? 'border-blue-300' :
-                   messageType.color === 'text-green-700' ? 'border-green-300' :
-                   messageType.color === 'text-purple-700' ? 'border-purple-300' :
-                   'border-gray-300'
+                 <div key={message.id} className={`px-6 py-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors ${messageType.bg} border-l-4 ${
+                   messageType.color === 'text-blue-700' ? 'border-blue-300 dark:border-blue-600' :
+                   messageType.color === 'text-green-700' ? 'border-green-300 dark:border-green-600' :
+                   messageType.color === 'text-purple-700' ? 'border-purple-300 dark:border-purple-600' :
+                   'border-gray-300 dark:border-gray-600'
                  }`}>
                    <div className="flex items-start gap-4">
                      <div className="flex-shrink-0">
@@ -267,7 +267,7 @@ export const MessageGroupedView: React.FC<MessageGroupedViewProps> = ({
                          <span className="text-2xl">{messageType.icon}</span>
                          <div className="text-xs">
                            <div className={`font-medium ${messageType.color}`}>{messageType.label}</div>
-                           <div className="text-gray-500">{formatTime(message.timestamp)}</div>
+                           <div className="text-gray-500 dark:text-gray-400">{formatTime(message.timestamp)}</div>
                          </div>
                        </div>
                      </div>
@@ -281,16 +281,16 @@ export const MessageGroupedView: React.FC<MessageGroupedViewProps> = ({
                              </span>
                            </div>
                          </div>
-                         <span className="font-medium text-gray-900 text-sm">{message.username}</span>
+                         <span className="font-medium text-gray-900 dark:text-white text-sm">{message.username}</span>
                          {groupBy !== 'channel' && (
                            <>
-                             <span className="text-gray-400">•</span>
-                             <span className="text-xs text-gray-500">{message.channelName || `#channel-${message.channel.slice(-4)}`}</span>
+                             <span className="text-gray-400 dark:text-gray-500">•</span>
+                             <span className="text-xs text-gray-500 dark:text-gray-400">{message.channelName || `#channel-${message.channel.slice(-4)}`}</span>
                            </>
                          )}
                        </div>
                        
-                       <div className="text-gray-900 text-sm leading-relaxed">
+                       <div className="text-gray-900 dark:text-gray-100 text-sm leading-relaxed">
                          {message.text.length > 300 ? `${message.text.substring(0, 300)}...` : message.text}
                        </div>
                      </div>
@@ -301,8 +301,8 @@ export const MessageGroupedView: React.FC<MessageGroupedViewProps> = ({
              
              {/* Show more messages indicator */}
              {group.messages.length > 10 && (
-               <div className="px-6 py-3 bg-gray-50 text-center border-t">
-                 <button className="text-sm text-blue-600 hover:text-blue-800 font-medium">
+               <div className="px-6 py-3 bg-gray-50 dark:bg-gray-700 text-center border-t border-gray-200 dark:border-gray-600">
+                 <button className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium">
                    View all {group.messages.length} messages in this group →
                  </button>
                </div>
@@ -313,9 +313,9 @@ export const MessageGroupedView: React.FC<MessageGroupedViewProps> = ({
 
       {/* Loading State */}
       {loading && (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
-          <div className="inline-flex items-center">
-            <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-8 text-center">
+          <div className="inline-flex items-center text-gray-900 dark:text-gray-100">
+            <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-blue-600 dark:text-blue-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
@@ -326,10 +326,10 @@ export const MessageGroupedView: React.FC<MessageGroupedViewProps> = ({
 
       {/* Load More Button */}
       {!loading && hasMore && (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 text-center">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 text-center">
           <button
             onClick={onLoadMore}
-            className="inline-flex items-center px-6 py-3 text-sm font-medium text-blue-600 hover:text-blue-800 border border-blue-300 rounded-md hover:bg-blue-50 transition-colors"
+            className="inline-flex items-center px-6 py-3 text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 border border-blue-300 dark:border-blue-600 rounded-md hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors"
           >
             Load More Messages
             <svg className="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -341,12 +341,12 @@ export const MessageGroupedView: React.FC<MessageGroupedViewProps> = ({
 
       {/* Empty State */}
       {!loading && messages.length === 0 && (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
-          <svg className="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-12 text-center">
+          <svg className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
           </svg>
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No Messages</h3>
-          <p className="text-gray-500">No messages match your current filters.</p>
+          <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No Messages</h3>
+          <p className="text-gray-500 dark:text-gray-400">No messages match your current filters.</p>
         </div>
       )}
     </div>
