@@ -314,14 +314,14 @@ const PIIReviewDashboard: React.FC<PIIReviewDashboardProps> = ({
   const getStatusColorClass = (status: string): string => {
     switch (status) {
       case PIIStatus.WHITELISTED:
-        return 'text-green-600 bg-green-50'
+        return 'text-green-600 dark:text-green-200 bg-green-50 dark:bg-green-800'
       case PIIStatus.FLAGGED:
-        return 'text-red-600 bg-red-50'
+        return 'text-red-600 dark:text-red-200 bg-red-50 dark:bg-red-800'
       case PIIStatus.AUTO_REPLACED:
-        return 'text-blue-600 bg-blue-50'
+        return 'text-blue-600 dark:text-blue-200 bg-blue-50 dark:bg-blue-800'
       case PIIStatus.PENDING_REVIEW:
       default:
-        return 'text-yellow-600 bg-yellow-50'
+        return 'text-yellow-600 dark:text-yellow-200 bg-yellow-50 dark:bg-yellow-800'
     }
   }
 
@@ -371,7 +371,7 @@ const PIIReviewDashboard: React.FC<PIIReviewDashboardProps> = ({
   if (isLoading && reviewItems.length === 0) {
     return (
       <div className="pii-review__loading">
-        <div className="flex items-center justify-center p-8">
+        <div className="flex items-center justify-center p-8 text-gray-900 dark:text-white">
           <RefreshCw className="w-6 h-6 animate-spin mr-2" />
           <span>Loading PII reviews...</span>
         </div>
@@ -382,14 +382,14 @@ const PIIReviewDashboard: React.FC<PIIReviewDashboardProps> = ({
   return (
     <div className="pii-review-dashboard">
       {/* Header */}
-      <div className="pii-review__header bg-white border-b border-gray-200 p-6">
+      <div className="pii-review__header bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 flex items-center">
-              <Shield className="w-6 h-6 mr-2 text-blue-600" />
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center">
+              <Shield className="w-6 h-6 mr-2 text-blue-600 dark:text-blue-400" />
               PII Review Dashboard
             </h1>
-            <p className="text-gray-600 mt-1">
+            <p className="text-gray-600 dark:text-gray-400 mt-1">
               Review and manage potentially sensitive information detections
             </p>
           </div>
@@ -398,7 +398,7 @@ const PIIReviewDashboard: React.FC<PIIReviewDashboardProps> = ({
             <button
               onClick={fetchPendingReviews}
               disabled={isLoading}
-              className="flex items-center px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
+              className="flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 text-gray-700 dark:text-gray-300 transition-colors"
             >
               <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
               Refresh
@@ -409,52 +409,52 @@ const PIIReviewDashboard: React.FC<PIIReviewDashboardProps> = ({
         {/* Stats */}
         {stats && (
           <div className="mt-6 grid grid-cols-1 md:grid-cols-5 gap-4">
-            <div className="bg-yellow-50 p-4 rounded-lg">
+            <div className="bg-yellow-50 dark:bg-yellow-900 p-4 rounded-lg">
               <div className="flex items-center">
-                <Clock className="w-5 h-5 text-yellow-600 mr-2" />
+                <Clock className="w-5 h-5 text-yellow-600 dark:text-yellow-400 mr-2" />
                 <div>
-                  <p className="text-sm font-medium text-yellow-800">Pending Review</p>
-                  <p className="text-2xl font-bold text-yellow-900">{stats.pendingReview}</p>
+                  <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200">Pending Review</p>
+                  <p className="text-2xl font-bold text-yellow-900 dark:text-yellow-100">{stats.pendingReview}</p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-green-50 p-4 rounded-lg">
+            <div className="bg-green-50 dark:bg-green-900 p-4 rounded-lg">
               <div className="flex items-center">
-                <CheckCircle className="w-5 h-5 text-green-600 mr-2" />
+                <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400 mr-2" />
                 <div>
-                  <p className="text-sm font-medium text-green-800">Whitelisted</p>
-                  <p className="text-2xl font-bold text-green-900">{stats.whitelisted}</p>
+                  <p className="text-sm font-medium text-green-800 dark:text-green-200">Whitelisted</p>
+                  <p className="text-2xl font-bold text-green-900 dark:text-green-100">{stats.whitelisted}</p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-red-50 p-4 rounded-lg">
+            <div className="bg-red-50 dark:bg-red-900 p-4 rounded-lg">
               <div className="flex items-center">
-                <AlertTriangle className="w-5 h-5 text-red-600 mr-2" />
+                <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400 mr-2" />
                 <div>
-                  <p className="text-sm font-medium text-red-800">Flagged</p>
-                  <p className="text-2xl font-bold text-red-900">{stats.flagged}</p>
+                  <p className="text-sm font-medium text-red-800 dark:text-red-200">Flagged</p>
+                  <p className="text-2xl font-bold text-red-900 dark:text-red-100">{stats.flagged}</p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-blue-50 p-4 rounded-lg">
+            <div className="bg-blue-50 dark:bg-blue-900 p-4 rounded-lg">
               <div className="flex items-center">
-                <EyeOff className="w-5 h-5 text-blue-600 mr-2" />
+                <EyeOff className="w-5 h-5 text-blue-600 dark:text-blue-400 mr-2" />
                 <div>
-                  <p className="text-sm font-medium text-blue-800">Auto Replaced</p>
-                  <p className="text-2xl font-bold text-blue-900">{stats.autoReplaced}</p>
+                  <p className="text-sm font-medium text-blue-800 dark:text-blue-200">Auto Replaced</p>
+                  <p className="text-2xl font-bold text-blue-900 dark:text-blue-100">{stats.autoReplaced}</p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-gray-50 p-4 rounded-lg">
+            <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
               <div className="flex items-center">
-                <FileText className="w-5 h-5 text-gray-600 mr-2" />
+                <FileText className="w-5 h-5 text-gray-600 dark:text-gray-400 mr-2" />
                 <div>
-                  <p className="text-sm font-medium text-gray-800">Total Detections</p>
-                  <p className="text-2xl font-bold text-gray-900">{stats.totalDetections}</p>
+                  <p className="text-sm font-medium text-gray-800 dark:text-gray-200">Total Detections</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{stats.totalDetections}</p>
                 </div>
               </div>
             </div>
@@ -464,16 +464,16 @@ const PIIReviewDashboard: React.FC<PIIReviewDashboardProps> = ({
 
       {/* Error Display */}
       {error && (
-        <div className="bg-red-50 border border-red-200 p-4 mx-6 mt-4 rounded-md">
+        <div className="bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700 p-4 mx-6 mt-4 rounded-md">
           <div className="flex">
             <XCircle className="w-5 h-5 text-red-400 mr-2 flex-shrink-0 mt-0.5" />
             <div>
-              <h3 className="text-sm font-medium text-red-800">Error</h3>
-              <p className="text-sm text-red-700 mt-1">{error}</p>
+              <h3 className="text-sm font-medium text-red-800 dark:text-red-200">Error</h3>
+              <p className="text-sm text-red-700 dark:text-red-300 mt-1">{error}</p>
             </div>
             <button
               onClick={() => setError(null)}
-              className="ml-auto flex-shrink-0 text-red-400 hover:text-red-600"
+              className="ml-auto flex-shrink-0 text-red-400 hover:text-red-600 dark:hover:text-red-300"
             >
               <XCircle className="w-5 h-5" />
             </button>
@@ -482,18 +482,18 @@ const PIIReviewDashboard: React.FC<PIIReviewDashboardProps> = ({
       )}
 
       {/* Filters */}
-      <div className="pii-review__filters bg-gray-50 border-b border-gray-200 p-6">
+      <div className="pii-review__filters bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-6">
         <div className="flex flex-wrap items-center gap-4">
           {/* Search */}
           <div className="flex-1 min-w-64">
             <div className="relative">
-              <Search className="w-4 h-4 absolute left-3 top-3 text-gray-400" />
+              <Search className="w-4 h-4 absolute left-3 top-3 text-gray-400 dark:text-gray-500" />
               <input
                 type="text"
                 placeholder="Search PII detections..."
                 value={filters.searchTerm}
                 onChange={(e) => setFilters(prev => ({ ...prev, searchTerm: e.target.value }))}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
               />
             </div>
           </div>
@@ -502,7 +502,7 @@ const PIIReviewDashboard: React.FC<PIIReviewDashboardProps> = ({
           <select
             value={filters.piiType}
             onChange={(e) => setFilters(prev => ({ ...prev, piiType: e.target.value as PIIType | 'ALL' }))}
-            className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
           >
             <option value="ALL">All Types</option>
             <option value={PIIType.EMAIL}>Email</option>
@@ -513,12 +513,12 @@ const PIIReviewDashboard: React.FC<PIIReviewDashboardProps> = ({
           </select>
 
           {/* Show Only Selected */}
-          <label className="flex items-center">
+          <label className="flex items-center text-gray-700 dark:text-gray-300">
             <input
               type="checkbox"
               checked={filters.showOnlySelected}
               onChange={(e) => setFilters(prev => ({ ...prev, showOnlySelected: e.target.checked }))}
-              className="mr-2"
+              className="mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded"
             />
             Show only selected
           </label>
@@ -527,16 +527,16 @@ const PIIReviewDashboard: React.FC<PIIReviewDashboardProps> = ({
 
       {/* Bulk Actions */}
       {selectedItems.size > 0 && (
-        <div className="pii-review__bulk-actions bg-blue-50 border-b border-blue-200 p-4">
+        <div className="pii-review__bulk-actions bg-blue-50 dark:bg-blue-900 border-b border-blue-200 dark:border-blue-700 p-4">
           <div className="flex items-center justify-between">
-            <span className="text-blue-800 font-medium">
+            <span className="text-blue-800 dark:text-blue-200 font-medium">
               {selectedItems.size} item{selectedItems.size !== 1 ? 's' : ''} selected
             </span>
             <div className="flex items-center space-x-2">
               <button
                 onClick={() => bulkUpdatePII(PIIStatus.WHITELISTED)}
                 disabled={isBulkUpdating}
-                className="flex items-center px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
+                className="flex items-center px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 transition-colors"
               >
                 <CheckCircle className="w-4 h-4 mr-1" />
                 Whitelist
@@ -544,14 +544,14 @@ const PIIReviewDashboard: React.FC<PIIReviewDashboardProps> = ({
               <button
                 onClick={() => bulkUpdatePII(PIIStatus.FLAGGED)}
                 disabled={isBulkUpdating}
-                className="flex items-center px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"
+                className="flex items-center px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 transition-colors"
               >
                 <AlertTriangle className="w-4 h-4 mr-1" />
                 Flag as Sensitive
               </button>
               <button
                 onClick={() => setSelectedItems(new Set())}
-                className="flex items-center px-3 py-1 bg-gray-600 text-white rounded hover:bg-gray-700"
+                className="flex items-center px-3 py-1 bg-gray-600 text-white rounded hover:bg-gray-700 transition-colors"
               >
                 <XCircle className="w-4 h-4 mr-1" />
                 Clear Selection
@@ -565,9 +565,9 @@ const PIIReviewDashboard: React.FC<PIIReviewDashboardProps> = ({
       <div className="pii-review__list">
         {filteredItems.length === 0 ? (
           <div className="text-center py-12">
-            <Shield className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No PII reviews pending</h3>
-            <p className="text-gray-600">
+            <Shield className="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No PII reviews pending</h3>
+            <p className="text-gray-600 dark:text-gray-400">
               {filters.searchTerm || filters.piiType !== 'ALL' || filters.showOnlySelected
                 ? 'No items match your current filters.'
                 : 'All PII detections have been reviewed.'}
@@ -593,26 +593,26 @@ const PIIReviewDashboard: React.FC<PIIReviewDashboardProps> = ({
 
       {/* Pagination */}
       {totalItems > pageSize && (
-        <div className="pii-review__pagination bg-white border-t border-gray-200 px-6 py-4">
+        <div className="pii-review__pagination bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 px-6 py-4">
           <div className="flex items-center justify-between">
-            <div className="text-sm text-gray-700">
+            <div className="text-sm text-gray-700 dark:text-gray-300">
               Showing {currentPage * pageSize + 1} to {Math.min((currentPage + 1) * pageSize, totalItems)} of {totalItems} results
             </div>
             <div className="flex items-center space-x-2">
               <button
                 onClick={() => setCurrentPage(prev => Math.max(0, prev - 1))}
                 disabled={currentPage === 0}
-                className="px-3 py-1 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50"
+                className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 text-gray-700 dark:text-gray-300 transition-colors"
               >
                 Previous
               </button>
-              <span className="px-3 py-1 text-sm">
+              <span className="px-3 py-1 text-sm text-gray-700 dark:text-gray-300">
                 Page {currentPage + 1} of {Math.ceil(totalItems / pageSize)}
               </span>
               <button
                 onClick={() => setCurrentPage(prev => prev + 1)}
                 disabled={(currentPage + 1) * pageSize >= totalItems}
-                className="px-3 py-1 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50"
+                className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 text-gray-700 dark:text-gray-300 transition-colors"
               >
                 Next
               </button>
@@ -659,7 +659,7 @@ const PIIReviewItem: React.FC<PIIReviewItemProps> = ({
   }
 
   return (
-    <div className={`pii-review-item ${isSelected ? 'bg-blue-50' : 'bg-white'}`}>
+    <div className={`pii-review-item ${isSelected ? 'bg-blue-50 dark:bg-blue-900' : 'bg-white dark:bg-gray-800'}`}>
       <div className="p-6">
         <div className="flex items-start space-x-4">
           {/* Selection Checkbox */}
@@ -667,7 +667,7 @@ const PIIReviewItem: React.FC<PIIReviewItemProps> = ({
             type="checkbox"
             checked={isSelected}
             onChange={onToggleSelection}
-            className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+            className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded"
           />
 
           {/* Content */}
@@ -677,16 +677,16 @@ const PIIReviewItem: React.FC<PIIReviewItemProps> = ({
                 {/* PII Type Icon */}
                 <div className="flex items-center space-x-2">
                   {getPIITypeIcon(item.piiType)}
-                  <span className="text-sm font-medium text-gray-900">
+                  <span className="text-sm font-medium text-gray-900 dark:text-white">
                     {item.piiType}
                   </span>
                 </div>
 
                 {/* Confidence Score */}
                 <div className={`px-2 py-1 rounded-full text-xs font-medium ${
-                  item.confidence > 0.8 ? 'bg-green-100 text-green-800' :
-                  item.confidence > 0.6 ? 'bg-yellow-100 text-yellow-800' :
-                  'bg-red-100 text-red-800'
+                  item.confidence > 0.8 ? 'bg-green-100 dark:bg-green-800 text-green-800 dark:text-green-200' :
+                  item.confidence > 0.6 ? 'bg-yellow-100 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-200' :
+                  'bg-red-100 dark:bg-red-800 text-red-800 dark:text-red-200'
                 }`}>
                   {Math.round(item.confidence * 100)}% confident
                 </div>
@@ -699,7 +699,7 @@ const PIIReviewItem: React.FC<PIIReviewItemProps> = ({
 
               <button
                 onClick={onToggleExpansion}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
               >
                 {item.isExpanded ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
               </button>
@@ -707,16 +707,16 @@ const PIIReviewItem: React.FC<PIIReviewItemProps> = ({
 
             {/* Original Text Display */}
             <div className="mt-3">
-              <div className="bg-gray-100 p-3 rounded-md">
+              <div className="bg-gray-100 dark:bg-gray-700 p-3 rounded-md">
                 <div className="text-sm">
-                  <span className="font-medium text-gray-700">Detected: </span>
-                  <span className="bg-yellow-200 px-1 rounded font-mono">
+                  <span className="font-medium text-gray-700 dark:text-gray-300">Detected: </span>
+                  <span className="bg-yellow-200 dark:bg-yellow-600 px-1 rounded font-mono text-gray-900 dark:text-white">
                     {item.originalText}
                   </span>
                 </div>
                 <div className="text-sm mt-1">
-                  <span className="font-medium text-gray-700">Would replace with: </span>
-                  <span className="text-gray-600 font-mono">
+                  <span className="font-medium text-gray-700 dark:text-gray-300">Would replace with: </span>
+                  <span className="text-gray-600 dark:text-gray-400 font-mono">
                     {item.replacementText}
                   </span>
                 </div>
@@ -725,9 +725,9 @@ const PIIReviewItem: React.FC<PIIReviewItemProps> = ({
 
             {/* Message Context (if available) */}
             {item.message && (
-              <div className="mt-3 text-sm text-gray-600">
+              <div className="mt-3 text-sm text-gray-600 dark:text-gray-400">
                 <div className="font-medium">Context:</div>
-                <div className="bg-gray-50 p-2 rounded mt-1 text-xs font-mono">
+                <div className="bg-gray-50 dark:bg-gray-700 p-2 rounded mt-1 text-xs font-mono text-gray-900 dark:text-white">
                   {item.message.text.substring(0, 200)}
                   {item.message.text.length > 200 && '...'}
                 </div>
@@ -740,39 +740,39 @@ const PIIReviewItem: React.FC<PIIReviewItemProps> = ({
 
             {/* Expanded Details */}
             {item.isExpanded && (
-              <div className="mt-4 border-t border-gray-200 pt-4">
+              <div className="mt-4 border-t border-gray-200 dark:border-gray-700 pt-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* Custom Replacement */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Custom Replacement
                     </label>
                     <input
                       type="text"
                       value={customReplacement}
                       onChange={(e) => setCustomReplacement(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                       placeholder="Enter custom replacement text"
                     />
                   </div>
 
                   {/* Review Note */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Review Note (Optional)
                     </label>
                     <input
                       type="text"
                       value={reviewNote}
                       onChange={(e) => setReviewNote(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                       placeholder="Add a note about this decision"
                     />
                   </div>
                 </div>
 
                 {/* Metadata */}
-                <div className="mt-4 text-xs text-gray-500 space-y-1">
+                <div className="mt-4 text-xs text-gray-500 dark:text-gray-400 space-y-1">
                   <div>Detection ID: {item.id}</div>
                   <div>Created: {new Date(item.createdAt).toLocaleString()}</div>
                   {item.reviewedBy && (
@@ -790,7 +790,7 @@ const PIIReviewItem: React.FC<PIIReviewItemProps> = ({
               <button
                 onClick={() => handleStatusUpdate(PIIStatus.WHITELISTED)}
                 disabled={item.isUpdating}
-                className="flex items-center px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700 disabled:opacity-50"
+                className="flex items-center px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700 disabled:opacity-50 transition-colors"
               >
                 <CheckCircle className="w-4 h-4 mr-1" />
                 Not Sensitive
@@ -799,7 +799,7 @@ const PIIReviewItem: React.FC<PIIReviewItemProps> = ({
               <button
                 onClick={() => handleStatusUpdate(PIIStatus.FLAGGED)}
                 disabled={item.isUpdating}
-                className="flex items-center px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700 disabled:opacity-50"
+                className="flex items-center px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700 disabled:opacity-50 transition-colors"
               >
                 <AlertTriangle className="w-4 h-4 mr-1" />
                 Flag as PII
@@ -808,14 +808,14 @@ const PIIReviewItem: React.FC<PIIReviewItemProps> = ({
               <button
                 onClick={() => handleStatusUpdate(PIIStatus.AUTO_REPLACED)}
                 disabled={item.isUpdating}
-                className="flex items-center px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 disabled:opacity-50"
+                className="flex items-center px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 disabled:opacity-50 transition-colors"
               >
                 <EyeOff className="w-4 h-4 mr-1" />
                 Auto Replace
               </button>
 
               {item.isUpdating && (
-                <div className="flex items-center text-sm text-gray-600">
+                <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
                   <RefreshCw className="w-4 h-4 animate-spin mr-1" />
                   Updating...
                 </div>

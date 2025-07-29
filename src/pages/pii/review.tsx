@@ -25,7 +25,7 @@ interface PIIReviewPageProps {
 const PIIReviewPage: React.FC<PIIReviewPageProps> = ({ currentUser }) => {
   return (
     <ErrorBoundary>
-      <div className="pii-review-page min-h-screen bg-gray-50">
+      <div className="pii-review-page min-h-screen bg-gray-50 dark:bg-gray-900">
         <Head>
           <title>PII Review Dashboard - Listen Bot</title>
           <meta 
