@@ -112,6 +112,40 @@ const PIIReviewDashboard: React.FC<PIIReviewDashboardProps> = ({
   }
 
   /**
+   * Get available PII types with counts from current data
+   */
+  const getAvailableTypes = (): Array<{ type: PIIType | 'ALL', label: string, count: number }> => {
+    const typeCounts: Record<string, number> = {}
+    
+    reviewItems.forEach(item => {
+      typeCounts[item.piiType] = (typeCounts[item.piiType] || 0) + 1
+    })
+
+    const types: Array<{ type: PIIType | 'ALL', label: string, count: number }> = [
+      { type: 'ALL', label: 'All Types', count: reviewItems.length }
+    ]
+
+    // Add types that actually exist in the data
+    Object.entries(typeCounts).forEach(([type, count]) => {
+      const typeLabels: Record<string, string> = {
+        EMAIL: 'Email',
+        PHONE: 'Phone', 
+        NAME: 'Name',
+        URL: 'URL',
+        CUSTOM: 'Custom'
+      }
+      
+      types.push({
+        type: type as PIIType,
+        label: typeLabels[type] || type,
+        count
+      })
+    })
+
+    return types
+  }
+
+  /**
    * Fetch pending PII reviews from API
    */
   const fetchPendingReviews = useCallback(async () => {
@@ -497,38 +531,24 @@ const PIIReviewDashboard: React.FC<PIIReviewDashboardProps> = ({
         </div>
       )}
 
-      {/* Simplified Filters */}
+      {/* Modern Type Filters */}
       {reviewItems.length > 0 && (
         <div className="pii-review__filters border-b border-gray-200 dark:border-gray-700 p-6">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            {/* Search */}
-            <div className="flex-1 max-w-md">
-              <input
-                type="text"
-                placeholder="Search PII detections..."
-                value={filters.searchTerm}
-                onChange={(e) => setFilters(prev => ({ ...prev, searchTerm: e.target.value }))}
-                className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-
-            {/* Type Filter */}
-            <div className="flex items-center space-x-4">
-              <select
-                value={filters.piiType}
-                onChange={(e) => setFilters(prev => ({ ...prev, piiType: e.target.value as PIIType | 'ALL' }))}
-                className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="ALL">All Types</option>
-                <option value="EMAIL">Email</option>
-                <option value="PHONE">Phone</option>
-                <option value="NAME">Name</option>
-                <option value="URL">URL</option>
-                <option value="CUSTOM">Custom</option>
-              </select>
+          <div className="space-y-4">
+            {/* Search Bar */}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+              <div className="flex-1 max-w-md">
+                <input
+                  type="text"
+                  placeholder="Search PII detections..."
+                  value={filters.searchTerm}
+                  onChange={(e) => setFilters(prev => ({ ...prev, searchTerm: e.target.value }))}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
 
               {/* Show Selected Toggle */}
-              <label className="flex items-center text-sm text-gray-600 dark:text-gray-400">
+              <label className="flex items-center text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
                 <input
                   type="checkbox"
                   checked={filters.showOnlySelected}
@@ -538,6 +558,72 @@ const PIIReviewDashboard: React.FC<PIIReviewDashboardProps> = ({
                 Show only selected
               </label>
             </div>
+
+            {/* Type Filter Chips */}
+            <div>
+              <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                Filter by Detection Type:
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {getAvailableTypes().map(({ type, label, count }) => (
+                  <button
+                    key={type}
+                    onClick={() => setFilters(prev => ({ ...prev, piiType: type }))}
+                    className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                      filters.piiType === type
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                    }`}
+                  >
+                    <span>{label}</span>
+                    <span className={`ml-1.5 px-1.5 py-0.5 rounded-full text-xs ${
+                      filters.piiType === type
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-400'
+                    }`}>
+                      {count}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Active Filters Summary */}
+            {(filters.searchTerm || filters.piiType !== 'ALL' || filters.showOnlySelected) && (
+              <div className="flex items-center justify-between pt-2 border-t border-gray-200 dark:border-gray-700">
+                <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
+                  <span>Active filters:</span>
+                  <div className="ml-2 flex flex-wrap gap-1">
+                    {filters.searchTerm && (
+                      <span className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-2 py-1 rounded">
+                        Search: &quot;{filters.searchTerm}&quot;
+                      </span>
+                    )}
+                    {filters.piiType !== 'ALL' && (
+                      <span className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-2 py-1 rounded">
+                        Type: {getAvailableTypes().find(t => t.type === filters.piiType)?.label}
+                      </span>
+                    )}
+                    {filters.showOnlySelected && (
+                      <span className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-2 py-1 rounded">
+                        Selected only
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <button
+                  onClick={() => setFilters({
+                    searchTerm: '',
+                    piiType: 'ALL',
+                    confidenceRange: [0, 1],
+                    showOnlySelected: false
+                  })}
+                  className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+                >
+                  Clear all
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -595,16 +681,50 @@ const PIIReviewDashboard: React.FC<PIIReviewDashboardProps> = ({
         {filteredItems.length === 0 ? (
           <div className="text-center py-12">
             <Shield className="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-              {reviewItems.length === 0 ? 'No PII detections found' : 'No items match filters'}
-            </h3>
-            <p className="text-gray-600 dark:text-gray-400 mb-6">
-              {filters.searchTerm || filters.piiType !== 'ALL' || filters.showOnlySelected
-                ? 'Try adjusting your filters to see more results.'
-                : reviewItems.length === 0 
-                  ? 'PII detections will appear here when the system identifies potentially sensitive information in your messages.'
-                  : 'All PII detections have been reviewed.'}
-            </p>
+            
+            {reviewItems.length === 0 ? (
+              // No items at all
+              <>
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+                  No PII detections found
+                </h3>
+                <p className="text-gray-600 dark:text-gray-400 mb-6">
+                  PII detections will appear here when the system identifies potentially sensitive information in your messages.
+                </p>
+              </>
+            ) : (
+              // Items exist but filters exclude them
+              <>
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+                  No items match your current filters
+                </h3>
+                <p className="text-gray-600 dark:text-gray-400 mb-4">
+                  There are {reviewItems.length} total detections, but none match your current filter criteria.
+                </p>
+                <div className="space-y-2 text-sm text-gray-500 dark:text-gray-400">
+                  {filters.searchTerm && (
+                    <p>• Try a different search term</p>
+                  )}
+                  {filters.piiType !== 'ALL' && (
+                    <p>• Try selecting &quot;All Types&quot; or a different detection type</p>
+                  )}
+                  {filters.showOnlySelected && (
+                    <p>• Try unchecking &quot;Show only selected&quot;</p>
+                  )}
+                  <button
+                    onClick={() => setFilters({
+                      searchTerm: '',
+                      piiType: 'ALL',
+                      confidenceRange: [0, 1],
+                      showOnlySelected: false
+                    })}
+                    className="mt-3 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200 font-medium transition-colors"
+                  >
+                    Clear all filters
+                  </button>
+                </div>
+              </>
+            )}
             
             {/* Development Test Data Button - Mobile Optimized */}
             {process.env.NODE_ENV !== 'production' && reviewItems.length === 0 && (
