@@ -67,6 +67,7 @@ interface ReviewStats {
 interface FilterState {
   searchTerm: string
   piiType: PIIType | 'ALL'
+  status: PIIStatus | 'ALL'
   confidenceRange: [number, number]
   showOnlySelected: boolean
 }
@@ -93,6 +94,7 @@ const PIIReviewDashboard: React.FC<PIIReviewDashboardProps> = ({
   const [filters, setFilters] = useState<FilterState>({
     searchTerm: '',
     piiType: 'ALL',
+    status: 'ALL',
     confidenceRange: [0, 1],
     showOnlySelected: false
   })
@@ -112,32 +114,28 @@ const PIIReviewDashboard: React.FC<PIIReviewDashboardProps> = ({
   }
 
   /**
-   * Get available PII types with counts from current data
+   * Get available PII types with counts from complete stats (not filtered data)
    */
   const getAvailableTypes = (): Array<{ type: PIIType | 'ALL', label: string, count: number }> => {
-    const typeCounts: Record<string, number> = {}
-    
-    reviewItems.forEach(item => {
-      typeCounts[item.piiType] = (typeCounts[item.piiType] || 0) + 1
-    })
-
     const types: Array<{ type: PIIType | 'ALL', label: string, count: number }> = [
-      { type: 'ALL', label: 'All Types', count: reviewItems.length }
+      { type: 'ALL', label: 'All Types', count: stats?.totalDetections || 0 }
     ]
 
-    // Add types that actually exist in the data
-    Object.entries(typeCounts).forEach(([type, count]) => {
-      const typeLabels: Record<string, string> = {
-        EMAIL: 'Email',
-        PHONE: 'Phone', 
-        NAME: 'Name',
-        URL: 'URL',
-        CUSTOM: 'Custom'
-      }
-      
+    // Always show all possible types so users can switch between them
+    const typeLabels: Record<PIIType, string> = {
+      [PIIType.EMAIL]: 'Email',
+      [PIIType.PHONE]: 'Phone', 
+      [PIIType.NAME]: 'Name',
+      [PIIType.URL]: 'URL',
+      [PIIType.CUSTOM]: 'Custom'
+    }
+
+    // Add all possible types with their counts (0 if not present)
+    Object.entries(typeLabels).forEach(([type, label]) => {
+      const count = stats?.byType?.[type as PIIType] || 0
       types.push({
         type: type as PIIType,
-        label: typeLabels[type] || type,
+        label,
         count
       })
     })
@@ -146,9 +144,33 @@ const PIIReviewDashboard: React.FC<PIIReviewDashboardProps> = ({
   }
 
   /**
-   * Fetch pending PII reviews from API
+   * Get available PII statuses with counts from complete stats (not filtered data)
    */
-  const fetchPendingReviews = useCallback(async () => {
+  const getAvailableStatuses = (): Array<{ status: PIIStatus | 'ALL', label: string, count: number }> => {
+    const statuses: Array<{ status: PIIStatus | 'ALL', label: string, count: number }> = [
+      { status: 'ALL', label: 'All Status', count: stats?.totalDetections || 0 }
+    ]
+
+    // Always show all possible statuses so users can switch between them
+    const statusData = [
+      { status: PIIStatus.PENDING_REVIEW, label: 'Pending Review', count: stats?.pendingReview || 0 },
+      { status: PIIStatus.WHITELISTED, label: 'Approved', count: stats?.whitelisted || 0 },
+      { status: PIIStatus.FLAGGED, label: 'Flagged', count: stats?.flagged || 0 },
+      { status: PIIStatus.AUTO_REPLACED, label: 'Auto Replaced', count: stats?.autoReplaced || 0 }
+    ]
+
+    // Add all statuses, even those with 0 count, for better UX
+    statusData.forEach(({ status, label, count }) => {
+      statuses.push({ status, label, count })
+    })
+
+    return statuses
+  }
+
+  /**
+   * Fetch PII reviews from API with optional filtering
+   */
+  const fetchPIIReviews = useCallback(async () => {
     try {
       setIsLoading(true)
       setError(null)
@@ -157,6 +179,11 @@ const PIIReviewDashboard: React.FC<PIIReviewDashboardProps> = ({
         limit: pageSize.toString(),
         offset: (currentPage * pageSize).toString()
       })
+
+      // Add status filter if not showing all
+      if (filters.status !== 'ALL') {
+        params.append('status', filters.status)
+      }
 
       const response = await fetch(`/api/pii/review?${params}`)
       
@@ -178,7 +205,7 @@ const PIIReviewDashboard: React.FC<PIIReviewDashboardProps> = ({
       setTotalItems(data.total)
       setStats(data.stats)
       
-      logger.info(`Loaded ${items.length} PII review items`)
+      logger.info(`Loaded ${items.length} PII review items${filters.status !== 'ALL' ? ` with status ${filters.status}` : ''}`)
       
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error'
@@ -187,7 +214,7 @@ const PIIReviewDashboard: React.FC<PIIReviewDashboardProps> = ({
     } finally {
       setIsLoading(false)
     }
-  }, [currentPage, pageSize])
+  }, [currentPage, pageSize, filters.status])
 
   /**
    * Update single PII detection status
@@ -238,7 +265,7 @@ const PIIReviewDashboard: React.FC<PIIReviewDashboardProps> = ({
         logger.info(`PII detection ${detectionId} updated to ${status}`)
         
         // Refresh stats
-        await fetchPendingReviews()
+        await fetchPIIReviews()
       } else {
         throw new Error(result.message || 'Update failed')
       }
@@ -300,7 +327,7 @@ const PIIReviewDashboard: React.FC<PIIReviewDashboardProps> = ({
         logger.info(`Bulk updated ${updates.length} PII detections to ${status}`)
         
         // Refresh data
-        await fetchPendingReviews()
+        await fetchPIIReviews()
       } else {
         throw new Error(result.message || 'Bulk update failed')
       }
@@ -393,6 +420,11 @@ const PIIReviewDashboard: React.FC<PIIReviewDashboardProps> = ({
       return false
     }
 
+    // Status filter (handled by API, but included for completeness)
+    if (filters.status !== 'ALL' && item.status !== filters.status) {
+      return false
+    }
+
     // Confidence range filter
     if (item.confidence < filters.confidenceRange[0] || 
         item.confidence > filters.confidenceRange[1]) {
@@ -409,13 +441,13 @@ const PIIReviewDashboard: React.FC<PIIReviewDashboardProps> = ({
 
   // Effects
   useEffect(() => {
-    fetchPendingReviews()
-  }, [fetchPendingReviews])
+    fetchPIIReviews()
+  }, [fetchPIIReviews])
 
   useEffect(() => {
-    const interval = setInterval(fetchPendingReviews, refreshInterval)
+    const interval = setInterval(fetchPIIReviews, refreshInterval)
     return () => clearInterval(interval)
-  }, [fetchPendingReviews, refreshInterval])
+  }, [fetchPIIReviews, refreshInterval])
 
   // Keyboard shortcuts for power users
   useEffect(() => {
@@ -487,7 +519,7 @@ const PIIReviewDashboard: React.FC<PIIReviewDashboardProps> = ({
 
           <div className="flex items-center space-x-4">
             <button
-              onClick={fetchPendingReviews}
+              onClick={fetchPIIReviews}
               disabled={isLoading}
               className="flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 text-gray-700 dark:text-gray-300 transition-colors"
             >
@@ -569,9 +601,12 @@ const PIIReviewDashboard: React.FC<PIIReviewDashboardProps> = ({
                   <button
                     key={type}
                     onClick={() => setFilters(prev => ({ ...prev, piiType: type }))}
+                    disabled={count === 0 && type !== 'ALL'}
                     className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
                       filters.piiType === type
                         ? 'bg-blue-600 text-white'
+                        : count === 0 && type !== 'ALL'
+                        ? 'bg-gray-50 dark:bg-gray-800 text-gray-400 dark:text-gray-600 cursor-not-allowed'
                         : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                     }`}
                   >
@@ -579,6 +614,42 @@ const PIIReviewDashboard: React.FC<PIIReviewDashboardProps> = ({
                     <span className={`ml-1.5 px-1.5 py-0.5 rounded-full text-xs ${
                       filters.piiType === type
                         ? 'bg-blue-500 text-white'
+                        : count === 0 && type !== 'ALL'
+                        ? 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-600'
+                        : 'bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-400'
+                    }`}>
+                      {count}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Status Filter Chips */}
+            <div>
+              <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                Filter by Review Status:
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {getAvailableStatuses().map(({ status, label, count }) => (
+                  <button
+                    key={status}
+                    onClick={() => setFilters(prev => ({ ...prev, status }))}
+                    disabled={count === 0 && status !== 'ALL'}
+                    className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                      filters.status === status
+                        ? 'bg-green-600 text-white'
+                        : count === 0 && status !== 'ALL'
+                        ? 'bg-gray-50 dark:bg-gray-800 text-gray-400 dark:text-gray-600 cursor-not-allowed'
+                        : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                    }`}
+                  >
+                    <span>{label}</span>
+                    <span className={`ml-1.5 px-1.5 py-0.5 rounded-full text-xs ${
+                      filters.status === status
+                        ? 'bg-green-500 text-white'
+                        : count === 0 && status !== 'ALL'
+                        ? 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-600'
                         : 'bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-400'
                     }`}>
                       {count}
@@ -589,7 +660,7 @@ const PIIReviewDashboard: React.FC<PIIReviewDashboardProps> = ({
             </div>
 
             {/* Active Filters Summary */}
-            {(filters.searchTerm || filters.piiType !== 'ALL' || filters.showOnlySelected) && (
+            {(filters.searchTerm || filters.piiType !== 'ALL' || filters.status !== 'ALL' || filters.showOnlySelected) && (
               <div className="flex items-center justify-between pt-2 border-t border-gray-200 dark:border-gray-700">
                 <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
                   <span>Active filters:</span>
@@ -604,6 +675,11 @@ const PIIReviewDashboard: React.FC<PIIReviewDashboardProps> = ({
                         Type: {getAvailableTypes().find(t => t.type === filters.piiType)?.label}
                       </span>
                     )}
+                    {filters.status !== 'ALL' && (
+                      <span className="text-xs bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 px-2 py-1 rounded">
+                        Status: {getAvailableStatuses().find(s => s.status === filters.status)?.label}
+                      </span>
+                    )}
                     {filters.showOnlySelected && (
                       <span className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-2 py-1 rounded">
                         Selected only
@@ -615,6 +691,7 @@ const PIIReviewDashboard: React.FC<PIIReviewDashboardProps> = ({
                   onClick={() => setFilters({
                     searchTerm: '',
                     piiType: 'ALL',
+                    status: 'ALL',
                     confidenceRange: [0, 1],
                     showOnlySelected: false
                   })}
@@ -708,6 +785,9 @@ const PIIReviewDashboard: React.FC<PIIReviewDashboardProps> = ({
                   {filters.piiType !== 'ALL' && (
                     <p>• Try selecting &quot;All Types&quot; or a different detection type</p>
                   )}
+                  {filters.status !== 'ALL' && (
+                    <p>• Try selecting &quot;All Status&quot; or a different review status</p>
+                  )}
                   {filters.showOnlySelected && (
                     <p>• Try unchecking &quot;Show only selected&quot;</p>
                   )}
@@ -715,6 +795,7 @@ const PIIReviewDashboard: React.FC<PIIReviewDashboardProps> = ({
                     onClick={() => setFilters({
                       searchTerm: '',
                       piiType: 'ALL',
+                      status: 'ALL',
                       confidenceRange: [0, 1],
                       showOnlySelected: false
                     })}
@@ -747,7 +828,7 @@ const PIIReviewDashboard: React.FC<PIIReviewDashboardProps> = ({
                           setIsLoading(true)
                           const response = await fetch('/api/pii/test-data', { method: 'POST' })
                           if (response.ok) {
-                            await fetchPendingReviews()
+                            await fetchPIIReviews()
                           } else {
                             throw new Error('Failed to create test data')
                           }

@@ -395,6 +395,51 @@ class BusinessAwarePIIDetectorService {
   }
 
   /**
+   * Get PII detections for review with optional status filtering
+   */
+  async getAllReviews(
+    limit: number = 50,
+    offset: number = 0,
+    status?: PIIStatus
+  ): Promise<{
+    detections: PIIDetection[]
+    total: number
+  }> {
+    try {
+      const whereClause = status ? { status } : {}
+      
+      const [detections, total] = await Promise.all([
+        db.pIIDetection.findMany({
+          where: whereClause,
+          include: {
+            message: true
+          },
+          orderBy: {
+            createdAt: 'desc'
+          },
+          take: limit,
+          skip: offset
+        }),
+        db.pIIDetection.count({
+          where: whereClause
+        })
+      ])
+
+      return { 
+        detections: detections.map((d: any) => ({
+          ...d,
+          message: d.message || undefined
+        })) as PIIDetection[], 
+        total 
+      }
+
+    } catch (error) {
+      logger.error('Failed to get PII reviews:', error)
+      throw new ProcessingError(`Failed to get PII reviews: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
+  }
+
+  /**
    * Get pending PII detections for review
    */
   async getPendingReviews(

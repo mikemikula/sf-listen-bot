@@ -47,11 +47,11 @@ export default async function handler(
 }
 
 /**
- * GET /api/pii/review - Fetch pending PII reviews
+ * GET /api/pii/review - Fetch PII reviews with optional status filtering
  * Query params:
  * - limit: number of items to return (default: 50)
  * - offset: pagination offset (default: 0)
- * - status: filter by status (optional)
+ * - status: filter by status (optional, default: show all)
  */
 async function handleGetPendingReviews(
   req: NextApiRequest,
@@ -81,35 +81,38 @@ async function handleGetPendingReviews(
     return
   }
 
-  try {
-    // Get pending reviews (or filtered by status)
-    if (status && status !== 'PENDING_REVIEW') {
-      // TODO: Add method to get reviews by specific status
-      const stats = await piiDetectorService.getPIIStats()
-      res.json({
-        detections: [],
-        total: 0,
-        stats,
-        message: `Filtering by status ${status} not yet implemented`
+  // Validate status parameter if provided
+  let statusFilter: PIIStatus | undefined
+  if (status) {
+    const validStatuses = Object.values(PIIStatus)
+    if (validStatuses.includes(status as PIIStatus)) {
+      statusFilter = status as PIIStatus
+    } else {
+      res.status(400).json({ 
+        error: `Invalid status parameter. Must be one of: ${validStatuses.join(', ')}` 
       })
       return
     }
+  }
 
-    const result = await piiDetectorService.getPendingReviews(limitNum, offsetNum)
+  try {
+    // Get reviews with optional status filtering
+    const result = await piiDetectorService.getAllReviews(limitNum, offsetNum, statusFilter)
     const stats = await piiDetectorService.getPIIStats()
 
+    logger.info(`Fetched ${result.detections.length} PII detections${statusFilter ? ` with status ${statusFilter}` : ''}`)
+
     res.json({
-      ...result,
+      detections: result.detections,
+      total: result.total,
       stats,
-      pagination: {
-        limit: limitNum,
-        offset: offsetNum,
-        hasMore: result.total > offsetNum + limitNum
-      }
+      page: Math.floor(offsetNum / limitNum),
+      limit: limitNum,
+      hasMore: offsetNum + result.detections.length < result.total
     })
 
   } catch (error) {
-    logger.error('Failed to fetch pending PII reviews:', error)
+    logger.error('Failed to fetch PII reviews:', error)
     res.status(500).json({ 
       error: 'Failed to fetch PII reviews',
       message: error instanceof Error ? error.message : 'Unknown error'
