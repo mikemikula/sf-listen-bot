@@ -3,9 +3,12 @@
  * Displays messages grouped by document, channel, or date
  */
 
-import React, { useMemo } from 'react'
+import React, { useState, useMemo } from 'react'
+import { formatDistanceToNow } from 'date-fns'
 import Link from 'next/link'
-import { MessageDisplay } from '@/types'
+import { MessageDisplay, MessageFilters } from '@/types'
+import { MessageCard } from '@/components/MessageCard'
+import { HelpCircle, MessageSquare, FileText, Eye } from 'lucide-react'
 
 interface MessageGroupedViewProps {
   messages: MessageDisplay[]
@@ -124,7 +127,7 @@ export const MessageGroupedView: React.FC<MessageGroupedViewProps> = ({
    const getMessageTypeInfo = (message: MessageDisplay) => {
      if (!message.isProcessed) {
        return { 
-         icon: '⏳', 
+         icon: <MessageSquare className="h-6 w-6 text-gray-600" />, 
          label: 'Unprocessed', 
          color: 'text-gray-600',
          bg: 'bg-gray-50'
@@ -133,18 +136,18 @@ export const MessageGroupedView: React.FC<MessageGroupedViewProps> = ({
      
      if (message.messageRole) {
        const typeInfo = {
-         'QUESTION': { icon: '❓', label: 'Question', color: 'text-blue-700', bg: 'bg-blue-50' },
-         'ANSWER': { icon: '✅', label: 'Answer', color: 'text-green-700', bg: 'bg-green-50' },
-         'CONTEXT': { icon: '💬', label: 'Discussion', color: 'text-gray-700', bg: 'bg-gray-50' },
-         'FOLLOW_UP': { icon: '🔄', label: 'Follow-up', color: 'text-orange-700', bg: 'bg-orange-50' },
-         'CONFIRMATION': { icon: '👋', label: 'Greeting', color: 'text-purple-700', bg: 'bg-purple-50' }
+         'QUESTION': { icon: <HelpCircle className="h-6 w-6 text-blue-700" />, label: 'Question', color: 'text-blue-700', bg: 'bg-blue-50' },
+         'ANSWER': { icon: <Eye className="h-6 w-6 text-green-700" />, label: 'Answer', color: 'text-green-700', bg: 'bg-green-50' },
+         'CONTEXT': { icon: <MessageSquare className="h-6 w-6 text-gray-700" />, label: 'Discussion', color: 'text-gray-700', bg: 'bg-gray-50' },
+         'FOLLOW_UP': { icon: <MessageSquare className="h-6 w-6 text-orange-700" />, label: 'Follow-up', color: 'text-orange-700', bg: 'bg-orange-50' },
+         'CONFIRMATION': { icon: <Eye className="h-6 w-6 text-purple-700" />, label: 'Greeting', color: 'text-purple-700', bg: 'bg-purple-50' }
        }
        
        return typeInfo[message.messageRole as keyof typeof typeInfo] || 
-              { icon: '💬', label: 'Message', color: 'text-gray-700', bg: 'bg-gray-50' }
+              { icon: <MessageSquare className="h-6 w-6 text-gray-700" />, label: 'Message', color: 'text-gray-700', bg: 'bg-gray-50' }
      }
      
-     return { icon: '💬', label: 'Message', color: 'text-gray-700', bg: 'bg-gray-50' }
+     return { icon: <MessageSquare className="h-6 w-6 text-gray-700" />, label: 'Message', color: 'text-gray-700', bg: 'bg-gray-50' }
    }
 
   if (error) {
@@ -178,9 +181,10 @@ export const MessageGroupedView: React.FC<MessageGroupedViewProps> = ({
                    {group.documentId && (
                      <Link
                        href={`/documents/${group.documentId}`}
-                       className="inline-flex items-center px-3 py-1 text-xs font-medium text-blue-700 bg-blue-100 rounded-full hover:bg-blue-200 transition-colors"
+                       className="inline-flex items-center text-sm text-blue-600 hover:text-blue-800 hover:underline"
                      >
-                       📄 View Document
+                       <FileText className="h-4 w-4 mr-1" />
+                       View Document
                      </Link>
                    )}
                  </h4>
@@ -203,31 +207,31 @@ export const MessageGroupedView: React.FC<MessageGroupedViewProps> = ({
                          <>
                            {questionCount > 0 && (
                              <div className="flex items-center gap-1">
-                               <span>❓</span>
+                               <span>{<HelpCircle className="h-4 w-4 text-blue-700" />}</span>
                                <span className="text-blue-700 font-medium">{questionCount}</span>
                              </div>
                            )}
                            {answerCount > 0 && (
                              <div className="flex items-center gap-1">
-                               <span>✅</span>
+                               <span>{<Eye className="h-4 w-4 text-green-700" />}</span>
                                <span className="text-green-700 font-medium">{answerCount}</span>
                              </div>
                            )}
                            {followUpCount > 0 && (
                              <div className="flex items-center gap-1">
-                               <span>🔄</span>
+                               <span>{<MessageSquare className="h-4 w-4 text-orange-700" />}</span>
                                <span className="text-orange-700 font-medium">{followUpCount}</span>
                              </div>
                            )}
                            {confirmationCount > 0 && (
                              <div className="flex items-center gap-1">
-                               <span>👋</span>
+                               <span>{<Eye className="h-4 w-4 text-purple-700" />}</span>
                                <span className="text-purple-700 font-medium">{confirmationCount}</span>
                              </div>
                            )}
                            {contextCount > 0 && (
                              <div className="flex items-center gap-1">
-                               <span>💬</span>
+                               <span>{<MessageSquare className="h-4 w-4 text-gray-700" />}</span>
                                <span className="text-gray-700 font-medium">{contextCount}</span>
                              </div>
                            )}

@@ -5,7 +5,9 @@
 
 import React, { useState, useMemo } from 'react'
 import Link from 'next/link'
+import { formatDistanceToNow } from 'date-fns'
 import { MessageDisplay } from '@/types'
+import { FileText, Eye } from 'lucide-react'
 
 interface MessageTableViewProps {
   messages: MessageDisplay[]
@@ -303,8 +305,9 @@ export const MessageTableView: React.FC<MessageTableViewProps> = ({
                         {messageInfo.status}
                       </span>
                       {messageInfo.documentTitle && (
-                        <div className="text-xs text-gray-600 max-w-32 truncate">
-                          📄 {messageInfo.documentTitle}
+                        <div className="text-xs text-gray-600 max-w-32 truncate flex items-center">
+                          <FileText className="h-3 w-3 mr-1 flex-shrink-0" />
+                          {messageInfo.documentTitle}
                         </div>
                       )}
                       {message.processingConfidence && (
@@ -319,9 +322,10 @@ export const MessageTableView: React.FC<MessageTableViewProps> = ({
                       {messageInfo.documentId ? (
                         <Link
                           href={`/documents/${messageInfo.documentId}`}
-                          className="text-blue-600 hover:text-blue-900 text-xs"
+                          className="text-blue-600 hover:text-blue-900 text-xs flex items-center"
                         >
-                          📄 View Document
+                          <FileText className="h-3 w-3 mr-1" />
+                          View Document
                         </Link>
                       ) : (
                         <span className="text-gray-400 text-xs">No Document</span>

@@ -5,6 +5,18 @@
 import React, { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/router'
+import { 
+  MessageSquare, 
+  FileText, 
+  HelpCircle, 
+  Settings, 
+  Shield, 
+  Plus, 
+  Bot, 
+  Bug, 
+  Activity,
+  X
+} from 'lucide-react'
 
 interface HeaderProps {
   isConnected: boolean
@@ -178,9 +190,7 @@ export const Header: React.FC<HeaderProps> = ({ isConnected, onDebugClick }) => 
                           className="p-2 rounded-lg bg-white/10 text-white hover:bg-white/20 transition-colors"
                           aria-label="Close navigation"
                         >
-                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                          </svg>
+                          <X className="w-5 h-5" />
                         </button>
                       </div>
 
@@ -204,7 +214,11 @@ export const Header: React.FC<HeaderProps> = ({ isConnected, onDebugClick }) => 
                             }`}
                           >
                             <div className="flex items-center space-x-4">
-                              <span className="text-2xl">💬</span>
+                              <MessageSquare className={`w-6 h-6 ${
+                                isActivePage('/') && router.pathname === '/'
+                                  ? 'text-blue-700 dark:text-blue-300'
+                                  : 'text-gray-500 dark:text-gray-400'
+                              }`} />
                               <div>
                                 <div className="font-semibold">Messages</div>
                                 <div className="text-sm text-gray-500 dark:text-gray-400">View and filter Slack messages</div>
@@ -225,7 +239,11 @@ export const Header: React.FC<HeaderProps> = ({ isConnected, onDebugClick }) => 
                             }`}
                           >
                             <div className="flex items-center space-x-4">
-                              <span className="text-2xl">📄</span>
+                              <FileText className={`w-6 h-6 ${
+                                isActivePage('/documents')
+                                  ? 'text-blue-700 dark:text-blue-300'
+                                  : 'text-gray-500 dark:text-gray-400'
+                              }`} />
                               <div>
                                 <div className="font-semibold">Documents</div>
                                 <div className="text-sm text-gray-500 dark:text-gray-400">Manage processed documents</div>
@@ -246,7 +264,11 @@ export const Header: React.FC<HeaderProps> = ({ isConnected, onDebugClick }) => 
                             }`}
                           >
                             <div className="flex items-center space-x-4">
-                              <span className="text-2xl">❓</span>
+                              <HelpCircle className={`w-6 h-6 ${
+                                isActivePage('/faqs')
+                                  ? 'text-blue-700 dark:text-blue-300'
+                                  : 'text-gray-500 dark:text-gray-400'
+                              }`} />
                               <div>
                                 <div className="font-semibold">FAQs</div>
                                 <div className="text-sm text-gray-500 dark:text-gray-400">Browse and manage FAQs</div>
@@ -267,7 +289,11 @@ export const Header: React.FC<HeaderProps> = ({ isConnected, onDebugClick }) => 
                             }`}
                           >
                             <div className="flex items-center space-x-4">
-                              <span className="text-2xl">⚙️</span>
+                              <Settings className={`w-6 h-6 ${
+                                isActivePage('/processing')
+                                  ? 'text-blue-700 dark:text-blue-300'
+                                  : 'text-gray-500 dark:text-gray-400'
+                              }`} />
                               <div>
                                 <div className="font-semibold">Processing</div>
                                 <div className="text-sm text-gray-500 dark:text-gray-400">Monitor system processing</div>
@@ -288,7 +314,11 @@ export const Header: React.FC<HeaderProps> = ({ isConnected, onDebugClick }) => 
                             }`}
                           >
                             <div className="flex items-center space-x-4">
-                              <span className="text-2xl">🔒</span>
+                              <Shield className={`w-6 h-6 ${
+                                isActivePage('/pii')
+                                  ? 'text-blue-700 dark:text-blue-300'
+                                  : 'text-gray-500 dark:text-gray-400'
+                              }`} />
                               <div>
                                 <div className="font-semibold">PII Review</div>
                                 <div className="text-sm text-gray-500 dark:text-gray-400">Review privacy detections</div>
@@ -327,18 +357,18 @@ export const Header: React.FC<HeaderProps> = ({ isConnected, onDebugClick }) => 
                             <Link
                               href="/documents?action=create"
                               onClick={() => setIsMenuOpen(false)}
-                              className="flex items-center space-x-4 px-4 py-3 rounded-lg bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                              className="flex items-center space-x-4 px-4 py-3 rounded-lg bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group"
                             >
-                              <span className="text-xl">➕</span>
+                              <Plus className="w-6 h-6 text-green-600 dark:text-green-400 group-hover:text-green-700 dark:group-hover:text-green-300 transition-colors" />
                               <span className="font-medium text-gray-900 dark:text-gray-100">Create Document</span>
                             </Link>
                             
                             <Link
                               href="/faqs?action=generate"
                               onClick={() => setIsMenuOpen(false)}
-                              className="flex items-center space-x-4 px-4 py-3 rounded-lg bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                              className="flex items-center space-x-4 px-4 py-3 rounded-lg bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group"
                             >
-                              <span className="text-xl">🤖</span>
+                              <Bot className="w-6 h-6 text-purple-600 dark:text-purple-400 group-hover:text-purple-700 dark:group-hover:text-purple-300 transition-colors" />
                               <span className="font-medium text-gray-900 dark:text-gray-100">Generate FAQs</span>
                             </Link>
                           </div>
@@ -358,9 +388,9 @@ export const Header: React.FC<HeaderProps> = ({ isConnected, onDebugClick }) => 
                                 onDebugClick()
                                 setIsMenuOpen(false)
                               }}
-                              className="flex items-center space-x-4 w-full text-left px-4 py-3 rounded-lg bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                              className="flex items-center space-x-4 w-full text-left px-4 py-3 rounded-lg bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group"
                             >
-                              <span className="text-xl">🐛</span>
+                              <Bug className="w-6 h-6 text-orange-600 dark:text-orange-400 group-hover:text-orange-700 dark:group-hover:text-orange-300 transition-colors" />
                               <span className="font-medium text-gray-900 dark:text-gray-100">Debug Events</span>
                             </button>
                             
@@ -368,9 +398,9 @@ export const Header: React.FC<HeaderProps> = ({ isConnected, onDebugClick }) => 
                               href="/api/health"
                               target="_blank"
                               onClick={() => setIsMenuOpen(false)}
-                              className="flex items-center space-x-4 px-4 py-3 rounded-lg bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                              className="flex items-center space-x-4 px-4 py-3 rounded-lg bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group"
                             >
-                              <span className="text-xl">🩺</span>
+                              <Activity className="w-6 h-6 text-red-600 dark:text-red-400 group-hover:text-red-700 dark:group-hover:text-red-300 transition-colors" />
                               <span className="font-medium text-gray-900 dark:text-gray-100">Health Check</span>
                             </Link>
                           </div>
@@ -391,18 +421,18 @@ export const Header: React.FC<HeaderProps> = ({ isConnected, onDebugClick }) => 
                     <Link
                       href="/documents?action=create"
                       onClick={() => setIsMenuOpen(false)}
-                      className="flex items-center space-x-3 px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                      className="flex items-center space-x-3 px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group"
                     >
-                      <span className="text-lg">➕</span>
+                      <Plus className="w-5 h-5 text-green-600 dark:text-green-400 group-hover:text-green-700 dark:group-hover:text-green-300 transition-colors" />
                       <span className="font-medium">Create Document</span>
                     </Link>
                     
                     <Link
                       href="/faqs?action=generate"
                       onClick={() => setIsMenuOpen(false)}
-                      className="flex items-center space-x-3 px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                      className="flex items-center space-x-3 px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group"
                     >
-                      <span className="text-lg">🤖</span>
+                      <Bot className="w-5 h-5 text-purple-600 dark:text-purple-400 group-hover:text-purple-700 dark:group-hover:text-purple-300 transition-colors" />
                       <span className="font-medium">Generate FAQs</span>
                     </Link>
 
@@ -418,9 +448,9 @@ export const Header: React.FC<HeaderProps> = ({ isConnected, onDebugClick }) => 
                         onDebugClick()
                         setIsMenuOpen(false)
                       }}
-                      className="flex items-center space-x-3 w-full text-left px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                      className="flex items-center space-x-3 w-full text-left px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group"
                     >
-                      <span className="text-lg">🐛</span>
+                      <Bug className="w-5 h-5 text-orange-600 dark:text-orange-400 group-hover:text-orange-700 dark:group-hover:text-orange-300 transition-colors" />
                       <span className="font-medium">Debug Events</span>
                     </button>
                     
@@ -428,9 +458,9 @@ export const Header: React.FC<HeaderProps> = ({ isConnected, onDebugClick }) => 
                       href="/api/health"
                       target="_blank"
                       onClick={() => setIsMenuOpen(false)}
-                      className="flex items-center space-x-3 px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                      className="flex items-center space-x-3 px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group"
                     >
-                      <span className="text-lg">🩺</span>
+                      <Activity className="w-5 h-5 text-red-600 dark:text-red-400 group-hover:text-red-700 dark:group-hover:text-red-300 transition-colors" />
                       <span className="font-medium">Health Check</span>
                     </Link>
                   </div>

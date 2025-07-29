@@ -20,6 +20,7 @@ import type {
   ApiResponse,
   PaginationInfo
 } from '@/types'
+import { MessageSquare, Calendar, FileText } from 'lucide-react'
 
 /**
  * Custom Dropdown Component for Group By Selection
@@ -29,7 +30,7 @@ interface CustomDropdownProps {
   onChange: (value: string) => void
   options: Array<{
     value: string
-    label: string
+    label: string | React.ReactNode
     description: string
   }>
 }
@@ -64,7 +65,9 @@ const CustomDropdown: React.FC<CustomDropdownProps> = ({ value, onChange, option
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center justify-between w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-md hover:border-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors min-w-0"
       >
-        <span className="truncate">{selectedOption?.label}</span>
+        <div className="truncate flex-1">
+          {selectedOption?.label || 'Select option'}
+        </div>
         <svg 
           className={`w-4 h-4 ml-2 text-gray-500 transition-transform flex-shrink-0 ${isOpen ? 'rotate-180' : ''}`}
           fill="none" 
@@ -88,7 +91,7 @@ const CustomDropdown: React.FC<CustomDropdownProps> = ({ value, onChange, option
                 }`}
               >
                 <div className="flex flex-col">
-                  <span className="font-medium">{option.label}</span>
+                  <div className="font-medium">{option.label}</div>
                   <span className="text-xs text-gray-500 mt-0.5">{option.description}</span>
                 </div>
               </button>
@@ -553,17 +556,32 @@ const Dashboard: React.FC = () => {
                     options={[
                       {
                         value: 'channel',
-                        label: '💬 Channel',
+                        label: (
+                          <div className="flex items-center space-x-2">
+                            <MessageSquare className="w-4 h-4 text-blue-600" />
+                            <span>Channel</span>
+                          </div>
+                        ),
                         description: 'Group by Slack channel'
                       },
                       {
                         value: 'date',
-                        label: '📅 Date',
+                        label: (
+                          <div className="flex items-center space-x-2">
+                            <Calendar className="w-4 h-4 text-green-600" />
+                            <span>Date</span>
+                          </div>
+                        ),
                         description: 'Group by day'
                       },
                       {
                         value: 'document',
-                        label: '📄 Topic/Thread',
+                        label: (
+                          <div className="flex items-center space-x-2">
+                            <FileText className="w-4 h-4 text-purple-600" />
+                            <span>Topic/Thread</span>
+                          </div>
+                        ),
                         description: 'Group by conversation topic'
                       }
                     ]}
