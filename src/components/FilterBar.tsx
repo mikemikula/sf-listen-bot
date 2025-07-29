@@ -12,115 +12,67 @@ import type { FilterBarProps, MessageFilters } from '@/types'
 export const FilterBar: React.FC<FilterBarProps> = ({
   filters,
   onFiltersChange,
-  channels,
-  loading = false
+  loading,
+  channels
 }) => {
-  // Local state for debounced search
-  const [searchValue, setSearchValue] = useState(filters.search || '')
-
-  /**
-   * Debounced search handler
-   */
-  useEffect(() => {
-    const delayedSearch = setTimeout(() => {
-      if (searchValue !== filters.search) {
-        onFiltersChange({ ...filters, search: searchValue, page: 1 })
-      }
-    }, 300)
-
-    return () => clearTimeout(delayedSearch)
-  }, [searchValue, filters, onFiltersChange])
-
-  /**
-   * Handle filter changes
-   */
-  const handleFilterChange = useCallback((
-    key: keyof MessageFilters, 
-    value: string | number
-  ): void => {
+  const handleFilterChange = (key: keyof MessageFilters, value: string) => {
     onFiltersChange({
       ...filters,
       [key]: value,
-      page: 1 // Reset page when filters change
+      page: 1 // Reset to first page when filters change
     })
-  }, [filters, onFiltersChange])
+  }
 
-  /**
-   * Clear all filters
-   */
-  const clearFilters = useCallback((): void => {
-    setSearchValue('')
+  const clearFilters = () => {
     onFiltersChange({
       channel: '',
+      username: '',
+      dateFrom: '',
+      dateTo: '',
       search: '',
-      userId: '',
-      startDate: '',
-      endDate: '',
       page: 1,
-      limit: filters.limit || 50
+      limit: filters.limit
     })
-  }, [filters.limit, onFiltersChange])
+  }
 
-  /**
-   * Check if any filters are active
-   */
-  const hasActiveFilters = Boolean(
-    filters.channel || 
-    filters.search || 
-    filters.userId || 
-    filters.startDate || 
-    filters.endDate
-  )
+  const hasActiveFilters = filters.search || filters.channel || filters.username || filters.dateFrom || filters.dateTo
 
   return (
-    <div className="filter-bar bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-      <div className="flex flex-col lg:flex-row gap-4">
-        {/* Search Input */}
-        <div className="filter-bar__search flex-1">
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <svg 
-                className="h-5 w-5 text-gray-400" 
-                fill="none" 
-                viewBox="0 0 24 24" 
-                stroke="currentColor"
-              >
-                <path 
-                  strokeLinecap="round" 
-                  strokeLinejoin="round" 
-                  strokeWidth={2} 
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" 
-                />
-              </svg>
-            </div>
-            <input
-              type="text"
-              placeholder="Search messages..."
-              value={searchValue}
-              onChange={(e) => setSearchValue(e.target.value)}
-              disabled={loading}
-              className="
-                w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md 
-                focus:ring-2 focus:ring-slack-blue focus:border-slack-blue
-                disabled:opacity-50 disabled:cursor-not-allowed
-                text-sm
-              "
-            />
+    <div className="filter-bar space-y-3 sm:space-y-4">
+      {/* Search Bar - Full Width on Mobile */}
+      <div className="w-full">
+        <div className="relative">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <svg 
+              className="h-4 w-4 text-gray-400" 
+              fill="none" 
+              stroke="currentColor" 
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
           </div>
-        </div>
-
-        {/* Channel Filter */}
-        <div className="filter-bar__channel">
-          <select
-            value={filters.channel || ''}
-            onChange={(e) => handleFilterChange('channel', e.target.value)}
+          <input
+            type="text"
+            placeholder="Search messages..."
+            value={filters.search}
+            onChange={(e) => handleFilterChange('search', e.target.value)}
+            className="w-full pl-10 pr-4 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             disabled={loading}
-            className="
-              w-full lg:w-48 px-3 py-2 border border-gray-300 rounded-md
-              focus:ring-2 focus:ring-slack-blue focus:border-slack-blue
-              disabled:opacity-50 disabled:cursor-not-allowed
-              text-sm bg-white
-            "
+          />
+        </div>
+      </div>
+
+      {/* Filters Grid - Stack on Mobile */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        {/* Channel Filter */}
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-1">Channel</label>
+          <select
+            value={filters.channel}
+            onChange={(e) => handleFilterChange('channel', e.target.value)}
+            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            disabled={loading}
           >
             <option value="">All Channels</option>
             {channels.map(channel => (
@@ -131,98 +83,57 @@ export const FilterBar: React.FC<FilterBarProps> = ({
           </select>
         </div>
 
-        {/* Date Range Filters */}
-        <div className="filter-bar__dates flex gap-2">
+        {/* Username Filter */}
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-1">User</label>
           <input
-            type="date"
-            placeholder="Start Date"
-            value={filters.startDate || ''}
-            onChange={(e) => handleFilterChange('startDate', e.target.value)}
+            type="text"
+            placeholder="Username..."
+            value={filters.username}
+            onChange={(e) => handleFilterChange('username', e.target.value)}
+            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             disabled={loading}
-            className="
-              w-full lg:w-40 px-3 py-2 border border-gray-300 rounded-md
-              focus:ring-2 focus:ring-slack-blue focus:border-slack-blue
-              disabled:opacity-50 disabled:cursor-not-allowed
-              text-sm
-            "
-          />
-          <input
-            type="date"
-            placeholder="End Date"
-            value={filters.endDate || ''}
-            onChange={(e) => handleFilterChange('endDate', e.target.value)}
-            disabled={loading}
-            className="
-              w-full lg:w-40 px-3 py-2 border border-gray-300 rounded-md
-              focus:ring-2 focus:ring-slack-blue focus:border-slack-blue
-              disabled:opacity-50 disabled:cursor-not-allowed
-              text-sm
-            "
           />
         </div>
 
-        {/* Clear Filters Button */}
-        {hasActiveFilters && (
-          <div className="filter-bar__actions">
-            <button
-              onClick={clearFilters}
-              disabled={loading}
-              className="
-                px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 
-                hover:bg-gray-200 rounded-md transition-colors
-                disabled:opacity-50 disabled:cursor-not-allowed
-                flex items-center space-x-1
-              "
-            >
-              <svg 
-                className="h-4 w-4" 
-                fill="none" 
-                viewBox="0 0 24 24" 
-                stroke="currentColor"
-              >
-                <path 
-                  strokeLinecap="round" 
-                  strokeLinejoin="round" 
-                  strokeWidth={2} 
-                  d="M6 18L18 6M6 6l12 12" 
-                />
-              </svg>
-              <span>Clear</span>
-            </button>
-          </div>
-        )}
+        {/* Date From */}
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-1">From Date</label>
+          <input
+            type="date"
+            value={filters.dateFrom}
+            onChange={(e) => handleFilterChange('dateFrom', e.target.value)}
+            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            disabled={loading}
+          />
+        </div>
+
+        {/* Date To */}
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-1">To Date</label>
+          <input
+            type="date"
+            value={filters.dateTo}
+            onChange={(e) => handleFilterChange('dateTo', e.target.value)}
+            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            disabled={loading}
+          />
+        </div>
       </div>
 
-      {/* Active Filters Display */}
+      {/* Clear Filters - Mobile Optimized */}
       {hasActiveFilters && (
-        <div className="filter-bar__active-filters mt-3 pt-3 border-t border-gray-100">
-          <div className="flex flex-wrap gap-2">
-            <span className="text-xs text-gray-500 font-medium">Active filters:</span>
-            
-            {filters.channel && (
-              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-slack-blue text-white">
-                Channel: {filters.channel.startsWith('C') ? `#${filters.channel.slice(1, 8)}` : filters.channel}
-              </span>
-            )}
-            
-            {filters.search && (
-                             <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                 Search: &ldquo;{filters.search}&rdquo;
-               </span>
-            )}
-            
-            {filters.startDate && (
-              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                From: {new Date(filters.startDate).toLocaleDateString()}
-              </span>
-            )}
-            
-            {filters.endDate && (
-              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                To: {new Date(filters.endDate).toLocaleDateString()}
-              </span>
-            )}
-          </div>
+        <div className="flex justify-center sm:justify-end">
+          <button
+            onClick={clearFilters}
+            className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
+            disabled={loading}
+          >
+            <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+            Clear Filters
+          </button>
         </div>
       )}
     </div>

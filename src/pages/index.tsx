@@ -17,8 +17,88 @@ import type {
   MessageDisplay, 
   MessageFilters, 
   PaginatedMessages,
-  ApiResponse 
+  ApiResponse,
+  PaginationInfo
 } from '@/types'
+
+/**
+ * Custom Dropdown Component for Group By Selection
+ */
+interface CustomDropdownProps {
+  value: string
+  onChange: (value: string) => void
+  options: Array<{
+    value: string
+    label: string
+    description: string
+  }>
+}
+
+const CustomDropdown: React.FC<CustomDropdownProps> = ({ value, onChange, options }) => {
+  const [isOpen, setIsOpen] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+
+  const selectedOption = options.find(opt => opt.value === value)
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  const handleSelect = (optionValue: string) => {
+    onChange(optionValue)
+    setIsOpen(false)
+  }
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      {/* Dropdown Button */}
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center justify-between w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-md hover:border-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors min-w-0"
+      >
+        <span className="truncate">{selectedOption?.label}</span>
+        <svg 
+          className={`w-4 h-4 ml-2 text-gray-500 transition-transform flex-shrink-0 ${isOpen ? 'rotate-180' : ''}`}
+          fill="none" 
+          stroke="currentColor" 
+          viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {/* Dropdown Menu */}
+      {isOpen && (
+        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg">
+          <div className="py-1">
+            {options.map((option) => (
+              <button
+                key={option.value}
+                onClick={() => handleSelect(option.value)}
+                className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-50 transition-colors ${
+                  value === option.value ? 'bg-blue-50 text-blue-700' : 'text-gray-900'
+                }`}
+              >
+                <div className="flex flex-col">
+                  <span className="font-medium">{option.label}</span>
+                  <span className="text-xs text-gray-500 mt-0.5">{option.description}</span>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
 
 /**
  * Dashboard page component
@@ -28,23 +108,29 @@ const Dashboard: React.FC = () => {
   const [messages, setMessages] = useState<MessageDisplay[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [pagination, setPagination] = useState<PaginationInfo>({
+    page: 1,
+    limit: 50,
+    total: 0,
+    totalPages: 0,
+    hasNext: false,
+    hasPrev: false
+  })
   const [filters, setFilters] = useState<MessageFilters>({
     channel: '',
+    username: '',
+    dateFrom: '',
+    dateTo: '',
     search: '',
     page: 1,
     limit: 50
-  })
-  const [pagination, setPagination] = useState({
-    hasNext: false,
-    hasPrev: false,
-    total: 0,
-    totalPages: 0
   })
   const [channels, setChannels] = useState<string[]>([])
   const [realTimeEnabled, setRealTimeEnabled] = useState(true)
   const [debugModalOpen, setDebugModalOpen] = useState(false)
   const [viewMode, setViewMode] = useState<'feed' | 'table' | 'grouped'>('feed')
-  const [groupBy, setGroupBy] = useState<'document' | 'channel' | 'date'>('document')
+  const [groupBy, setGroupBy] = useState<'channel' | 'date' | 'document'>('channel')
+  const [showFilters, setShowFilters] = useState(false)
 
   /**
    * Handle new real-time messages
@@ -77,7 +163,7 @@ const Dashboard: React.FC = () => {
     })
 
     // Update pagination total count
-    setPagination(prev => ({
+    setPagination((prev: PaginationInfo) => ({
       ...prev,
       total: prev.total + 1
     }))
@@ -317,96 +403,172 @@ const Dashboard: React.FC = () => {
             isConnected={isConnected}
           />
 
-          {/* Page Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
-                Messages Dashboard
-              </h1>
-              <div className="mt-1 flex flex-wrap items-center gap-2 text-xs sm:text-sm text-gray-600">
-                <span>{pagination.total} total messages</span>
-                {loading && (
-                  <>
-                    <span>•</span>
-                    <div className="flex items-center space-x-1">
-                      <LoadingSpinner size="sm" />
-                      <span>Loading...</span>
-                    </div>
-                  </>
-                )}
+          {/* Page Header - Mobile Optimized */}
+          <div className="flex flex-col gap-2 sm:gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4">
+              <div>
+                <h1 className="text-lg sm:text-2xl font-bold text-gray-900">
+                  Messages Dashboard
+                </h1>
+                <div className="mt-1 text-xs sm:text-sm text-gray-600">
+                  <span>{pagination.total} total messages</span>
+                  {loading && (
+                    <>
+                      <span className="hidden sm:inline"> • </span>
+                      <div className="inline-flex sm:hidden items-center space-x-1 ml-2">
+                        <LoadingSpinner size="sm" />
+                      </div>
+                      <div className="hidden sm:inline-flex items-center space-x-1">
+                        <LoadingSpinner size="sm" />
+                        <span>Loading...</span>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Stats Cards - Mobile Optimized */}
+          <div className="flex flex-wrap gap-2 sm:gap-4">
+            {/* TransactionStats component is not defined in the original file,
+                so this section is commented out or removed as per instructions. */}
+            {/* <TransactionStats 
+              totalSent={transactionStats.totalSent}
+              totalReceived={transactionStats.totalReceived}
+              successRate={transactionStats.successRate}
+              className="text-xs sm:text-sm"
+            /> */}
+          </div>
+
+          {/* Filters - Mobile Optimized */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+            {/* Mobile Filter Toggle */}
+            <div className="sm:hidden">
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className="w-full flex items-center justify-between p-3 text-left"
+              >
+                <div className="flex items-center space-x-2">
+                  <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                  </svg>
+                  <span className="text-sm font-medium text-gray-700">
+                    Filters
+                    {(filters.search || filters.channel || filters.dateFrom || filters.dateTo) && (
+                      <span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        Active
+                      </span>
+                    )}
+                  </span>
+                </div>
+                <svg 
+                  className={`w-4 h-4 text-gray-500 transition-transform ${showFilters ? 'rotate-180' : ''}`} 
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Filter Content */}
+            <div className={`${showFilters ? 'block' : 'hidden'} sm:block p-3 sm:p-4 ${showFilters ? 'border-t border-gray-200' : ''} sm:border-t-0`}>
+              <FilterBar
+                filters={filters}
+                onFiltersChange={handleFiltersChange}
+                loading={loading}
+                channels={channels}
+              />
+            </div>
+          </div>
+
+          {/* View Controls - Mobile Optimized Segmented Control */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+            {/* View Mode Selector */}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+              <span className="text-sm font-medium text-gray-700 hidden sm:block">View:</span>
+              
+              {/* Mobile: Segmented Control Style */}
+              <div className="flex rounded-lg bg-gray-100 p-1 w-full sm:w-auto">
+                <button
+                  onClick={() => setViewMode('feed')}
+                  className={`flex-1 sm:flex-none px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
+                    viewMode === 'feed'
+                      ? 'bg-white text-blue-700 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  <span className="flex items-center justify-center space-x-1">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                    </svg>
+                    <span>Feed</span>
+                  </span>
+                </button>
+                
+                <button
+                  onClick={() => setViewMode('table')}
+                  className={`flex-1 sm:flex-none px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
+                    viewMode === 'table'
+                      ? 'bg-white text-blue-700 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  <span className="flex items-center justify-center space-x-1">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M3 14h18m-9-4v8m5-8v8m-9-8V6a2 2 0 012-2h6a2 2 0 012 2v4" />
+                    </svg>
+                    <span>Table</span>
+                  </span>
+                </button>
+                
+                <button
+                  onClick={() => setViewMode('grouped')}
+                  className={`flex-1 sm:flex-none px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
+                    viewMode === 'grouped'
+                      ? 'bg-white text-blue-700 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  <span className="flex items-center justify-center space-x-1">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14-4H5m14 8H5m14 4H5" />
+                    </svg>
+                    <span>Grouped</span>
+                  </span>
+                </button>
               </div>
             </div>
 
-            {/* Stats Cards - Mobile Optimized */}
-            <div className="flex flex-wrap gap-2 sm:gap-4">
-              {/* TransactionStats component is not defined in the original file,
-                  so this section is commented out or removed as per instructions. */}
-              {/* <TransactionStats 
-                totalSent={transactionStats.totalSent}
-                totalReceived={transactionStats.totalReceived}
-                successRate={transactionStats.successRate}
-                className="text-xs sm:text-sm"
-              /> */}
-            </div>
-          </div>
-
-          {/* Filters */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
-            <FilterBar
-              filters={filters}
-              onFiltersChange={handleFiltersChange}
-              loading={loading}
-              channels={channels}
-            />
-          </div>
-
-          {/* View Controls */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={() => setViewMode('feed')}
-                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                  viewMode === 'feed'
-                    ? 'bg-blue-100 text-blue-700'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                Feed
-              </button>
-              <button
-                onClick={() => setViewMode('table')}
-                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                  viewMode === 'table'
-                    ? 'bg-blue-100 text-blue-700'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                Table
-              </button>
-              <button
-                onClick={() => setViewMode('grouped')}
-                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                  viewMode === 'grouped'
-                    ? 'bg-blue-100 text-blue-700'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                Grouped
-              </button>
-            </div>
-
+            {/* Group By Selector - Only show when grouped view is selected */}
             {viewMode === 'grouped' && (
-              <div className="flex items-center space-x-2">
-                <label className="text-sm font-medium text-gray-700">Group by:</label>
-                <select
-                  value={groupBy}
-                  onChange={(e) => setGroupBy(e.target.value as 'document' | 'channel' | 'date')}
-                  className="px-2 py-1 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="document">Document</option>
-                  <option value="channel">Channel</option>
-                  <option value="date">Date</option>
-                </select>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-2">
+                <label className="text-sm font-medium text-gray-700 whitespace-nowrap">Group by:</label>
+                <div className="w-full sm:w-48">
+                  <CustomDropdown
+                    value={groupBy}
+                    onChange={(value) => setGroupBy(value as 'channel' | 'date' | 'document')}
+                    options={[
+                      {
+                        value: 'channel',
+                        label: '💬 Channel',
+                        description: 'Group by Slack channel'
+                      },
+                      {
+                        value: 'date',
+                        label: '📅 Date',
+                        description: 'Group by day'
+                      },
+                      {
+                        value: 'document',
+                        label: '📄 Topic/Thread',
+                        description: 'Group by conversation topic'
+                      }
+                    ]}
+                  />
+                </div>
               </div>
             )}
           </div>

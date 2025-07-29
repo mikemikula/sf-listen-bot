@@ -613,13 +613,25 @@ export interface PaginatedFAQs {
 export interface MessageFilters {
   channel?: string
   userId?: string
+  username?: string
   search?: string
   startDate?: string
   endDate?: string
+  dateFrom?: string
+  dateTo?: string
   page?: number
   limit?: number
   processed?: boolean
   hasQAPairs?: boolean
+}
+
+export interface PaginationInfo {
+  page: number
+  limit: number
+  total: number
+  totalPages: number
+  hasNext: boolean
+  hasPrev: boolean
 }
 
 /**
