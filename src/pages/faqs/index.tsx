@@ -8,10 +8,10 @@ import React, { useState, useEffect, useCallback } from 'react'
 import Head from 'next/head'
 import Link from 'next/link'
 import { useRouter } from 'next/router'
-import FAQCard from '@/components/faqs/FAQCard'
+import { FAQCard, FAQFilterBar } from '@/components/faqs'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { Header } from '@/components/Header'
-import { FAQDisplay, FAQFilters, PaginatedFAQs } from '@/types'
+import { FAQDisplay, PaginatedFAQs } from '@/types'
 
 /**
  * FAQ creation modal interface
@@ -399,79 +399,91 @@ const FAQsPage: React.FC = () => {
         
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {/* Page Header */}
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">FAQs</h1>
-              <p className="text-gray-600 dark:text-gray-400 mt-2">
-                Manage AI-generated FAQs from your Slack conversations
-              </p>
+          <div className="mb-8">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">FAQs</h1>
+                <p className="text-gray-600 dark:text-gray-400 mt-1 sm:mt-2 text-sm sm:text-base">
+                  Manage AI-generated FAQs from your Slack conversations
+                </p>
+              </div>
+              
+              {/* Desktop Actions */}
+              <div className="hidden sm:flex items-center gap-4">
+                <Link
+                  href="/documents"
+                  className="px-4 py-2 text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 border border-blue-300 dark:border-blue-600 rounded-md hover:bg-blue-50 dark:hover:bg-blue-900 transition-colors duration-200"
+                >
+                  View Documents
+                </Link>
+                
+                <button
+                  onClick={() => setShowCreateModal(true)}
+                  className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors duration-200"
+                >
+                  Create FAQ
+                </button>
+                
+                <button
+                  onClick={handleCleanDuplicates}
+                  disabled={processing}
+                  className="px-4 py-2 text-sm bg-orange-600 hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-md transition-colors duration-200"
+                >
+                  {processing ? 'Cleaning...' : 'Clean Duplicates'}
+                </button>
+              </div>
             </div>
-            
-            <div className="flex items-center gap-4">
-              <Link
-                href="/documents"
-                className="px-4 py-2 text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 border border-blue-300 dark:border-blue-600 rounded-md hover:bg-blue-50 dark:hover:bg-blue-900 transition-colors duration-200"
-              >
-                View Documents
-              </Link>
-              
-              <button
-                onClick={() => setShowCreateModal(true)}
-                className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors duration-200"
-              >
-                Create FAQ
-              </button>
-              
-              <button
-                onClick={handleCleanDuplicates}
-                disabled={processing}
-                className="px-4 py-2 text-sm bg-orange-600 hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-md transition-colors duration-200"
-              >
-                {processing ? 'Cleaning...' : 'Clean Duplicates'}
-              </button>
+
+            {/* Mobile Actions */}
+            <div className="sm:hidden mt-4 space-y-3">
+              <div className="grid grid-cols-1 gap-3">
+                <button
+                  onClick={() => setShowCreateModal(true)}
+                  className="w-full flex items-center justify-center px-4 py-3 text-base bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors duration-200"
+                >
+                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                  </svg>
+                  Create FAQ
+                </button>
+                
+                <div className="grid grid-cols-2 gap-3">
+                  <Link
+                    href="/documents"
+                    className="flex items-center justify-center px-4 py-2.5 text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 border border-blue-300 dark:border-blue-600 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900 transition-colors duration-200"
+                  >
+                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Documents
+                  </Link>
+                  
+                  <button
+                    onClick={handleCleanDuplicates}
+                    disabled={processing}
+                    className="flex items-center justify-center px-4 py-2.5 text-sm bg-orange-600 hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors duration-200"
+                  >
+                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                    {processing ? 'Cleaning...' : 'Clean'}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
 
           {/* Filters */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
-            <div className="flex flex-col md:flex-row gap-4">
-              <div className="flex-1">
-                <input
-                  type="text"
-                  placeholder="Search FAQs..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-
-              <div>
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="">All Status</option>
-                  <option value="PENDING">Pending</option>
-                  <option value="APPROVED">Approved</option>
-                  <option value="REJECTED">Rejected</option>
-                </select>
-              </div>
-
-              <div>
-                <select
-                  value={categoryFilter}
-                  onChange={(e) => setCategoryFilter(e.target.value)}
-                  className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="">All Categories</option>
-                  <option value="Support">Support</option>
-                  <option value="Technical">Technical</option>
-                  <option value="General">General</option>
-                  <option value="Documentation">Documentation</option>
-                </select>
-              </div>
-            </div>
+          <div className="mb-6">
+            <FAQFilterBar
+              searchTerm={searchTerm}
+              statusFilter={statusFilter}
+              categoryFilter={categoryFilter}
+              onSearchChange={setSearchTerm}
+              onStatusChange={setStatusFilter}
+              onCategoryChange={setCategoryFilter}
+              loading={loading}
+            />
           </div>
 
           {/* Notification */}
