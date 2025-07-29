@@ -17,6 +17,7 @@ import {
   Activity,
   X
 } from 'lucide-react'
+import { ThemeToggle } from './ThemeToggle'
 
 interface HeaderProps {
   isConnected: boolean
@@ -160,6 +161,11 @@ export const Header: React.FC<HeaderProps> = ({ isConnected, onDebugClick }) => 
 
           {/* Right Side Actions */}
           <div className="flex items-center space-x-4">
+            {/* Theme Toggle - Desktop */}
+            <div className="hidden md:block">
+              <ThemeToggle />
+            </div>
+            
             {/* Connection Status */}
             <div className="hidden sm:flex items-center space-x-2">
               <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-400' : 'bg-red-400'}`} />
@@ -363,6 +369,19 @@ export const Header: React.FC<HeaderProps> = ({ isConnected, onDebugClick }) => 
                               <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
                             )}
                           </Link>
+                        </div>
+
+                        {/* Theme Settings - Mobile */}
+                        <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700">
+                          <div className="mb-4">
+                            <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                              Theme Settings
+                            </h3>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-gray-900 dark:text-gray-100 font-medium">Appearance</span>
+                            <ThemeToggle />
+                          </div>
                         </div>
 
                         {/* Connection Status */}

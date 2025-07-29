@@ -51,7 +51,7 @@ export const MessageFeed: React.FC<MessageFeedProps> = ({
   if (error) {
     return (
       <div className="p-6 text-center">
-        <div className="text-red-600">
+        <div className="text-red-600 dark:text-red-400">
           <p className="font-medium">Error loading messages</p>
           <p className="text-sm mt-1">{error}</p>
         </div>
@@ -61,7 +61,7 @@ export const MessageFeed: React.FC<MessageFeedProps> = ({
 
   if (messages.length === 0 && !loading) {
     return (
-      <div className="p-6 text-center text-gray-500">
+      <div className="p-6 text-center text-gray-500 dark:text-gray-400">
         <p>No messages found</p>
       </div>
     )
@@ -70,7 +70,7 @@ export const MessageFeed: React.FC<MessageFeedProps> = ({
   return (
     <div className="message-feed">
       {/* Message List */}
-      <div className="divide-y divide-gray-100">
+      <div className="divide-y divide-gray-100 dark:divide-gray-700">
         {messages.map((message, index) => {
           const isLast = index === messages.length - 1
           
@@ -83,7 +83,7 @@ export const MessageFeed: React.FC<MessageFeedProps> = ({
               <MessageCard 
                 message={message} 
                 showChannel={true}
-                className="p-4 hover:bg-gray-50 transition-colors"
+                className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
                 getUserAvatar={(username: string) => {
                   const colors = [
                     'bg-red-500', 'bg-blue-500', 'bg-green-500', 'bg-purple-500',
@@ -102,14 +102,14 @@ export const MessageFeed: React.FC<MessageFeedProps> = ({
       {loading && (
         <div className="flex items-center justify-center py-4">
           <LoadingSpinner size="md" />
-          <span className="ml-2 text-sm text-gray-500">Loading messages...</span>
+          <span className="ml-2 text-sm text-gray-500 dark:text-gray-400">Loading messages...</span>
         </div>
       )}
 
       {/* End of Messages Indicator */}
       {!hasMore && messages.length > 0 && (
-        <div className="text-center py-4 text-sm text-gray-400 border-t">
-                     <p>You&rsquo;ve reached the end of the messages</p>
+        <div className="text-center py-4 text-sm text-gray-400 dark:text-gray-500 border-t border-gray-100 dark:border-gray-700">
+          <p>You&rsquo;ve reached the end of the messages</p>
         </div>
       )}
     </div>

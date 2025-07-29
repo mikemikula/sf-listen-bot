@@ -59,6 +59,15 @@ html, body {
   line-clamp: 3;
 }
 
+/* Dark mode color scheme */
+:root {
+  color-scheme: light;
+}
+
+:root.dark {
+  color-scheme: dark;
+}
+
 @theme {
   /* Slack-inspired color palette */
   --color-slack-purple: #4A154B;
@@ -89,9 +98,9 @@ html, body {
   --backdrop-blur-xs: 2px;
 }
 
-/* Custom component styles */
+/* Custom component styles with dark mode support */
 .message-card {
-  @apply bg-message-bg border border-message-border rounded-lg;
+  @apply bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg;
 }
 
 .message-card__avatar {
@@ -107,23 +116,23 @@ html, body {
 }
 
 .message-card__username {
-  @apply font-semibold text-sm text-message-text;
+  @apply font-semibold text-sm text-gray-900 dark:text-white;
 }
 
 .message-card__channel {
-  @apply text-sm text-slack-blue font-medium;
+  @apply text-sm text-slack-blue dark:text-blue-400 font-medium;
 }
 
 .message-card__timestamp {
-  @apply text-sm text-message-meta;
+  @apply text-sm text-gray-500 dark:text-gray-400;
 }
 
 .message-card__text {
-  @apply text-message-text text-sm leading-relaxed max-w-none;
+  @apply text-gray-900 dark:text-gray-100 text-sm leading-relaxed max-w-none;
 }
 
 .message-feed__item {
-  @apply hover:bg-gray-50 transition-colors;
+  @apply hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors;
 }
 
 .loading-spinner {
@@ -131,7 +140,7 @@ html, body {
 }
 
 .filter-bar {
-  @apply bg-white p-4 rounded-lg shadow-sm border border-gray-200;
+  @apply bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700;
 }
 
 .filter-bar__search {
@@ -151,9 +160,9 @@ html, body {
 }
 
 .filter-bar__active-filters {
-  @apply mt-3 pt-3 border-t border-gray-100;
+  @apply mt-3 pt-3 border-t border-gray-100 dark:border-gray-600;
 }
 
 .error-boundary {
-  @apply min-h-screen bg-gray-50 flex items-center justify-center;
+  @apply min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center;
 } 

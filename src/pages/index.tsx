@@ -347,7 +347,7 @@ const Dashboard: React.FC = () => {
 
   return (
     <ErrorBoundary>
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         {/* Header */}
         <Header 
           isConnected={isConnected}
@@ -357,7 +357,7 @@ const Dashboard: React.FC = () => {
         {/* Main Content */}
         <main className="container mx-auto px-4 py-6 max-w-6xl">
           {/* Real-time Status & Controls */}
-          <div className="mb-4 flex items-center justify-between bg-white px-4 py-2 rounded-lg shadow-sm border border-gray-200">
+          <div className="mb-4 flex items-center justify-between bg-white dark:bg-gray-800 px-4 py-2 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
             <div className="flex items-center space-x-3">
               <div className="flex items-center space-x-2">
                 <div 
@@ -366,12 +366,12 @@ const Dashboard: React.FC = () => {
                   }`}
                 />
                 <span className={`text-sm font-medium ${
-                  isConnected ? 'text-green-700' : 'text-red-700'
+                  isConnected ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'
                 }`}>
                   {isConnected ? 'Live' : 'Disconnected'}
                 </span>
               </div>
-              <span className="text-gray-400 text-sm">
+              <span className="text-gray-400 dark:text-gray-500 text-sm">
                 {isConnected ? 'Messages appear instantly' : 'Real-time updates unavailable'}
               </span>
             </div>
@@ -381,8 +381,8 @@ const Dashboard: React.FC = () => {
                 onClick={toggleRealTime}
                 className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
                   realTimeEnabled
-                    ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/50'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                 }`}
               >
                 {realTimeEnabled ? 'Live On' : 'Live Off'}
@@ -391,7 +391,7 @@ const Dashboard: React.FC = () => {
               {!isConnected && realTimeEnabled && (
                 <button
                   onClick={reconnect}
-                  className="px-3 py-1 bg-blue-100 text-blue-700 hover:bg-blue-200 rounded-md text-sm font-medium transition-colors"
+                  className="px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/50 rounded-md text-sm font-medium transition-colors"
                 >
                   Reconnect
                 </button>
@@ -410,10 +410,10 @@ const Dashboard: React.FC = () => {
           <div className="flex flex-col gap-2 sm:gap-4">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4">
               <div>
-                <h1 className="text-lg sm:text-2xl font-bold text-gray-900">
+                <h1 className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white">
                   Messages Dashboard
                 </h1>
-                <div className="mt-1 text-xs sm:text-sm text-gray-600">
+                <div className="mt-1 text-xs sm:text-sm text-gray-600 dark:text-gray-400">
                   <span>{pagination.total} total messages</span>
                   {loading && (
                     <>
@@ -445,7 +445,7 @@ const Dashboard: React.FC = () => {
           </div>
 
           {/* Filters - Mobile Optimized */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
             {/* Mobile Filter Toggle */}
             <div className="sm:hidden">
               <button
@@ -453,20 +453,20 @@ const Dashboard: React.FC = () => {
                 className="w-full flex items-center justify-between p-3 text-left"
               >
                 <div className="flex items-center space-x-2">
-                  <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
                   </svg>
-                  <span className="text-sm font-medium text-gray-700">
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                     Filters
                     {(filters.search || filters.channel || filters.dateFrom || filters.dateTo) && (
-                      <span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                      <span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400">
                         Active
                       </span>
                     )}
                   </span>
                 </div>
                 <svg 
-                  className={`w-4 h-4 text-gray-500 transition-transform ${showFilters ? 'rotate-180' : ''}`} 
+                  className={`w-4 h-4 text-gray-500 dark:text-gray-400 transition-transform ${showFilters ? 'rotate-180' : ''}`} 
                   fill="none" 
                   stroke="currentColor" 
                   viewBox="0 0 24 24"
@@ -477,7 +477,7 @@ const Dashboard: React.FC = () => {
             </div>
 
             {/* Filter Content */}
-            <div className={`${showFilters ? 'block' : 'hidden'} sm:block p-3 sm:p-4 ${showFilters ? 'border-t border-gray-200' : ''} sm:border-t-0`}>
+            <div className={`${showFilters ? 'block' : 'hidden'} sm:block p-3 sm:p-4 ${showFilters ? 'border-t border-gray-200 dark:border-gray-700' : ''} sm:border-t-0`}>
               <FilterBar
                 filters={filters}
                 onFiltersChange={handleFiltersChange}
@@ -491,56 +491,39 @@ const Dashboard: React.FC = () => {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
             {/* View Mode Selector */}
             <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-              <span className="text-sm font-medium text-gray-700 hidden sm:block">View:</span>
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300 hidden sm:block">View:</span>
               
               {/* Mobile: Segmented Control Style */}
-              <div className="flex rounded-lg bg-gray-100 p-1 w-full sm:w-auto">
+              <div className="flex rounded-lg bg-gray-100 dark:bg-gray-700 p-1 w-full sm:w-auto">
                 <button
                   onClick={() => setViewMode('feed')}
                   className={`flex-1 sm:flex-none px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
                     viewMode === 'feed'
-                      ? 'bg-white text-blue-700 shadow-sm'
-                      : 'text-gray-600 hover:text-gray-900'
+                      ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm'
+                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
                   }`}
                 >
-                  <span className="flex items-center justify-center space-x-1">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-                    </svg>
-                    <span>Feed</span>
-                  </span>
+                  Feed
                 </button>
-                
                 <button
                   onClick={() => setViewMode('table')}
                   className={`flex-1 sm:flex-none px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
                     viewMode === 'table'
-                      ? 'bg-white text-blue-700 shadow-sm'
-                      : 'text-gray-600 hover:text-gray-900'
+                      ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm'
+                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
                   }`}
                 >
-                  <span className="flex items-center justify-center space-x-1">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M3 14h18m-9-4v8m5-8v8m-9-8V6a2 2 0 012-2h6a2 2 0 012 2v4" />
-                    </svg>
-                    <span>Table</span>
-                  </span>
+                  Table
                 </button>
-                
                 <button
                   onClick={() => setViewMode('grouped')}
                   className={`flex-1 sm:flex-none px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
                     viewMode === 'grouped'
-                      ? 'bg-white text-blue-700 shadow-sm'
-                      : 'text-gray-600 hover:text-gray-900'
+                      ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm'
+                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
                   }`}
                 >
-                  <span className="flex items-center justify-center space-x-1">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14-4H5m14 8H5m14 4H5" />
-                    </svg>
-                    <span>Grouped</span>
-                  </span>
+                  Grouped
                 </button>
               </div>
             </div>
@@ -548,7 +531,7 @@ const Dashboard: React.FC = () => {
             {/* Group By Selector - Only show when grouped view is selected */}
             {viewMode === 'grouped' && (
               <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-2">
-                <label className="text-sm font-medium text-gray-700 whitespace-nowrap">Group by:</label>
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">Group by:</label>
                 <div className="w-full sm:w-48">
                   <CustomDropdown
                     value={groupBy}
@@ -558,7 +541,7 @@ const Dashboard: React.FC = () => {
                         value: 'channel',
                         label: (
                           <div className="flex items-center space-x-2">
-                            <MessageSquare className="w-4 h-4 text-blue-600" />
+                            <MessageSquare className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                             <span>Channel</span>
                           </div>
                         ),
@@ -568,7 +551,7 @@ const Dashboard: React.FC = () => {
                         value: 'date',
                         label: (
                           <div className="flex items-center space-x-2">
-                            <Calendar className="w-4 h-4 text-green-600" />
+                            <Calendar className="w-4 h-4 text-green-600 dark:text-green-400" />
                             <span>Date</span>
                           </div>
                         ),
@@ -578,7 +561,7 @@ const Dashboard: React.FC = () => {
                         value: 'document',
                         label: (
                           <div className="flex items-center space-x-2">
-                            <FileText className="w-4 h-4 text-purple-600" />
+                            <FileText className="w-4 h-4 text-purple-600 dark:text-purple-400" />
                             <span>Topic/Thread</span>
                           </div>
                         ),
@@ -593,12 +576,12 @@ const Dashboard: React.FC = () => {
 
           {/* Message Views */}
           {loading && messages.length === 0 ? (
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 flex items-center justify-center py-12">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 flex items-center justify-center py-12">
               <LoadingSpinner size="lg" />
             </div>
           ) : error ? (
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 text-center py-12">
-              <div className="text-red-600 mb-4">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 text-center py-12">
+              <div className="text-red-600 dark:text-red-400 mb-4">
                 <svg 
                   className="mx-auto h-12 w-12 mb-4" 
                   fill="none" 
@@ -612,12 +595,12 @@ const Dashboard: React.FC = () => {
                     d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.996-.833-2.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" 
                   />
                 </svg>
-                <h3 className="text-lg font-medium">Error Loading Messages</h3>
-                <p className="text-gray-500 mt-2">{error}</p>
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white">Error Loading Messages</h3>
+                <p className="text-gray-500 dark:text-gray-400 mt-2">{error}</p>
               </div>
               <button
                 onClick={() => fetchMessages()}
-                className="bg-slack-blue text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
+                className="bg-slack-blue text-white px-4 py-2 rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors"
               >
                 Try Again
               </button>
@@ -625,7 +608,7 @@ const Dashboard: React.FC = () => {
           ) : (
             <>
               {viewMode === 'feed' && (
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
                   <MessageFeed
                     messages={messages}
                     loading={loading}
@@ -662,7 +645,7 @@ const Dashboard: React.FC = () => {
 
           {/* Pagination Info */}
           {!loading && messages.length > 0 && (
-            <div className="mt-4 text-center text-sm text-gray-500">
+            <div className="mt-4 text-center text-sm text-gray-500 dark:text-gray-400">
               Showing {messages.length} of {pagination.total} messages
               {pagination.totalPages > 1 && (
                 <span className="ml-2">
@@ -675,7 +658,7 @@ const Dashboard: React.FC = () => {
           {/* Empty State */}
           {!loading && !error && messages.length === 0 && (
             <div className="text-center py-12">
-              <div className="text-gray-400 mb-4">
+              <div className="text-gray-400 dark:text-gray-500 mb-4">
                 <svg 
                   className="mx-auto h-12 w-12 mb-4" 
                   fill="none" 
@@ -689,8 +672,8 @@ const Dashboard: React.FC = () => {
                     d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" 
                   />
                 </svg>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No Messages Found</h3>
-                <p className="text-gray-500">
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No Messages Found</h3>
+                <p className="text-gray-500 dark:text-gray-400">
                   {Object.values(filters).some(v => v && v !== '' && v !== 1 && v !== 50)
                     ? 'Try adjusting your filters or search terms.'
                     : 'No messages have been received yet. Make sure your Slack bot is configured correctly.'

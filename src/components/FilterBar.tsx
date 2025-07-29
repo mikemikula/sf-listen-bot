@@ -44,7 +44,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
         <div className="relative">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
             <svg 
-              className="h-4 w-4 text-gray-400" 
+              className="h-4 w-4 text-gray-400 dark:text-gray-500" 
               fill="none" 
               stroke="currentColor" 
               viewBox="0 0 24 24"
@@ -57,7 +57,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
             placeholder="Search messages..."
             value={filters.search}
             onChange={(e) => handleFilterChange('search', e.target.value)}
-            className="w-full pl-10 pr-4 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full pl-10 pr-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
             disabled={loading}
           />
         </div>
@@ -67,11 +67,11 @@ export const FilterBar: React.FC<FilterBarProps> = ({
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {/* Channel Filter */}
         <div>
-          <label className="block text-xs font-medium text-gray-700 mb-1">Channel</label>
+          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Channel</label>
           <select
             value={filters.channel}
             onChange={(e) => handleFilterChange('channel', e.target.value)}
-            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
             disabled={loading}
           >
             <option value="">All Channels</option>
@@ -85,54 +85,51 @@ export const FilterBar: React.FC<FilterBarProps> = ({
 
         {/* Username Filter */}
         <div>
-          <label className="block text-xs font-medium text-gray-700 mb-1">User</label>
+          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">User</label>
           <input
             type="text"
             placeholder="Username..."
             value={filters.username}
             onChange={(e) => handleFilterChange('username', e.target.value)}
-            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
             disabled={loading}
           />
         </div>
 
         {/* Date From */}
         <div>
-          <label className="block text-xs font-medium text-gray-700 mb-1">From Date</label>
+          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">From Date</label>
           <input
             type="date"
             value={filters.dateFrom}
             onChange={(e) => handleFilterChange('dateFrom', e.target.value)}
-            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
             disabled={loading}
           />
         </div>
 
         {/* Date To */}
         <div>
-          <label className="block text-xs font-medium text-gray-700 mb-1">To Date</label>
+          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">To Date</label>
           <input
             type="date"
             value={filters.dateTo}
             onChange={(e) => handleFilterChange('dateTo', e.target.value)}
-            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
             disabled={loading}
           />
         </div>
       </div>
 
-      {/* Clear Filters - Mobile Optimized */}
+      {/* Clear Filters Button */}
       {hasActiveFilters && (
-        <div className="flex justify-center sm:justify-end">
+        <div className="flex justify-end">
           <button
             onClick={clearFilters}
-            className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
+            className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 underline transition-colors"
             disabled={loading}
           >
-            <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-            Clear Filters
+            Clear all filters
           </button>
         </div>
       )}
