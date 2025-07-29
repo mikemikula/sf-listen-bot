@@ -21,7 +21,9 @@ import {
   Mail,
   Phone,
   Link,
-  FileText
+  FileText,
+  ChevronUp,
+  ChevronDown
 } from 'lucide-react'
 import { PIIDetection, PIIStatus, PIIType } from '@/types'
 import { logger } from '@/lib/logger'
@@ -94,6 +96,20 @@ const PIIReviewDashboard: React.FC<PIIReviewDashboardProps> = ({
     confidenceRange: [0, 1],
     showOnlySelected: false
   })
+  
+  // Mobile UI state
+  const [filtersExpanded, setFiltersExpanded] = useState(false)
+
+  /**
+   * Get count of active filters for mobile UI
+   */
+  const getActiveFilterCount = (): number => {
+    let count = 0
+    if (filters.searchTerm) count++
+    if (filters.piiType !== 'ALL') count++
+    if (filters.showOnlySelected) count++
+    return count
+  }
 
   /**
    * Fetch pending PII reviews from API
@@ -179,7 +195,7 @@ const PIIReviewDashboard: React.FC<PIIReviewDashboardProps> = ({
       if (result.success) {
         // Remove item from list if status changed from PENDING_REVIEW
         setReviewItems(prev => prev.filter(item => item.id !== detectionId))
-        setSelectedItems(prev => {
+        setSelectedItems((prev: Set<string>) => {
           const newSet = new Set(prev)
           newSet.delete(detectionId)
           return newSet
@@ -268,7 +284,7 @@ const PIIReviewDashboard: React.FC<PIIReviewDashboardProps> = ({
    * Toggle item selection
    */
   const toggleItemSelection = (detectionId: string): void => {
-    setSelectedItems(prev => {
+    setSelectedItems((prev: Set<string>) => {
       const newSet = new Set(prev)
       if (newSet.has(detectionId)) {
         newSet.delete(detectionId)
@@ -367,6 +383,45 @@ const PIIReviewDashboard: React.FC<PIIReviewDashboardProps> = ({
     return () => clearInterval(interval)
   }, [fetchPendingReviews, refreshInterval])
 
+  // Keyboard shortcuts for power users
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Only handle shortcuts when not typing in an input
+      if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
+        return
+      }
+
+      const firstPendingItem = filteredItems.find(item => item.status === PIIStatus.PENDING_REVIEW)
+      
+      if (firstPendingItem && !firstPendingItem.isUpdating) {
+        switch (event.key.toLowerCase()) {
+          case '1':
+          case 'k':
+            event.preventDefault()
+            updatePIIStatus(firstPendingItem.id, PIIStatus.WHITELISTED)
+            break
+          case '2':
+          case 'r':
+            event.preventDefault()
+            updatePIIStatus(firstPendingItem.id, PIIStatus.AUTO_REPLACED)
+            break
+          case '3':
+          case 'f':
+            event.preventDefault()
+            updatePIIStatus(firstPendingItem.id, PIIStatus.FLAGGED)
+            break
+          case 'x':
+            event.preventDefault()
+            toggleItemSelection(firstPendingItem.id)
+            break
+        }
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [filteredItems, updatePIIStatus, toggleItemSelection])
+
   // Render loading state
   if (isLoading && reviewItems.length === 0) {
     return (
@@ -380,9 +435,9 @@ const PIIReviewDashboard: React.FC<PIIReviewDashboardProps> = ({
   }
 
   return (
-    <div className="pii-review-dashboard">
+    <div className="pii-review-dashboard bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
       {/* Header */}
-      <div className="pii-review__header bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-6">
+      <div className="pii-review__header border-b border-gray-200 dark:border-gray-700 p-6">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center">
@@ -408,56 +463,15 @@ const PIIReviewDashboard: React.FC<PIIReviewDashboardProps> = ({
           </div>
         </div>
 
-        {/* Stats */}
+        {/* Stats Summary */}
         {stats && (
-          <div className="mt-6 grid grid-cols-1 md:grid-cols-5 gap-4">
-            <div className="bg-yellow-50 dark:bg-yellow-900 p-4 rounded-lg">
-              <div className="flex items-center">
-                <Clock className="w-5 h-5 text-yellow-600 dark:text-yellow-400 mr-2" />
-                <div>
-                  <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200">Pending Review</p>
-                  <p className="text-2xl font-bold text-yellow-900 dark:text-yellow-100">{stats.pendingReview}</p>
-                </div>
+          <div className="mt-6 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600">
+            <div className="flex items-center justify-between text-sm">
+              <div className="text-gray-600 dark:text-gray-400">
+                <span className="font-medium">{stats.pendingReview}</span> pending review
               </div>
-            </div>
-
-            <div className="bg-green-50 dark:bg-green-900 p-4 rounded-lg">
-              <div className="flex items-center">
-                <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400 mr-2" />
-                <div>
-                  <p className="text-sm font-medium text-green-800 dark:text-green-200">Whitelisted</p>
-                  <p className="text-2xl font-bold text-green-900 dark:text-green-100">{stats.whitelisted}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-red-50 dark:bg-red-900 p-4 rounded-lg">
-              <div className="flex items-center">
-                <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400 mr-2" />
-                <div>
-                  <p className="text-sm font-medium text-red-800 dark:text-red-200">Flagged</p>
-                  <p className="text-2xl font-bold text-red-900 dark:text-red-100">{stats.flagged}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-blue-50 dark:bg-blue-900 p-4 rounded-lg">
-              <div className="flex items-center">
-                <EyeOff className="w-5 h-5 text-blue-600 dark:text-blue-400 mr-2" />
-                <div>
-                  <p className="text-sm font-medium text-blue-800 dark:text-blue-200">Auto Replaced</p>
-                  <p className="text-2xl font-bold text-blue-900 dark:text-blue-100">{stats.autoReplaced}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
-              <div className="flex items-center">
-                <FileText className="w-5 h-5 text-gray-600 dark:text-gray-400 mr-2" />
-                <div>
-                  <p className="text-sm font-medium text-gray-800 dark:text-gray-200">Total Detections</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{stats.totalDetections}</p>
-                </div>
+              <div className="text-gray-500 dark:text-gray-400">
+                {stats.totalDetections} total detections
               </div>
             </div>
           </div>
@@ -483,90 +497,101 @@ const PIIReviewDashboard: React.FC<PIIReviewDashboardProps> = ({
         </div>
       )}
 
-      {/* Filters - Only show when there are items to filter */}
+      {/* Simplified Filters */}
       {reviewItems.length > 0 && (
-        <div className="pii-review__filters bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-6">
-          <div className="flex flex-wrap items-center gap-4">
+        <div className="pii-review__filters border-b border-gray-200 dark:border-gray-700 p-6">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             {/* Search */}
-            <div className="flex-1 min-w-64">
-              <div className="relative">
-                <Search className="w-4 h-4 absolute left-3 top-3 text-gray-400 dark:text-gray-500" />
-                <input
-                  type="text"
-                  placeholder="Search PII detections..."
-                  value={filters.searchTerm}
-                  onChange={(e) => setFilters(prev => ({ ...prev, searchTerm: e.target.value }))}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
-                />
-              </div>
+            <div className="flex-1 max-w-md">
+              <input
+                type="text"
+                placeholder="Search PII detections..."
+                value={filters.searchTerm}
+                onChange={(e) => setFilters(prev => ({ ...prev, searchTerm: e.target.value }))}
+                className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+              />
             </div>
 
-            {/* PII Type Filter */}
-            <select
-              value={filters.piiType}
-              onChange={(e) => setFilters(prev => ({ ...prev, piiType: e.target.value as PIIType | 'ALL' }))}
-              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-            >
-              <option value="ALL">All Types</option>
-              <option value={PIIType.EMAIL}>Email</option>
-              <option value={PIIType.PHONE}>Phone</option>
-              <option value={PIIType.URL}>URL</option>
-              <option value={PIIType.NAME}>Name</option>
-              <option value={PIIType.CUSTOM}>Custom</option>
-            </select>
+            {/* Type Filter */}
+            <div className="flex items-center space-x-4">
+              <select
+                value={filters.piiType}
+                onChange={(e) => setFilters(prev => ({ ...prev, piiType: e.target.value as PIIType | 'ALL' }))}
+                className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="ALL">All Types</option>
+                <option value="EMAIL">Email</option>
+                <option value="PHONE">Phone</option>
+                <option value="NAME">Name</option>
+                <option value="URL">URL</option>
+                <option value="CUSTOM">Custom</option>
+              </select>
 
-            {/* Show Only Selected */}
-            <label className="flex items-center text-gray-700 dark:text-gray-300">
-              <input
-                type="checkbox"
-                checked={filters.showOnlySelected}
-                onChange={(e) => setFilters(prev => ({ ...prev, showOnlySelected: e.target.checked }))}
-                className="mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded"
-              />
-              Show only selected
-            </label>
+              {/* Show Selected Toggle */}
+              <label className="flex items-center text-sm text-gray-600 dark:text-gray-400">
+                <input
+                  type="checkbox"
+                  checked={filters.showOnlySelected}
+                  onChange={(e) => setFilters(prev => ({ ...prev, showOnlySelected: e.target.checked }))}
+                  className="mr-2 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                />
+                Show only selected
+              </label>
+            </div>
           </div>
         </div>
       )}
 
-      {/* Bulk Actions - Only show when there are items and selections */}
-      {reviewItems.length > 0 && selectedItems.size > 0 && (
-        <div className="pii-review__bulk-actions bg-blue-50 dark:bg-blue-900 border-b border-blue-200 dark:border-blue-700 p-4">
+      {/* Simplified Bulk Actions */}
+      {selectedItems.size > 0 && (
+        <div className="pii-review__bulk-actions border-b border-gray-200 dark:border-gray-700 p-6">
           <div className="flex items-center justify-between">
-            <span className="text-blue-800 dark:text-blue-200 font-medium">
-              {selectedItems.size} item{selectedItems.size !== 1 ? 's' : ''} selected
-            </span>
-            <div className="flex items-center space-x-2">
+            <div className="text-sm text-gray-600 dark:text-gray-400">
+              <span className="font-medium">{selectedItems.size}</span> items selected
+            </div>
+            
+            <div className="flex items-center space-x-3">
               <button
                 onClick={() => bulkUpdatePII(PIIStatus.WHITELISTED)}
                 disabled={isBulkUpdating}
-                className="flex items-center px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 transition-colors"
+                className="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 transition-colors text-gray-700 dark:text-gray-300"
               >
-                <CheckCircle className="w-4 h-4 mr-1" />
-                Whitelist
+                Keep All
+              </button>
+              <button
+                onClick={() => bulkUpdatePII(PIIStatus.AUTO_REPLACED)}
+                disabled={isBulkUpdating}
+                className="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 transition-colors text-gray-700 dark:text-gray-300"
+              >
+                Replace All
               </button>
               <button
                 onClick={() => bulkUpdatePII(PIIStatus.FLAGGED)}
                 disabled={isBulkUpdating}
-                className="flex items-center px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 transition-colors"
+                className="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 transition-colors text-gray-700 dark:text-gray-300"
               >
-                <AlertTriangle className="w-4 h-4 mr-1" />
-                Flag as Sensitive
+                Flag All
               </button>
               <button
                 onClick={() => setSelectedItems(new Set())}
-                className="flex items-center px-3 py-1 bg-gray-600 text-white rounded hover:bg-gray-700 transition-colors"
+                className="px-3 py-1 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
               >
-                <XCircle className="w-4 h-4 mr-1" />
-                Clear Selection
+                Clear
               </button>
             </div>
           </div>
+          
+          {isBulkUpdating && (
+            <div className="mt-3 flex items-center text-sm text-gray-500 dark:text-gray-400">
+              <RefreshCw className="w-4 h-4 animate-spin mr-2" />
+              <span>Updating selected items...</span>
+            </div>
+          )}
         </div>
       )}
 
       {/* Review Items List */}
-      <div className="pii-review__list">
+      <div className="pii-review__list p-6">
         {filteredItems.length === 0 ? (
           <div className="text-center py-12">
             <Shield className="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
@@ -581,51 +606,59 @@ const PIIReviewDashboard: React.FC<PIIReviewDashboardProps> = ({
                   : 'All PII detections have been reviewed.'}
             </p>
             
-            {/* Development Test Data Button */}
+            {/* Development Test Data Button - Mobile Optimized */}
             {process.env.NODE_ENV !== 'production' && reviewItems.length === 0 && (
-              <div className="flex flex-col items-center space-y-4">
-                <div className="bg-blue-50 dark:bg-blue-900 border border-blue-200 dark:border-blue-700 rounded-lg p-4 max-w-md">
-                  <div className="flex items-center mb-2">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full mr-2"></div>
-                    <span className="text-sm font-medium text-blue-800 dark:text-blue-200">Development Mode</span>
-                  </div>
-                  <p className="text-sm text-blue-700 dark:text-blue-300 mb-3">
-                    Want to see how the PII review interface works? Generate some sample data for testing.
-                  </p>
-                  <button
-                    onClick={async () => {
-                      try {
-                        setIsLoading(true)
-                        const response = await fetch('/api/pii/test-data', { method: 'POST' })
-                        if (response.ok) {
-                          await fetchPendingReviews()
-                        } else {
-                          throw new Error('Failed to create test data')
+              <div className="flex flex-col items-center px-4">
+                <div className="bg-blue-50 dark:bg-blue-900 border border-blue-200 dark:border-blue-700 rounded-xl p-6 w-full max-w-md">
+                  <div className="text-center">
+                    <div className="flex justify-center items-center mb-3">
+                      <div className="w-3 h-3 bg-blue-500 rounded-full mr-2"></div>
+                      <span className="text-sm font-semibold text-blue-800 dark:text-blue-200">Development Mode</span>
+                    </div>
+                    <h3 className="text-lg font-medium text-blue-900 dark:text-blue-100 mb-2">
+                      Try the PII Review System
+                    </h3>
+                    <p className="text-sm text-blue-700 dark:text-blue-300 mb-4 leading-relaxed">
+                      Generate sample PII detections to explore how the review interface works with different types of sensitive data.
+                    </p>
+                    <button
+                      onClick={async () => {
+                        try {
+                          setIsLoading(true)
+                          const response = await fetch('/api/pii/test-data', { method: 'POST' })
+                          if (response.ok) {
+                            await fetchPendingReviews()
+                          } else {
+                            throw new Error('Failed to create test data')
+                          }
+                        } catch (err) {
+                          setError('Failed to create test data. Please try again.')
+                        } finally {
+                          setIsLoading(false)
                         }
-                      } catch (err) {
-                        setError('Failed to create test data. Please try again.')
-                      } finally {
-                        setIsLoading(false)
-                      }
-                    }}
-                    disabled={isLoading}
-                    className="w-full flex items-center justify-center px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
-                  >
-                    {isLoading ? (
-                      <>
-                        <RefreshCw className="w-4 h-4 animate-spin mr-2" />
-                        Generating...
-                      </>
-                    ) : (
-                      'Generate Test PII Data'
-                    )}
-                  </button>
+                      }}
+                      disabled={isLoading}
+                      className="w-full flex items-center justify-center px-6 py-4 bg-blue-600 text-white text-base font-medium rounded-xl hover:bg-blue-700 disabled:opacity-50 transition-colors touch-manipulation shadow-sm"
+                    >
+                      {isLoading ? (
+                        <>
+                          <RefreshCw className="w-5 h-5 animate-spin mr-3" />
+                          Generating Test Data...
+                        </>
+                      ) : (
+                        <>
+                          <span className="mr-2">🧪</span>
+                          Generate Test PII Data
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
           </div>
         ) : (
-          <div className="divide-y divide-gray-200">
+          <div className="md:divide-y md:divide-gray-200 md:space-y-0 space-y-4">
             {filteredItems.map((item) => (
               <PIIReviewItem
                 key={item.id}
@@ -644,7 +677,7 @@ const PIIReviewDashboard: React.FC<PIIReviewDashboardProps> = ({
 
       {/* Pagination */}
       {totalItems > pageSize && (
-        <div className="pii-review__pagination bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 px-6 py-4">
+        <div className="pii-review__pagination border-t border-gray-200 dark:border-gray-700 px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="text-sm text-gray-700 dark:text-gray-300">
               Showing {currentPage * pageSize + 1} to {Math.min((currentPage + 1) * pageSize, totalItems)} of {totalItems} results
@@ -710,170 +743,155 @@ const PIIReviewItem: React.FC<PIIReviewItemProps> = ({
   }
 
   return (
-    <div className={`pii-review-item ${isSelected ? 'bg-blue-50 dark:bg-blue-900' : 'bg-white dark:bg-gray-800'}`}>
-      <div className="p-6">
-        <div className="flex items-start space-x-4">
-          {/* Selection Checkbox */}
-          <input
-            type="checkbox"
-            checked={isSelected}
-            onChange={onToggleSelection}
-            className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded"
-          />
-
-          {/* Content */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                {/* PII Type Icon */}
-                <div className="flex items-center space-x-2">
-                  {getPIITypeIcon(item.piiType)}
-                  <span className="text-sm font-medium text-gray-900 dark:text-white">
-                    {item.piiType}
-                  </span>
-                </div>
-
-                {/* Confidence Score */}
-                <div className={`px-2 py-1 rounded-full text-xs font-medium ${
-                  item.confidence > 0.8 ? 'bg-green-100 dark:bg-green-800 text-green-800 dark:text-green-200' :
-                  item.confidence > 0.6 ? 'bg-yellow-100 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-200' :
-                  'bg-red-100 dark:bg-red-800 text-red-800 dark:text-red-200'
-                }`}>
-                  {Math.round(item.confidence * 100)}% confident
-                </div>
-
-                {/* Status */}
-                <div className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColorClass(item.status)}`}>
-                  {item.status.replace('_', ' ')}
-                </div>
-              </div>
-
-              <button
-                onClick={onToggleExpansion}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-              >
-                {item.isExpanded ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-              </button>
+    <div className={`${isSelected ? 'bg-blue-50 dark:bg-blue-950/30' : 'bg-white dark:bg-gray-800'} border border-gray-200 dark:border-gray-700 rounded-lg mb-4 hover:border-gray-300 dark:hover:border-gray-600 transition-colors`}>
+      <div className="p-4">
+        {/* Compact Header */}
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center space-x-3">
+            <input
+              type="checkbox"
+              checked={isSelected}
+              onChange={onToggleSelection}
+              className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+            />
+            <div className="flex items-center space-x-2">
+              <span className="text-sm font-medium text-gray-900 dark:text-white">
+                {item.piiType}
+              </span>
+              <span className="text-xs text-gray-500 dark:text-gray-400">
+                {Math.round(item.confidence * 100)}% confidence
+              </span>
             </div>
+          </div>
+          
+          <div className="flex items-center space-x-2">
+            {/* Expand/Collapse Button */}
+            <button
+              onClick={onToggleExpansion}
+              className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+            >
+              {item.isExpanded ? (
+                <ChevronUp className="w-4 h-4" />
+              ) : (
+                <ChevronDown className="w-4 h-4" />
+              )}
+            </button>
+          </div>
+        </div>
 
-            {/* Original Text Display */}
-            <div className="mt-3">
-              <div className="bg-gray-100 dark:bg-gray-700 p-3 rounded-md">
-                <div className="text-sm">
-                  <span className="font-medium text-gray-700 dark:text-gray-300">Detected: </span>
-                  <span className="bg-yellow-200 dark:bg-yellow-600 px-1 rounded font-mono text-gray-900 dark:text-white">
-                    {item.originalText}
-                  </span>
-                </div>
-                <div className="text-sm mt-1">
-                  <span className="font-medium text-gray-700 dark:text-gray-300">Would replace with: </span>
-                  <span className="text-gray-600 dark:text-gray-400 font-mono">
-                    {item.replacementText}
-                  </span>
-                </div>
-              </div>
+        {/* Essential Information - Always Visible */}
+        <div className="mb-4">
+          <div className="bg-gray-50 dark:bg-gray-700/50 rounded-md p-3 border-l-3 border-gray-300 dark:border-gray-600">
+            <div className="text-sm text-gray-900 dark:text-white font-mono break-all">
+              {item.originalText}
             </div>
-
-            {/* Message Context (if available) */}
-            {item.message && (
-              <div className="mt-3 text-sm text-gray-600 dark:text-gray-400">
-                <div className="font-medium">Context:</div>
-                <div className="bg-gray-50 dark:bg-gray-700 p-2 rounded mt-1 text-xs font-mono text-gray-900 dark:text-white">
-                  {item.message.text.substring(0, 200)}
-                  {item.message.text.length > 200 && '...'}
-                </div>
-                <div className="text-xs mt-1">
-                  From: <span className="font-medium">{item.message.username}</span> in{' '}
-                  <span className="font-medium">#{item.message.channel}</span>
-                </div>
+            {item.replacementText !== item.originalText && (
+              <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                → {item.replacementText}
               </div>
             )}
+          </div>
+        </div>
 
-            {/* Expanded Details */}
-            {item.isExpanded && (
-              <div className="mt-4 border-t border-gray-200 dark:border-gray-700 pt-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Custom Replacement */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Custom Replacement
-                    </label>
-                    <input
-                      type="text"
-                      value={customReplacement}
-                      onChange={(e) => setCustomReplacement(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
-                      placeholder="Enter custom replacement text"
-                    />
-                  </div>
+        {/* Quick Action Buttons - Always Visible */}
+        <div className="flex space-x-2">
+          <button
+            onClick={() => handleStatusUpdate(PIIStatus.WHITELISTED)}
+            disabled={item.isUpdating}
+            className="flex-1 py-2 px-3 text-sm border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 transition-colors text-gray-700 dark:text-gray-300"
+          >
+            Keep
+          </button>
+          <button
+            onClick={() => handleStatusUpdate(PIIStatus.AUTO_REPLACED)}
+            disabled={item.isUpdating}
+            className="flex-1 py-2 px-3 text-sm border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 transition-colors text-gray-700 dark:text-gray-300"
+          >
+            Replace
+          </button>
+          <button
+            onClick={() => handleStatusUpdate(PIIStatus.FLAGGED)}
+            disabled={item.isUpdating}
+            className="flex-1 py-2 px-3 text-sm border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 transition-colors text-gray-700 dark:text-gray-300"
+          >
+            Flag
+          </button>
+        </div>
 
-                  {/* Review Note */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Review Note (Optional)
-                    </label>
-                    <input
-                      type="text"
-                      value={reviewNote}
-                      onChange={(e) => setReviewNote(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
-                      placeholder="Add a note about this decision"
-                    />
-                  </div>
-                </div>
-
-                {/* Metadata */}
-                <div className="mt-4 text-xs text-gray-500 dark:text-gray-400 space-y-1">
-                  <div>Detection ID: {item.id}</div>
-                  <div>Created: {new Date(item.createdAt).toLocaleString()}</div>
-                  {item.reviewedBy && (
-                    <div>
-                      Reviewed by: {item.reviewedBy} on{' '}
-                      {item.reviewedAt ? new Date(item.reviewedAt).toLocaleString() : 'Unknown'}
-                    </div>
-                  )}
-                </div>
+        {/* Expanded Details - Only When Expanded */}
+        {item.isExpanded && (
+          <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 space-y-4">
+            {/* Message Context */}
+            <div>
+              <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">
+                Message Context
               </div>
-            )}
-
-            {/* Action Buttons */}
-            <div className="mt-4 flex items-center space-x-2">
-              <button
-                onClick={() => handleStatusUpdate(PIIStatus.WHITELISTED)}
-                disabled={item.isUpdating}
-                className="flex items-center px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700 disabled:opacity-50 transition-colors"
-              >
-                <CheckCircle className="w-4 h-4 mr-1" />
-                Not Sensitive
-              </button>
-              
-              <button
-                onClick={() => handleStatusUpdate(PIIStatus.FLAGGED)}
-                disabled={item.isUpdating}
-                className="flex items-center px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700 disabled:opacity-50 transition-colors"
-              >
-                <AlertTriangle className="w-4 h-4 mr-1" />
-                Flag as PII
-              </button>
-
-              <button
-                onClick={() => handleStatusUpdate(PIIStatus.AUTO_REPLACED)}
-                disabled={item.isUpdating}
-                className="flex items-center px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 disabled:opacity-50 transition-colors"
-              >
-                <EyeOff className="w-4 h-4 mr-1" />
-                Auto Replace
-              </button>
-
-              {item.isUpdating && (
-                <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
-                  <RefreshCw className="w-4 h-4 animate-spin mr-1" />
-                  Updating...
+              {item.message ? (
+                <div className="bg-gray-50 dark:bg-gray-700/50 rounded-md p-3">
+                  <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">
+                    From {item.message.username} in #{item.message.channel}
+                  </div>
+                  <div className="text-sm text-gray-900 dark:text-white">
+                    {item.message.text}
+                  </div>
+                </div>
+              ) : (
+                <div className="text-xs text-gray-500 dark:text-gray-400 italic">
+                  Message context not available
                 </div>
               )}
             </div>
+
+            {/* Detection Details */}
+            <div>
+              <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">
+                Detection Details
+              </div>
+              <div className="text-xs text-gray-600 dark:text-gray-400 space-y-1">
+                <div>Type: {item.piiType}</div>
+                <div>Confidence: {Math.round(item.confidence * 100)}%</div>
+                <div>Detected: {new Date(item.createdAt).toLocaleString()}</div>
+              </div>
+            </div>
+
+            {/* Custom Replacement (if expanded) */}
+            {item.replacementText !== item.originalText && (
+              <div>
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">
+                  Custom Replacement
+                </label>
+                <input
+                  type="text"
+                  value={customReplacement}
+                  onChange={(e) => setCustomReplacement(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+            )}
+
+            {/* Review Note */}
+            <div>
+              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">
+                Review Note (Optional)
+              </label>
+              <textarea
+                value={reviewNote}
+                onChange={(e) => setReviewNote(e.target.value)}
+                rows={2}
+                className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Add a note about this decision..."
+              />
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* Loading State */}
+        {item.isUpdating && (
+          <div className="mt-3 flex items-center justify-center text-sm text-gray-500 dark:text-gray-400 py-2">
+            <RefreshCw className="w-4 h-4 animate-spin mr-2" />
+            <span>Updating...</span>
+          </div>
+        )}
       </div>
     </div>
   )

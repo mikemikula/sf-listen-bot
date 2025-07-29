@@ -42,7 +42,7 @@ const PIIReviewPage: React.FC<PIIReviewPageProps> = ({ currentUser }) => {
         />
 
         {/* Main Content */}
-        <main className="pii-review-page__main">
+        <main className="container mx-auto px-4 py-6 max-w-6xl">
           <PIIReviewDashboard 
             currentUser={currentUser}
             refreshInterval={30000}
