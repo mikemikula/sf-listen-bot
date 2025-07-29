@@ -42,18 +42,25 @@ export const Header: React.FC<HeaderProps> = ({ isConnected, onDebugClick }) => 
 
   // Prevent body scroll when mobile navigation is open
   useEffect(() => {
-    if (isMenuOpen) {
+    // Only apply scroll lock on mobile devices
+    const isMobile = window.innerWidth <= 768
+    
+    if (isMenuOpen && isMobile) {
       // Save current scroll position and prevent body scroll
       const scrollY = window.scrollY
       document.body.classList.add('no-scroll')
       document.body.style.top = `-${scrollY}px`
+      
+      // Prevent scrolling on the document element as well
+      document.documentElement.style.overflow = 'hidden'
     } else {
       // Restore body scroll and scroll position
       const scrollY = document.body.style.top
       document.body.classList.remove('no-scroll')
       document.body.style.top = ''
+      document.documentElement.style.overflow = ''
       
-      if (scrollY) {
+      if (scrollY && isMobile) {
         const scrollPosition = parseInt(scrollY || '0') * -1
         window.scrollTo(0, scrollPosition)
       }
@@ -63,6 +70,7 @@ export const Header: React.FC<HeaderProps> = ({ isConnected, onDebugClick }) => 
     return () => {
       document.body.classList.remove('no-scroll')
       document.body.style.top = ''
+      document.documentElement.style.overflow = ''
     }
   }, [isMenuOpen])
 
