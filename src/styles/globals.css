@@ -1,5 +1,24 @@
 @import "tailwindcss";
 
+/* Prevent body scroll when mobile navigation is open */
+.no-scroll {
+  overflow: hidden !important;
+  position: fixed !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Improve mobile navigation scrolling */
+.mobile-nav-scroll {
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
+/* Add safe area padding for mobile devices */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 1rem);
+}
+
 @theme {
   /* Slack-inspired color palette */
   --color-slack-purple: #4A154B;

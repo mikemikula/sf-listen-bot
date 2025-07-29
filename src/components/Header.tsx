@@ -40,6 +40,32 @@ export const Header: React.FC<HeaderProps> = ({ isConnected, onDebugClick }) => 
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
+  // Prevent body scroll when mobile navigation is open
+  useEffect(() => {
+    if (isMenuOpen) {
+      // Save current scroll position and prevent body scroll
+      const scrollY = window.scrollY
+      document.body.classList.add('no-scroll')
+      document.body.style.top = `-${scrollY}px`
+    } else {
+      // Restore body scroll and scroll position
+      const scrollY = document.body.style.top
+      document.body.classList.remove('no-scroll')
+      document.body.style.top = ''
+      
+      if (scrollY) {
+        const scrollPosition = parseInt(scrollY || '0') * -1
+        window.scrollTo(0, scrollPosition)
+      }
+    }
+
+    // Cleanup on unmount
+    return () => {
+      document.body.classList.remove('no-scroll')
+      document.body.style.top = ''
+    }
+  }, [isMenuOpen])
+
   const isActivePage = (path: string) => {
     return router.pathname === path || router.pathname.startsWith(path + '/')
   }
@@ -170,9 +196,9 @@ export const Header: React.FC<HeaderProps> = ({ isConnected, onDebugClick }) => 
                     />
                     
                     {/* Full-Screen Navigation Panel */}
-                    <div className="fixed inset-0 bg-white dark:bg-gray-900">
-                      {/* Navigation Header */}
-                      <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-800 px-4 py-4 flex items-center justify-between">
+                    <div className="fixed inset-0 bg-white dark:bg-gray-900 flex flex-col">
+                      {/* Navigation Header - Fixed at top */}
+                      <div className="flex-shrink-0 bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-800 px-4 py-4 flex items-center justify-between">
                         <div className="flex items-center space-x-3">
                           <div className="w-8 h-8 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center border border-white/20">
                             <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -194,10 +220,11 @@ export const Header: React.FC<HeaderProps> = ({ isConnected, onDebugClick }) => 
                         </button>
                       </div>
 
-                      {/* Navigation Content */}
-                      <div className="flex-1 overflow-y-auto">
-                        {/* Main Navigation */}
-                        <div className="py-6">
+                      {/* Navigation Content - Scrollable */}
+                      <div className="flex-1 overflow-y-auto overscroll-contain mobile-nav-scroll">
+                        <div className="pb-safe">
+                          {/* Main Navigation */}
+                          <div className="py-6">
                           <div className="px-6 mb-4">
                             <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
                               Main Navigation
@@ -404,6 +431,7 @@ export const Header: React.FC<HeaderProps> = ({ isConnected, onDebugClick }) => 
                               <span className="font-medium text-gray-900 dark:text-gray-100">Health Check</span>
                             </Link>
                           </div>
+                        </div>
                         </div>
                       </div>
                     </div>
