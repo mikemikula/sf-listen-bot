@@ -390,7 +390,9 @@ const PIIReviewDashboard: React.FC<PIIReviewDashboardProps> = ({
               PII Review Dashboard
             </h1>
             <p className="text-gray-600 dark:text-gray-400 mt-1">
-              Review and manage potentially sensitive information detections
+              {stats && stats.totalDetections > 0 && stats.pendingReview === 0
+                ? `${stats.totalDetections} detections found, all have been reviewed`
+                : 'Review and manage potentially sensitive information detections'}
             </p>
           </div>
 
@@ -481,52 +483,54 @@ const PIIReviewDashboard: React.FC<PIIReviewDashboardProps> = ({
         </div>
       )}
 
-      {/* Filters */}
-      <div className="pii-review__filters bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-6">
-        <div className="flex flex-wrap items-center gap-4">
-          {/* Search */}
-          <div className="flex-1 min-w-64">
-            <div className="relative">
-              <Search className="w-4 h-4 absolute left-3 top-3 text-gray-400 dark:text-gray-500" />
-              <input
-                type="text"
-                placeholder="Search PII detections..."
-                value={filters.searchTerm}
-                onChange={(e) => setFilters(prev => ({ ...prev, searchTerm: e.target.value }))}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
-              />
+      {/* Filters - Only show when there are items to filter */}
+      {reviewItems.length > 0 && (
+        <div className="pii-review__filters bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-6">
+          <div className="flex flex-wrap items-center gap-4">
+            {/* Search */}
+            <div className="flex-1 min-w-64">
+              <div className="relative">
+                <Search className="w-4 h-4 absolute left-3 top-3 text-gray-400 dark:text-gray-500" />
+                <input
+                  type="text"
+                  placeholder="Search PII detections..."
+                  value={filters.searchTerm}
+                  onChange={(e) => setFilters(prev => ({ ...prev, searchTerm: e.target.value }))}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+                />
+              </div>
             </div>
+
+            {/* PII Type Filter */}
+            <select
+              value={filters.piiType}
+              onChange={(e) => setFilters(prev => ({ ...prev, piiType: e.target.value as PIIType | 'ALL' }))}
+              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            >
+              <option value="ALL">All Types</option>
+              <option value={PIIType.EMAIL}>Email</option>
+              <option value={PIIType.PHONE}>Phone</option>
+              <option value={PIIType.URL}>URL</option>
+              <option value={PIIType.NAME}>Name</option>
+              <option value={PIIType.CUSTOM}>Custom</option>
+            </select>
+
+            {/* Show Only Selected */}
+            <label className="flex items-center text-gray-700 dark:text-gray-300">
+              <input
+                type="checkbox"
+                checked={filters.showOnlySelected}
+                onChange={(e) => setFilters(prev => ({ ...prev, showOnlySelected: e.target.checked }))}
+                className="mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded"
+              />
+              Show only selected
+            </label>
           </div>
-
-          {/* PII Type Filter */}
-          <select
-            value={filters.piiType}
-            onChange={(e) => setFilters(prev => ({ ...prev, piiType: e.target.value as PIIType | 'ALL' }))}
-            className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-          >
-            <option value="ALL">All Types</option>
-            <option value={PIIType.EMAIL}>Email</option>
-            <option value={PIIType.PHONE}>Phone</option>
-            <option value={PIIType.URL}>URL</option>
-            <option value={PIIType.NAME}>Name</option>
-            <option value={PIIType.CUSTOM}>Custom</option>
-          </select>
-
-          {/* Show Only Selected */}
-          <label className="flex items-center text-gray-700 dark:text-gray-300">
-            <input
-              type="checkbox"
-              checked={filters.showOnlySelected}
-              onChange={(e) => setFilters(prev => ({ ...prev, showOnlySelected: e.target.checked }))}
-              className="mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded"
-            />
-            Show only selected
-          </label>
         </div>
-      </div>
+      )}
 
-      {/* Bulk Actions */}
-      {selectedItems.size > 0 && (
+      {/* Bulk Actions - Only show when there are items and selections */}
+      {reviewItems.length > 0 && selectedItems.size > 0 && (
         <div className="pii-review__bulk-actions bg-blue-50 dark:bg-blue-900 border-b border-blue-200 dark:border-blue-700 p-4">
           <div className="flex items-center justify-between">
             <span className="text-blue-800 dark:text-blue-200 font-medium">
@@ -566,12 +570,59 @@ const PIIReviewDashboard: React.FC<PIIReviewDashboardProps> = ({
         {filteredItems.length === 0 ? (
           <div className="text-center py-12">
             <Shield className="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No PII reviews pending</h3>
-            <p className="text-gray-600 dark:text-gray-400">
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+              {reviewItems.length === 0 ? 'No PII detections found' : 'No items match filters'}
+            </h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-6">
               {filters.searchTerm || filters.piiType !== 'ALL' || filters.showOnlySelected
-                ? 'No items match your current filters.'
-                : 'All PII detections have been reviewed.'}
+                ? 'Try adjusting your filters to see more results.'
+                : reviewItems.length === 0 
+                  ? 'PII detections will appear here when the system identifies potentially sensitive information in your messages.'
+                  : 'All PII detections have been reviewed.'}
             </p>
+            
+            {/* Development Test Data Button */}
+            {process.env.NODE_ENV !== 'production' && reviewItems.length === 0 && (
+              <div className="flex flex-col items-center space-y-4">
+                <div className="bg-blue-50 dark:bg-blue-900 border border-blue-200 dark:border-blue-700 rounded-lg p-4 max-w-md">
+                  <div className="flex items-center mb-2">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full mr-2"></div>
+                    <span className="text-sm font-medium text-blue-800 dark:text-blue-200">Development Mode</span>
+                  </div>
+                  <p className="text-sm text-blue-700 dark:text-blue-300 mb-3">
+                    Want to see how the PII review interface works? Generate some sample data for testing.
+                  </p>
+                  <button
+                    onClick={async () => {
+                      try {
+                        setIsLoading(true)
+                        const response = await fetch('/api/pii/test-data', { method: 'POST' })
+                        if (response.ok) {
+                          await fetchPendingReviews()
+                        } else {
+                          throw new Error('Failed to create test data')
+                        }
+                      } catch (err) {
+                        setError('Failed to create test data. Please try again.')
+                      } finally {
+                        setIsLoading(false)
+                      }
+                    }}
+                    disabled={isLoading}
+                    className="w-full flex items-center justify-center px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                  >
+                    {isLoading ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 animate-spin mr-2" />
+                        Generating...
+                      </>
+                    ) : (
+                      'Generate Test PII Data'
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <div className="divide-y divide-gray-200">

@@ -106,10 +106,13 @@ export default async function handler(
       testMessage = existingMessage
     }
 
-    // Clear existing test detections
+    // Clear ALL existing test detections to avoid status conflicts
     await db.pIIDetection.deleteMany({
       where: {
-        sourceId: testMessage.id
+        OR: [
+          { sourceId: testMessage.id },
+          { originalText: { in: TEST_PII_DETECTIONS.map(d => d.originalText) } }
+        ]
       }
     })
 

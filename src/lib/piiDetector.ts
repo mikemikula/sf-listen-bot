@@ -449,6 +449,8 @@ class BusinessAwarePIIDetectorService {
     byStatus: Record<PIIStatus, number>
     pendingReview: number
     autoReplaced: number
+    whitelisted: number
+    flagged: number
   }> {
     try {
       const detections = await db.pIIDetection.findMany({
@@ -463,7 +465,9 @@ class BusinessAwarePIIDetectorService {
         byType: {} as Record<PIIType, number>,
         byStatus: {} as Record<PIIStatus, number>,
         pendingReview: 0,
-        autoReplaced: 0
+        autoReplaced: 0,
+        whitelisted: 0,
+        flagged: 0
       }
 
       // Initialize counters
@@ -483,6 +487,10 @@ class BusinessAwarePIIDetectorService {
           stats.pendingReview++
         } else if (detection.status === PIIStatus.AUTO_REPLACED) {
           stats.autoReplaced++
+        } else if (detection.status === PIIStatus.WHITELISTED) {
+          stats.whitelisted++
+        } else if (detection.status === PIIStatus.FLAGGED) {
+          stats.flagged++
         }
       }
 
