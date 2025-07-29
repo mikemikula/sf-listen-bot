@@ -501,54 +501,73 @@ const DocumentsPage: React.FC = () => {
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         <Header isConnected={true} onDebugClick={() => {}} />
         
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {/* Page Header */}
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Documents</h1>
-              <p className="text-gray-600 dark:text-gray-400 mt-2">
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
+          {/* Page Header - Mobile Optimized */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 sm:mb-8">
+            <div className="min-w-0 flex-1">
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">Documents</h1>
+              <p className="text-gray-600 dark:text-gray-400 mt-1 sm:mt-2">
                 Manage processed documents from your Slack conversations
               </p>
             </div>
             
-            <div className="flex items-center gap-4">
+            {/* Action Buttons - Stack on Mobile */}
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 w-full sm:w-auto">
               <Link
                 href="/processing/dashboard"
-                className="px-4 py-2 text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 border border-blue-300 dark:border-blue-600 rounded-md hover:bg-blue-50 dark:hover:bg-blue-900 transition-colors duration-200"
+                className="flex items-center justify-center gap-2 px-4 py-2 text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 border border-blue-300 dark:border-blue-600 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900 transition-colors duration-200"
               >
-                Processing Dashboard
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+                <span className="hidden sm:inline">Processing Dashboard</span>
+                <span className="sm:hidden">Dashboard</span>
               </Link>
               
               <button
                 onClick={() => setShowCreateModal(true)}
-                className="px-4 py-2 text-sm bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-md transition-all duration-200 flex items-center"
+                className="flex items-center justify-center gap-2 px-4 py-2.5 sm:py-2 text-sm bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-lg transition-all duration-200 font-medium"
               >
-                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                 </svg>
-                Process All Messages
+                <span className="hidden sm:inline">Process All Messages</span>
+                <span className="sm:hidden">Process Messages</span>
               </button>
             </div>
           </div>
 
-          {/* Notification */}
+          {/* Notification - Mobile Optimized */}
           {notification && (
-            <div className={`mb-6 p-4 rounded-lg border ${
+            <div className={`mb-4 sm:mb-6 p-3 sm:p-4 rounded-lg border ${
               notification.type === 'success'
                 ? 'bg-green-50 border-green-200 text-green-800 dark:bg-green-900 dark:border-green-700 dark:text-green-200'
                 : 'bg-red-50 border-red-200 text-red-800 dark:bg-red-900 dark:border-red-700 dark:text-red-200'
             }`}>
-              <div className="flex items-center gap-2">
-                {notification.type === 'success' ? (
-                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <div className="flex items-start gap-2 sm:gap-3">
+                <div className="flex-shrink-0 mt-0.5">
+                  {notification.type === 'success' ? (
+                    <svg className="h-4 w-4 sm:h-5 sm:w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  ) : (
+                    <svg className="h-4 w-4 sm:h-5 sm:w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm sm:text-base font-medium">{notification.message}</p>
+                </div>
+                <button
+                  onClick={() => setNotification(null)}
+                  className="flex-shrink-0 p-1 hover:bg-black/5 rounded transition-colors touch-manipulation"
+                  aria-label="Dismiss notification"
+                >
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
-                ) : (
-                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                )}
-                <span className="text-sm font-medium">{notification.message}</span>
+                </button>
               </div>
             </div>
           )}

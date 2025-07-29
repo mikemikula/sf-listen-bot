@@ -374,23 +374,23 @@ export const DocumentFeed: React.FC<DocumentFeedProps> = ({
         </div>
       )}
 
-      {/* Document Grid */}
+      {/* Document Grid - Mobile Optimized */}
       {!loading && !error && documents.length > 0 && (
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4">
           {documents.map((document) => (
-            <div key={document.id} className="flex items-start gap-4">
-              {/* Selection checkbox */}
-              <div className="flex-shrink-0 pt-6">
+            <div key={document.id} className="flex items-start gap-3 sm:gap-4">
+              {/* Selection checkbox - Mobile optimized */}
+              <div className="flex-shrink-0 pt-4 sm:pt-6">
                 <input
                   type="checkbox"
                   checked={selectedDocuments.has(document.id)}
                   onChange={(e) => handleDocumentSelect(document.id, e.target.checked)}
-                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 focus:ring-2 touch-manipulation"
                 />
               </div>
               
               {/* Document Card */}
-              <div className="flex-1">
+              <div className="flex-1 min-w-0">
                 <DocumentCard
                   document={document}
                   onEdit={onDocumentEdit}
@@ -404,33 +404,39 @@ export const DocumentFeed: React.FC<DocumentFeedProps> = ({
         </div>
       )}
 
-      {/* Pagination */}
+      {/* Pagination - Mobile Optimized */}
       {!loading && !error && pagination.totalPages > 1 && (
-        <div className="flex items-center justify-between border-t border-gray-200 dark:border-gray-700 pt-6">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-t border-gray-200 dark:border-gray-700 pt-4 sm:pt-6 mt-6 sm:mt-8">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 text-center sm:text-left">
             <span className="text-sm text-gray-700 dark:text-gray-300">
               Page {pagination.page} of {pagination.totalPages}
             </span>
-            <span className="text-sm text-gray-500 dark:text-gray-400">
+            <span className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
               ({pagination.total} total documents)
             </span>
           </div>
           
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-center gap-2 sm:gap-3">
             <button
               onClick={() => handlePageChange(pagination.page - 1)}
               disabled={!pagination.hasPrev}
-              className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+              className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 touch-manipulation"
             >
-              Previous
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+              <span className="hidden sm:inline">Previous</span>
             </button>
             
             <button
               onClick={() => handlePageChange(pagination.page + 1)}
               disabled={!pagination.hasNext}
-              className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+              className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 touch-manipulation"
             >
-              Next
+              <span className="hidden sm:inline">Next</span>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
             </button>
           </div>
         </div>
