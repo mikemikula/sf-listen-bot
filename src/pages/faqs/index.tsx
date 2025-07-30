@@ -159,6 +159,11 @@ const FAQsPage: React.FC = () => {
   const [selectedFAQs, setSelectedFAQs] = useState<Set<string>>(new Set())
   const [bulkProcessing, setBulkProcessing] = useState(false)
 
+  // Source viewing state
+  const [viewingSourcesFor, setViewingSourcesFor] = useState<string | null>(null)
+  const [sourceData, setSourceData] = useState<any>(null)
+  const [loadingSources, setLoadingSources] = useState(false)
+
   /**
    * Show notification temporarily
    */
@@ -456,6 +461,37 @@ const FAQsPage: React.FC = () => {
     }
   }, [selectedFAQs, showNotification, fetchFAQs])
 
+  /**
+   * Handle viewing sources for an FAQ
+   */
+  const handleViewSources = useCallback(async (faqId: string) => {
+    setViewingSourcesFor(faqId)
+    setSourceData(null) // Clear any previous data
+    setLoadingSources(true)
+    
+    try {
+      const response = await fetch(`/api/faqs/${faqId}/sources`)
+      if (!response.ok) {
+        throw new Error('Failed to fetch source data')
+      }
+      
+      const data = await response.json()
+      
+      if (data.success && data.data) {
+        setSourceData(data.data)
+      } else {
+        throw new Error(data.error || 'Invalid response format')
+      }
+    } catch (error) {
+      console.error('Failed to fetch sources:', error)
+      showNotification('error', 'Failed to load source data')
+      setViewingSourcesFor(null)
+      setSourceData(null)
+    } finally {
+      setLoadingSources(false)
+    }
+  }, [showNotification])
+
   return (
     <>
       <Head>
@@ -708,6 +744,7 @@ const FAQsPage: React.FC = () => {
                   onApprove={handleApproveFAQ}
                   onReject={handleRejectFAQ}
                   onDelete={handleDeleteFAQ}
+                  onViewSources={handleViewSources}
                   showBulkSelect={true}
                   isSelected={selectedFAQs.has(faq.id)}
                   onSelect={(selected) => handleSelectFAQ(faq.id, selected)}
@@ -723,6 +760,113 @@ const FAQsPage: React.FC = () => {
           onClose={() => setShowCreateModal(false)}
           onSubmit={handleCreateFAQ}
         />
+
+        {/* Sources Modal */}
+        {viewingSourcesFor && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+              {/* Modal Header */}
+              <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                  FAQ Sources
+                </h2>
+                <button
+                  onClick={() => {
+                    setViewingSourcesFor(null)
+                    setSourceData(null)
+                  }}
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Modal Content */}
+              <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+                {loadingSources ? (
+                  <div className="flex justify-center py-8">
+                    <LoadingSpinner />
+                  </div>
+                ) : sourceData && sourceData.faq ? (
+                  <div className="space-y-6">
+                    {/* FAQ Info */}
+                    <div className="bg-blue-50 dark:bg-blue-900 rounded-lg p-4">
+                      <h3 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">
+                        {sourceData.faq.question}
+                      </h3>
+                      <p className="text-blue-800 dark:text-blue-200 text-sm">
+                        Category: {sourceData.faq.category}
+                      </p>
+                    </div>
+
+                    {/* Documents */}
+                    {sourceData.documents && sourceData.documents.length > 0 && (
+                      <div>
+                        <h3 className="font-semibold text-gray-900 dark:text-white mb-3">
+                          Source Documents ({sourceData.documents.length})
+                        </h3>
+                        <div className="space-y-3">
+                          {sourceData.documents.map((doc) => (
+                            <div key={doc.id} className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                              <h4 className="font-medium text-gray-900 dark:text-white mb-2">
+                                {doc.title || 'Untitled Document'}
+                              </h4>
+                              <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">
+                                {doc.content ? `${doc.content.substring(0, 200)}...` : 'No content available'}
+                              </p>
+                              <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
+                                <span>Category: {doc.category || 'Unknown'}</span>
+                                <span>Created: {doc.createdAt ? new Date(doc.createdAt).toLocaleDateString() : 'Unknown'}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Messages */}
+                    {sourceData.messages && sourceData.messages.length > 0 && (
+                      <div>
+                        <h3 className="font-semibold text-gray-900 dark:text-white mb-3">
+                          Source Messages ({sourceData.messages.length})
+                        </h3>
+                        <div className="space-y-3">
+                          {sourceData.messages.map((message) => (
+                            <div key={message.id} className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                              <div className="flex items-start justify-between mb-2">
+                                <span className="font-medium text-gray-900 dark:text-white">
+                                  {message.author || 'Unknown User'}
+                                </span>
+                                <div className="text-xs text-gray-500 dark:text-gray-400">
+                                  <div>#{message.channel || 'unknown'}</div>
+                                  <div>{message.timestamp ? new Date(message.timestamp).toLocaleString() : 'Unknown time'}</div>
+                                </div>
+                              </div>
+                              <p className="text-sm text-gray-600 dark:text-gray-300">
+                                {message.content || 'No content'}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : sourceData ? (
+                  <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                    <p>No source data available for this FAQ.</p>
+                    <p className="text-sm mt-2">This FAQ may have been created manually or the source links have been removed.</p>
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                    Failed to load source data
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </>
   )
