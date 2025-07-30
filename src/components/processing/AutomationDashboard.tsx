@@ -39,7 +39,7 @@ import {
 } from 'lucide-react'
 
 // Import shared types and utilities (DRY principle)
-import { AutomationData, DashboardProps, JobAction, JobFilter, ProcessingJob } from '@/types'
+import { AutomationData, DashboardProps, JobAction, JobFilter, ProcessingJob, ProcessingSettings } from '@/types'
 import { 
   getJobStatusStyle, 
   getJobSource,
@@ -112,7 +112,7 @@ export const AutomationDashboard: React.FC<AutomationDashboardProps> = ({
     } finally {
       setLoading(false)
     }
-  }, [data])
+  }, []) // Remove 'data' dependency to prevent infinite loops
 
   /**
    * Auto-refresh Effect
@@ -125,7 +125,7 @@ export const AutomationDashboard: React.FC<AutomationDashboardProps> = ({
       const interval = setInterval(fetchAutomationData, refreshInterval)
       return () => clearInterval(interval)
     }
-  }, [fetchAutomationData, autoRefresh, refreshInterval])
+  }, [autoRefresh, refreshInterval]) // Remove fetchAutomationData dependency
 
   /**
    * Job Management Actions
@@ -189,7 +189,7 @@ export const AutomationDashboard: React.FC<AutomationDashboardProps> = ({
    * Settings Management
    * Handles processing settings updates
    */
-  const handleSettingsUpdate = useCallback(async (newSettings: Partial<typeof data.processingSettings>) => {
+  const handleSettingsUpdate = useCallback(async (newSettings: Partial<ProcessingSettings>) => {
     if (!data) return
 
     try {
