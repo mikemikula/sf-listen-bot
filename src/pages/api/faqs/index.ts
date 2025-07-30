@@ -373,15 +373,22 @@ async function handleCreateManualFAQ(
 }
 
 /**
- * Handle PUT /api/faqs - Update FAQ or approve/reject
+ * Handle PUT /api/faqs - Update FAQ or approve/reject (with bulk operations support)
+ * IMPROVED: Added bulk operations following SOLID principles
  */
 async function handleUpdateFAQ(
   req: NextApiRequest,
-  res: NextApiResponse<ApiResponse<FAQ>>
+  res: NextApiResponse<ApiResponse<FAQ | FAQ[]>>
 ) {
   try {
-    const { id, action, ...updateData } = req.body
+    const { id, ids, action, ...updateData } = req.body
 
+    // BULK OPERATIONS - following Single Responsibility Principle
+    if (ids && Array.isArray(ids) && ids.length > 0) {
+      return await handleBulkFAQOperations(ids, action, updateData, res)
+    }
+
+    // SINGLE OPERATIONS - existing logic
     if (!id) {
       throw new ValidationError('FAQ ID is required')
     }
@@ -440,6 +447,81 @@ async function handleUpdateFAQ(
     return res.status(500).json({
       success: false,
       error: 'Failed to update FAQ'
+    })
+  }
+}
+
+/**
+ * Handle bulk FAQ operations
+ * Single Responsibility: Manages bulk operations only
+ * DRY: Reuses individual operation logic
+ * SOLID: Open for extension (new bulk operations)
+ */
+async function handleBulkFAQOperations(
+  ids: string[],
+  action: string,
+  updateData: any,
+  res: NextApiResponse<ApiResponse<FAQ[]>>
+): Promise<void> {
+  try {
+    if (!['approve', 'reject'].includes(action)) {
+      throw new ValidationError('Bulk operations only support approve/reject actions')
+    }
+
+    const { reviewedBy } = updateData
+    if (!reviewedBy) {
+      throw new ValidationError('reviewedBy is required for bulk approval/rejection')
+    }
+
+    logger.info(`Starting bulk ${action} operation for ${ids.length} FAQs by ${reviewedBy}`)
+
+    const results: FAQ[] = []
+    const errors: Array<{ id: string; error: string }> = []
+    const status = action === 'approve' ? FAQStatus.APPROVED : FAQStatus.REJECTED
+
+    // Process each FAQ individually with error isolation
+    // Following Fail-Safe principle - continue processing even if some fail
+    for (const faqId of ids) {
+      try {
+        const updatedFAQ = await faqGeneratorService.reviewFAQ(faqId, status, reviewedBy)
+        results.push(updatedFAQ)
+        logger.info(`Successfully ${action}d FAQ ${faqId}`)
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+        errors.push({ id: faqId, error: errorMessage })
+        logger.warn(`Failed to ${action} FAQ ${faqId}: ${errorMessage}`)
+      }
+    }
+
+    // Return partial success with error details
+    const response = {
+      success: true,
+      data: results,
+      metadata: {
+        totalRequested: ids.length,
+        successful: results.length,
+        failed: errors.length,
+        errors: errors.length > 0 ? errors : undefined
+      }
+    }
+
+    logger.info(`Bulk ${action} completed: ${results.length}/${ids.length} successful`)
+
+    return res.status(200).json(response)
+
+  } catch (error) {
+    logger.error('Bulk FAQ operation failed:', error)
+    
+    if (error instanceof ValidationError) {
+      return res.status(400).json({
+        success: false,
+        error: error.message
+      })
+    }
+
+    return res.status(500).json({
+      success: false,
+      error: 'Bulk operation failed'
     })
   }
 }

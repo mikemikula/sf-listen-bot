@@ -466,6 +466,106 @@ const FAQsPage: React.FC = () => {
   }, [selectedFAQs, showNotification, fetchFAQs])
 
   /**
+   * Handle bulk approve operation
+   * Single Responsibility: Handles only bulk approval logic
+   * DRY: Reuses common bulk operation pattern
+   */
+  const handleBulkApprove = useCallback(async () => {
+    if (selectedFAQs.size === 0) return
+    
+    const confirmed = confirm(`Are you sure you want to approve ${selectedFAQs.size} FAQ(s)?`)
+    if (!confirmed) return
+
+    setBulkProcessing(true)
+    
+    try {
+      const response = await fetch('/api/faqs', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ids: Array.from(selectedFAQs),
+          action: 'approve',
+          reviewedBy: 'current-user' // TODO: Get from auth context
+        })
+      })
+
+      const result = await response.json()
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || 'Failed to approve FAQs')
+      }
+
+      const { successful, failed, totalRequested } = result.metadata || {}
+      
+      if (failed > 0) {
+        showNotification('success', `Approved ${successful}/${totalRequested} FAQ(s). ${failed} failed - check logs for details.`)
+      } else {
+        showNotification('success', `Successfully approved ${selectedFAQs.size} FAQ(s)!`)
+      }
+      
+      setSelectedFAQs(new Set()) // Clear selection
+      fetchFAQs() // Refresh the FAQ list
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to approve FAQs'
+      showNotification('error', errorMessage)
+      console.error('Failed to approve FAQs:', error)
+    } finally {
+      setBulkProcessing(false)
+    }
+  }, [selectedFAQs, showNotification, fetchFAQs])
+
+  /**
+   * Handle bulk reject operation
+   * Single Responsibility: Handles only bulk rejection logic
+   * DRY: Reuses common bulk operation pattern
+   */
+  const handleBulkReject = useCallback(async () => {
+    if (selectedFAQs.size === 0) return
+    
+    const confirmed = confirm(`Are you sure you want to reject ${selectedFAQs.size} FAQ(s)?`)
+    if (!confirmed) return
+
+    setBulkProcessing(true)
+    
+    try {
+      const response = await fetch('/api/faqs', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ids: Array.from(selectedFAQs),
+          action: 'reject',
+          reviewedBy: 'current-user' // TODO: Get from auth context
+        })
+      })
+
+      const result = await response.json()
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || 'Failed to reject FAQs')
+      }
+
+      const { successful, failed, totalRequested } = result.metadata || {}
+      
+      if (failed > 0) {
+        showNotification('success', `Rejected ${successful}/${totalRequested} FAQ(s). ${failed} failed - check logs for details.`)
+      } else {
+        showNotification('success', `Successfully rejected ${selectedFAQs.size} FAQ(s)!`)
+      }
+      
+      setSelectedFAQs(new Set()) // Clear selection
+      fetchFAQs() // Refresh the FAQ list
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to reject FAQs'
+      showNotification('error', errorMessage)
+      console.error('Failed to reject FAQs:', error)
+    } finally {
+      setBulkProcessing(false)
+    }
+  }, [selectedFAQs, showNotification, fetchFAQs])
+
+  /**
    * Handle viewing sources for an FAQ
    */
   const handleViewSources = useCallback(async (faqId: string) => {
@@ -551,10 +651,10 @@ const FAQsPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Bulk Operations Bar */}
+            {/* Bulk Operations Bar - IMPROVED: Added approve/reject operations */}
             {selectedFAQs.size > 0 && (
               <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900 border border-blue-200 dark:border-blue-700 rounded-lg">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                   <div className="flex items-center gap-4">
                     <span className="text-sm font-medium text-blue-900 dark:text-blue-100">
                       {selectedFAQs.size} FAQ(s) selected
@@ -566,14 +666,78 @@ const FAQsPage: React.FC = () => {
                       Clear selection
                     </button>
                   </div>
-                  <div className="flex items-center gap-3">
+                  
+                  {/* Bulk Action Buttons - Theme-appropriate colors */}
+                  <div className="flex flex-wrap items-center gap-3">
+                    {/* Approval Actions */}
                     <button
-                      onClick={handleBulkDelete}
+                      onClick={handleBulkApprove}
                       disabled={bulkProcessing}
-                      className="px-4 py-2 text-sm bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-md transition-colors duration-200"
+                      className="px-4 py-2 text-sm bg-emerald-700 hover:bg-emerald-600 dark:bg-emerald-800 dark:hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-md transition-colors duration-200 flex items-center gap-2"
                     >
-                      {bulkProcessing ? 'Deleting...' : 'Delete Selected'}
+                      {bulkProcessing ? (
+                        <>
+                          <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                          </svg>
+                          Processing...
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                          Approve {selectedFAQs.size}
+                        </>
+                      )}
                     </button>
+                    
+                    <button
+                      onClick={handleBulkReject}
+                      disabled={bulkProcessing}
+                      className="px-4 py-2 text-sm bg-amber-700 hover:bg-amber-600 dark:bg-amber-800 dark:hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-md transition-colors duration-200 flex items-center gap-2"
+                    >
+                      {bulkProcessing ? (
+                        <>
+                          <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                          </svg>
+                          Processing...
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                          Reject {selectedFAQs.size}
+                        </>
+                      )}
+                    </button>
+                    
+                    {/* Destructive Action - Separated for better UX */}
+                    <div className="border-l border-blue-300 dark:border-blue-600 pl-3 ml-2">
+                      <button
+                        onClick={handleBulkDelete}
+                        disabled={bulkProcessing}
+                        className="px-4 py-2 text-sm bg-red-700 hover:bg-red-600 dark:bg-red-800 dark:hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-md transition-colors duration-200 flex items-center gap-2"
+                      >
+                        {bulkProcessing ? (
+                          <>
+                            <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                            Deleting...
+                          </>
+                        ) : (
+                          <>
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                            Delete {selectedFAQs.size}
+                          </>
+                        )}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -707,7 +871,7 @@ const FAQsPage: React.FC = () => {
           {/* FAQ Grid */}
           {!loading && !error && faqs.length > 0 && (
             <div className="space-y-6">
-              {/* Bulk Selection Header */}
+              {/* Clean Selection Header - No duplicate bulk operations */}
               <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
@@ -729,13 +893,9 @@ const FAQsPage: React.FC = () => {
                     )}
                   </div>
                   {selectedFAQs.size > 0 && (
-                    <button
-                      onClick={handleBulkDelete}
-                      disabled={bulkProcessing}
-                      className="px-3 py-2 text-sm bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-md transition-colors duration-200"
-                    >
-                      Delete {selectedFAQs.size} FAQ{selectedFAQs.size !== 1 ? 's' : ''}
-                    </button>
+                    <div className="text-sm text-gray-600 dark:text-gray-400">
+                      Use bulk operations above to approve, reject, or delete selected FAQs
+                    </div>
                   )}
                 </div>
               </div>
