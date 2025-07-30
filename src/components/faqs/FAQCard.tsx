@@ -318,7 +318,7 @@ export const FAQCard: React.FC<FAQCardProps> = ({
                     <button
                       onClick={handleReject}
                       disabled={processing}
-                      className="flex-1 sm:flex-none px-4 py-2 text-sm bg-red-100 hover:bg-red-200 text-red-700 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="flex-1 sm:flex-none px-4 py-2 text-sm bg-slate-600 hover:bg-slate-700 text-white rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {processing ? 'Processing...' : 'Reject'}
                     </button>
@@ -326,7 +326,7 @@ export const FAQCard: React.FC<FAQCardProps> = ({
                     <button
                       onClick={handleApprove}
                       disabled={processing}
-                      className="flex-1 sm:flex-none px-4 py-2 text-sm bg-green-100 hover:bg-green-200 text-green-700 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="flex-1 sm:flex-none px-4 py-2 text-sm bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {processing ? 'Processing...' : 'Approve'}
                     </button>
@@ -395,7 +395,7 @@ export const FAQCard: React.FC<FAQCardProps> = ({
             <button
               onClick={handleReject}
               disabled={processing}
-              className="flex-1 px-3 py-2 text-sm bg-red-100 hover:bg-red-200 text-red-700 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 px-3 py-2 text-sm bg-slate-600 hover:bg-slate-700 text-white rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {processing ? 'Processing...' : 'Reject'}
             </button>
@@ -403,7 +403,7 @@ export const FAQCard: React.FC<FAQCardProps> = ({
             <button
               onClick={handleApprove}
               disabled={processing}
-              className="flex-1 px-3 py-2 text-sm bg-green-100 hover:bg-green-200 text-green-700 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 px-3 py-2 text-sm bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {processing ? 'Processing...' : 'Approve'}
             </button>
