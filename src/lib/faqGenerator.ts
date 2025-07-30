@@ -330,6 +330,7 @@ class FAQGeneratorService {
       })
 
       if (!existingFAQ) {
+        logger.warn(`FAQ ${existingFAQId} not found in database (stale Pinecone data) - skipping enhancement`)
         throw new Error(`FAQ ${existingFAQId} not found`)
       }
 
@@ -641,7 +642,24 @@ class FAQGeneratorService {
               console.log(`✅ Enhanced FAQ ${bestMatch.id} successfully`)
               logger.info(`Enhanced existing FAQ ${bestMatch.id} with new content`)
             } catch (error) {
-              logger.warn(`Failed to enhance FAQ ${bestMatch.id}:`, error)
+              if (error instanceof Error && error.message.includes('not found')) {
+                logger.warn(`FAQ ${bestMatch.id} not found in database (stale Pinecone data) - creating new FAQ instead`)
+                // Create new FAQ since the referenced one doesn't exist
+                const newFAQ = await db.fAQ.create({
+                  data: {
+                    question: candidate.question,
+                    answer: candidate.answer,
+                    category: candidate.category,
+                    status: FAQStatus.PENDING,
+                    confidenceScore: candidate.confidence
+                  }
+                })
+                createdFAQs.push(newFAQ)
+                newFAQsCreated++
+                logger.info(`Created new FAQ: ${newFAQ.id}`)
+              } else {
+                logger.warn(`Failed to enhance FAQ ${bestMatch.id}:`, error)
+              }
               // Continue processing
             }
           } else {
