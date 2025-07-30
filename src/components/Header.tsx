@@ -157,40 +157,10 @@ export const Header: React.FC<HeaderProps> = ({ isConnected = false }) => {
             >
               PII Review
             </Link>
-            
-            <Link
-              href="/slack/channel-pull"
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                isActivePage('/slack/channel-pull')
-                  ? 'bg-white/20 text-white shadow-lg'
-                  : 'text-white/80 hover:text-white hover:bg-white/10'
-              }`}
-            >
-              Channel Pull
-            </Link>
-            
-            <Link
-              href="/debug/events"
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                isActivePage('/debug')
-                  ? 'bg-white/20 text-white shadow-lg'
-                  : 'text-white/80 hover:text-white hover:bg-white/10'
-              }`}
-            >
-              Debug
-            </Link>
           </nav>
 
           {/* Right Side Actions */}
           <div className="flex items-center space-x-4">
-            {/* Connection Status */}
-            <div className="hidden sm:flex items-center space-x-2">
-              <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-400' : 'bg-red-400'}`} />
-              <span className="text-sm text-white/80">
-                {isConnected ? 'Connected' : 'Disconnected'}
-              </span>
-            </div>
-
             {/* Mobile Menu & Actions Dropdown */}
             <div className="relative" ref={dropdownRef}>
               <button
@@ -387,30 +357,7 @@ export const Header: React.FC<HeaderProps> = ({ isConnected = false }) => {
                             )}
                           </Link>
                           
-                          <Link
-                            href="/slack/channel-pull"
-                            onClick={() => setIsMenuOpen(false)}
-                            className={`flex items-center justify-between px-6 py-4 text-base transition-colors ${
-                              isActivePage('/slack/channel-pull')
-                                ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border-r-4 border-blue-500'
-                                : 'text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-800'
-                            }`}
-                          >
-                            <div className="flex items-center space-x-4">
-                              <Download className={`w-6 h-6 ${
-                                isActivePage('/slack/channel-pull')
-                                  ? 'text-blue-700 dark:text-blue-300'
-                                  : 'text-gray-500 dark:text-gray-400'
-                              }`} />
-                              <div>
-                                <div className="font-semibold">Channel Pull</div>
-                                <div className="text-sm text-gray-500 dark:text-gray-400">Pull all data from Slack channels</div>
-                              </div>
-                            </div>
-                            {isActivePage('/slack/channel-pull') && (
-                              <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                            )}
-                          </Link>
+
                         </div>
 
                         {/* Connection Status */}
@@ -466,6 +413,15 @@ export const Header: React.FC<HeaderProps> = ({ isConnected = false }) => {
                           </div>
                           
                           <div className="space-y-2">
+                            <Link
+                              href="/slack/channel-pull"
+                              onClick={() => setIsMenuOpen(false)}
+                              className="flex items-center space-x-4 px-4 py-3 rounded-lg bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group"
+                            >
+                              <Download className="w-6 h-6 text-blue-600 dark:text-blue-400 group-hover:text-blue-700 dark:group-hover:text-blue-300 transition-colors" />
+                              <span className="font-medium text-gray-900 dark:text-gray-100">Channel Pull</span>
+                            </Link>
+                            
                             <Link
                               href="/debug/events"
                               onClick={() => setIsMenuOpen(false)}
@@ -524,6 +480,15 @@ export const Header: React.FC<HeaderProps> = ({ isConnected = false }) => {
                         System
                       </h3>
                     </div>
+                    
+                    <Link
+                      href="/slack/channel-pull"
+                      onClick={() => setIsMenuOpen(false)}
+                      className="flex items-center space-x-3 px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group"
+                    >
+                      <Download className="w-5 h-5 text-blue-600 dark:text-blue-400 group-hover:text-blue-700 dark:group-hover:text-blue-300 transition-colors" />
+                      <span className="font-medium">Channel Pull</span>
+                    </Link>
                     
                     <Link
                       href="/debug/events"
