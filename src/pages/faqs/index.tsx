@@ -161,7 +161,11 @@ const FAQsPage: React.FC = () => {
 
   // Source viewing state
   const [viewingSourcesFor, setViewingSourcesFor] = useState<string | null>(null)
-  const [sourceData, setSourceData] = useState<any>(null)
+  const [sourceData, setSourceData] = useState<{
+    faq: { id: string; question: string; answer: string; category: string }
+    documents: Array<{ id: string; title: string; content: string; category: string; createdAt: string }>
+    messages: Array<{ id: string; content: string; author: string; timestamp: string; channel: string; contributionType: string }>
+  } | null>(null)
   const [loadingSources, setLoadingSources] = useState(false)
 
   /**
@@ -830,15 +834,50 @@ const FAQsPage: React.FC = () => {
                     {sourceData.messages && sourceData.messages.length > 0 && (
                       <div>
                         <h3 className="font-semibold text-gray-900 dark:text-white mb-3">
-                          Source Messages ({sourceData.messages.length})
+                          Contributing Messages ({sourceData.messages.length})
                         </h3>
+                        <div className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                          <p className="mb-2">These are the specific Slack messages that were used to generate this FAQ:</p>
+                          <div className="flex items-center gap-4 text-xs">
+                            <span className="flex items-center gap-1">
+                              <span className="w-2 h-2 bg-purple-400 rounded"></span>
+                              Question
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <span className="w-2 h-2 bg-green-400 rounded"></span>
+                              Answer
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <span className="w-2 h-2 bg-blue-400 rounded"></span>
+                              Context
+                            </span>
+                          </div>
+                        </div>
                         <div className="space-y-3">
                           {sourceData.messages.map((message) => (
                             <div key={message.id} className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
                               <div className="flex items-start justify-between mb-2">
-                                <span className="font-medium text-gray-900 dark:text-white">
-                                  {message.author || 'Unknown User'}
-                                </span>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium text-gray-900 dark:text-white">
+                                    {message.author || 'Unknown User'}
+                                  </span>
+                                                                     {message.contributionType && (
+                                     <span className={`px-2 py-0.5 text-xs rounded ${
+                                       message.contributionType === 'PRIMARY_QUESTION' 
+                                         ? 'bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200'
+                                         : message.contributionType === 'PRIMARY_ANSWER'
+                                         ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200' 
+                                         : 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200'
+                                     }`}>
+                                       {message.contributionType === 'PRIMARY_QUESTION' 
+                                         ? 'Question'
+                                         : message.contributionType === 'PRIMARY_ANSWER'
+                                         ? 'Answer'
+                                         : 'Context'
+                                       }
+                                     </span>
+                                   )}
+                                </div>
                                 <div className="text-xs text-gray-500 dark:text-gray-400">
                                   <div>#{message.channel || 'unknown'}</div>
                                   <div>{message.timestamp ? new Date(message.timestamp).toLocaleString() : 'Unknown time'}</div>

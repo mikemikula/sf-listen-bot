@@ -28,6 +28,7 @@ interface SourceData {
     author: string
     timestamp: string
     channel: string
+    contributionType: string
   }[]
 }
 
@@ -62,15 +63,12 @@ export default async function handler(
       include: {
         documentFAQs: {
           include: {
-            document: {
-              include: {
-                documentMessages: {
-                  include: {
-                    message: true
-                  }
-                }
-              }
-            }
+            document: true
+          }
+        },
+        messageFAQs: {
+          include: {
+            message: true
           }
         }
       }
@@ -92,25 +90,15 @@ export default async function handler(
       createdAt: docFaq.document.createdAt.toISOString()
     }))
 
-    // Extract unique messages from all documents
-    const messagesMap = new Map()
-    
-    faq.documentFAQs.forEach(docFaq => {
-      docFaq.document.documentMessages.forEach(docMsg => {
-        const message = docMsg.message
-        if (!messagesMap.has(message.id)) {
-          messagesMap.set(message.id, {
-            id: message.id,
-            content: message.text,
-            author: message.username,
-            timestamp: message.timestamp.toISOString(),
-            channel: message.channel
-          })
-        }
-      })
-    })
-
-    const messages = Array.from(messagesMap.values()).sort((a, b) => 
+    // Extract messages that directly contributed to this FAQ
+    const messages = faq.messageFAQs.map(msgFaq => ({
+      id: msgFaq.message.id,
+      content: msgFaq.message.text,
+      author: msgFaq.message.username,
+      timestamp: msgFaq.message.timestamp.toISOString(),
+      channel: msgFaq.message.channel,
+      contributionType: msgFaq.contributionType
+    })).sort((a, b) => 
       new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
     )
 
