@@ -134,8 +134,8 @@ async function handleBulkGenerateFAQs(
     const eligibleDocuments = await db.processedDocument.findMany({
       where: {
         status: 'COMPLETE',
-        // Only include documents with category filter if specified
-        ...(categories.length > 0 && { category: { in: categories } }),
+        // NOTE: No category filtering here - documents can contain multi-topic content
+        // that generates FAQs across different categories
         // Exclude documents that already have many FAQs
         documentFAQs: {
           every: {
