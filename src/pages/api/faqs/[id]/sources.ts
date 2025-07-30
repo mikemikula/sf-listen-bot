@@ -18,7 +18,7 @@ interface SourceData {
   documents: {
     id: string
     title: string
-    content: string
+    description: string
     category: string
     createdAt: string
   }[]
@@ -85,7 +85,7 @@ export default async function handler(
     const documents = faq.documentFAQs.map(docFaq => ({
       id: docFaq.document.id,
       title: docFaq.document.title,
-      content: docFaq.document.content,
+      description: docFaq.document.description,
       category: docFaq.document.category,
       createdAt: docFaq.document.createdAt.toISOString()
     }))
