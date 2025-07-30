@@ -309,11 +309,18 @@ class BusinessAwarePIIDetectorService {
           continue
         }
 
+        // Map AI detection types to our schema enum values
+        const mappedPiiType = this.mapAITypeToPIIType(aiDetection.type)
+        if (!mappedPiiType) {
+          logger.warn(`Unknown AI PII type: ${aiDetection.type}, skipping detection`)
+          continue
+        }
+
         detections.push({
           id: '',
           sourceType,
           sourceId,
-          piiType: aiDetection.type as PIIType,
+          piiType: mappedPiiType,
           originalText: aiDetection.originalText,
           replacementText: aiDetection.replacement,
           confidence: aiDetection.confidence,
@@ -705,6 +712,22 @@ class BusinessAwarePIIDetectorService {
    */
   private escapeRegExp(string: string): string {
     return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  }
+
+  /**
+   * Map AI detection types to our schema PIIType enum values
+   */
+  private mapAITypeToPIIType(aiType: string): PIIType | null {
+    const typeMapping: Record<string, PIIType> = {
+      'EMAIL': PIIType.EMAIL,
+      'PHONE': PIIType.PHONE,
+      'NAME': PIIType.NAME,
+      'PERSON_NAME': PIIType.NAME, // AI often returns PERSON_NAME, map to NAME
+      'URL': PIIType.URL,
+      'CUSTOM': PIIType.CUSTOM
+    }
+    
+    return typeMapping[aiType] || null
   }
 
   /**

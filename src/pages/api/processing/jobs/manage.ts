@@ -137,7 +137,7 @@ async function performJobAction(action: string, jobId: string, options: any = {}
   // If not found in background system, check database
   let dbJob = null
   if (!jobStatus) {
-    dbJob = await db.documentProcessingJob.findUnique({
+    dbJob = await db.automationJob.findUnique({
       where: { id: jobId }
     })
     
@@ -181,7 +181,7 @@ async function startJob(jobId: string, jobStatus: any, dbJob: any, options: any)
   
   if (dbJob) {
     // Update database status
-    await db.documentProcessingJob.update({
+    await db.automationJob.update({
       where: { id: jobId },
       data: {
         status: 'QUEUED',
@@ -235,7 +235,7 @@ async function stopJob(jobId: string, jobStatus: any, dbJob: any, options: any):
   }
   
   if (dbJob) {
-    await db.documentProcessingJob.update({
+    await db.automationJob.update({
       where: { id: jobId },
       data: {
         status: 'CANCELLED',
@@ -257,7 +257,7 @@ async function pauseJob(jobId: string, jobStatus: any, dbJob: any, options: any)
   }
   
   if (dbJob) {
-    await db.documentProcessingJob.update({
+    await db.automationJob.update({
       where: { id: jobId },
       data: {
         status: 'PAUSED'
@@ -277,7 +277,7 @@ async function resumeJob(jobId: string, jobStatus: any, dbJob: any, options: any
   }
   
   if (dbJob) {
-    await db.documentProcessingJob.update({
+    await db.automationJob.update({
       where: { id: jobId },
       data: {
         status: 'QUEUED'
@@ -302,7 +302,7 @@ async function retryJob(jobId: string, jobStatus: any, dbJob: any, options: any)
   
   if (dbJob) {
     // Reset job status and retry
-    await db.documentProcessingJob.update({
+    await db.automationJob.update({
       where: { id: jobId },
       data: {
         status: 'QUEUED',
@@ -339,11 +339,11 @@ async function deleteJob(jobId: string, jobStatus: any, dbJob: any, options: any
   if (dbJob) {
     // Soft delete - mark as deleted but keep for audit trail
     if (options.hardDelete) {
-      await db.documentProcessingJob.delete({
+      await db.automationJob.delete({
         where: { id: jobId }
       })
     } else {
-      await db.documentProcessingJob.update({
+      await db.automationJob.update({
         where: { id: jobId },
         data: {
           status: 'DELETED'

@@ -136,16 +136,17 @@ export interface ProcessedDocument {
   description: string
   category: string
   status: string // Using string instead of enum for Prisma compatibility
-  processingJobId: string | null
+  automationJobId: string | null
   confidenceScore: number
   createdBy: string | null
   createdAt: Date
   updatedAt: Date
+  conversationAnalysis?: any // JsonValue type
   
   // Junction table relationships
   documentMessages?: DocumentMessage[]
   documentFAQs?: DocumentFAQ[]
-  processingJob?: DocumentProcessingJob
+  automationJob?: AutomationJob
 }
 
 /**
@@ -170,23 +171,35 @@ export interface FAQ {
 }
 
 /**
- * Background processing job
+ * Automation job for processing tasks
+ * Based on the AutomationJob model in the Prisma schema
  */
-export interface DocumentProcessingJob {
+export interface AutomationJob {
   id: string
+  automationRuleId: string
+  jobType: string // Using string instead of enum for Prisma compatibility  
   status: string // Using string instead of enum for Prisma compatibility
-  jobType: string // Using string instead of enum for Prisma compatibility
   inputData: Record<string, any>
   outputData: Record<string, any> | null
   errorMessage: string | null
   progress: number
+  retryCount: number
   startedAt: Date | null
   completedAt: Date | null
-  createdBy: string | null
   createdAt: Date
+  updatedAt: Date
   
-  // Related documents
+  // Related entities
+  automationRule?: AutomationRule
   processedDocuments?: ProcessedDocument[]
+}
+
+/**
+ * Legacy interface - use AutomationJob instead
+ * @deprecated Use AutomationJob interface instead
+ */
+export interface DocumentProcessingJob extends AutomationJob {
+  createdBy?: string | null
 }
 
 /**
@@ -682,6 +695,7 @@ export interface SlackWebhookPayload {
     event_ts: string
     subtype?: string
     deleted_ts?: string
+    thread_ts?: string
     message?: {
       type: string
       user: string
@@ -699,6 +713,262 @@ export interface SlackWebhookPayload {
   challenge?: string
   event_id?: string
   event_time?: number
+}
+
+// ===== SLACK CHANNEL PULL TYPES =====
+
+/**
+ * Configuration for pulling data from a Slack channel
+ */
+export interface ChannelPullConfig {
+  channelId: string
+  channelName?: string
+  startDate?: Date
+  endDate?: Date
+  includeThreads?: boolean
+  batchSize?: number
+  delayBetweenRequests?: number
+  userId?: string
+}
+
+/**
+ * Progress tracking for channel pull operations
+ */
+export interface ChannelPullProgress {
+  id: string
+  channelId: string
+  channelName: string
+  status: 'QUEUED' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'CANCELLED'
+  progress: number // 0-100
+  totalMessages: number
+  processedMessages: number
+  threadsProcessed: number
+  startedAt: Date | null
+  completedAt: Date | null
+  errorMessage: string | null
+  userId: string | null
+  stats: ChannelPullStats
+}
+
+/**
+ * Statistics for channel pull operations
+ */
+export interface ChannelPullStats {
+  newMessages: number
+  duplicateMessages: number
+  threadRepliesFetched: number
+  documentsCreated: number
+  faqsGenerated: number
+  piiDetected: number
+}
+
+/**
+ * Channel information for channel selection
+ */
+export interface SlackChannelInfo {
+  id: string
+  name: string
+  memberCount?: number
+  isPrivate?: boolean
+  topic?: string
+  purpose?: string
+  created?: Date
+  isArchived?: boolean
+}
+
+/**
+ * Slack message structure from API
+ */
+export interface SlackApiMessage {
+  type: string
+  user?: string
+  text?: string
+  ts: string
+  channel: string
+  thread_ts?: string
+  subtype?: string
+  reply_count?: number
+  replies?: Array<{ user: string; ts: string }>
+  bot_id?: string
+  attachments?: any[]
+  blocks?: any[]
+  reactions?: Array<{
+    name: string
+    count: number
+    users: string[]
+  }>
+  [key: string]: any
+}
+
+/**
+ * Response from Slack conversations.history API
+ */
+export interface SlackHistoryResponse {
+  ok: boolean
+  messages: SlackApiMessage[]
+  has_more: boolean
+  response_metadata?: {
+    next_cursor?: string
+  }
+  error?: string
+  warning?: string
+}
+
+/**
+ * Response from Slack conversations.replies API
+ */
+export interface SlackRepliesResponse {
+  ok: boolean
+  messages: SlackApiMessage[]
+  has_more: boolean
+  response_metadata?: {
+    next_cursor?: string
+  }
+  error?: string
+}
+
+/**
+ * Response from Slack conversations.list API
+ */
+export interface SlackChannelsResponse {
+  ok: boolean
+  channels: Array<{
+    id: string
+    name: string
+    is_channel: boolean
+    is_group: boolean
+    is_im: boolean
+    is_mpim: boolean
+    is_private: boolean
+    is_archived: boolean
+    num_members?: number
+    topic?: {
+      value: string
+      creator: string
+      last_set: number
+    }
+    purpose?: {
+      value: string
+      creator: string
+      last_set: number
+    }
+    created: number
+    creator: string
+  }>
+  response_metadata?: {
+    next_cursor?: string
+  }
+  error?: string
+}
+
+/**
+ * Channel pull history item for UI display
+ */
+export interface ChannelPullHistoryItem {
+  id: string
+  channelId: string
+  channelName: string
+  status: string
+  progress: number
+  totalMessages: number
+  processedMessages: number
+  startedAt: Date | null
+  completedAt: Date | null
+  stats: ChannelPullStats
+  estimatedTimeMs?: number
+  actualTimeMs?: number
+}
+
+/**
+ * API request types for channel pull endpoints
+ */
+export interface StartChannelPullRequest {
+  channelId: string
+  channelName?: string
+  startDate?: string // ISO date string
+  endDate?: string // ISO date string
+  includeThreads?: boolean
+  batchSize?: number
+  delayBetweenRequests?: number
+  userId?: string
+}
+
+export interface StartChannelPullResponse {
+  progress: ChannelPullProgress
+  estimatedTimeMs: number
+}
+
+export interface ChannelListResponse {
+  channels: SlackChannelInfo[]
+}
+
+export interface ChannelPullProgressResponse {
+  progress: ChannelPullProgress
+}
+
+/**
+ * Error types specific to channel pulling
+ */
+export class ChannelPullError extends Error {
+  constructor(
+    message: string,
+    public readonly code: string,
+    public readonly channelId?: string,
+    public readonly progressId?: string
+  ) {
+    super(message)
+    this.name = 'ChannelPullError'
+  }
+}
+
+export class SlackApiError extends Error {
+  constructor(
+    message: string,
+    public readonly apiError: string,
+    public readonly method?: string
+  ) {
+    super(message)
+    this.name = 'SlackApiError'
+  }
+}
+
+/**
+ * Rate limiting information
+ */
+export interface RateLimitInfo {
+  limit: number
+  remaining: number
+  resetTime: Date
+  retryAfter?: number
+}
+
+/**
+ * Channel pull job configuration for background processing
+ */
+export interface ChannelPullJobConfig {
+  channelId: string
+  channelName: string
+  config: ChannelPullConfig
+  priority: 'low' | 'normal' | 'high'
+  retryCount: number
+  maxRetries: number
+  timeoutMs: number
+}
+
+/**
+ * Channel pull metrics for monitoring
+ */
+export interface ChannelPullMetrics {
+  totalPulls: number
+  successfulPulls: number
+  failedPulls: number
+  averageProcessingTime: number
+  totalMessagesProcessed: number
+  totalThreadsProcessed: number
+  averageMessagesPerPull: number
+  lastPullTime: Date | null
+  rateLimitHits: number
+  errorsByType: Record<string, number>
 }
 
 // ===== DATABASE OPERATION TYPES =====
@@ -909,7 +1179,66 @@ export interface AutomationData {
     recent: ProcessingJob[]
     statistics: JobStatistics
   }
-  automationRules: AutomationRule[]
+  automationRules: {
+    documentProcessing: {
+      id: string
+      name: string
+      description: string
+      enabled: boolean
+      schedule: {
+        frequency: 'manual' | 'hourly' | 'daily' | 'weekly'
+        hour?: number | null
+        dayOfWeek?: number | null
+        lastRun: string
+        nextRun: string
+      }
+      settings: {
+        batchSize: number
+        minMessagesRequired: number
+        channelFilters: string[]
+        excludeThreads: boolean
+        requireQuestionAnswer: boolean
+        autoTitle: boolean
+        autoCategory: boolean
+      }
+      stats: {
+        totalRuns: number
+        successfulRuns: number
+        documentsCreated: number
+        avgProcessingTime: number
+      }
+    }
+    faqGeneration: {
+      id: string
+      name: string
+      description: string
+      enabled: boolean
+      schedule: {
+        frequency: 'manual' | 'hourly' | 'daily' | 'weekly' | 'custom'
+        hour?: number | null
+        dayOfWeek?: number | null
+        customInterval?: number
+        customUnit?: 'minutes' | 'hours' | 'days' | 'weeks'
+        customTime?: string
+        customDayOfWeek?: number
+        lastRun: string
+        nextRun: string
+      }
+      settings: {
+        maxFAQsPerRun: number
+        minDocumentsRequired: number
+        requireApproval: boolean
+        categories: string[]
+        qualityThreshold: number
+      }
+      stats: {
+        totalRuns: number
+        successfulRuns: number
+        faqsGenerated: number
+        avgProcessingTime: number
+      }
+    }
+  }
   processingSettings: ProcessingSettings
 }
 

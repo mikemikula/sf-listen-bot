@@ -52,14 +52,14 @@ class DocumentProcessorService {
     const startTime = Date.now()
     
     // Create a job record for tracking (even for synchronous processing)
-    const processingJob = await db.documentProcessingJob.create({
+    const processingJob = await db.automationJob.create({
       data: {
+        automationRuleId: 'doc-automation', // Default automation rule
         status: 'PROCESSING',
         jobType: 'DOCUMENT_CREATION',
         inputData: input as any,
         progress: 0,
-        startedAt: new Date(),
-        createdBy: input.userId || 'system'
+        startedAt: new Date()
       }
     })
 
@@ -68,7 +68,7 @@ class DocumentProcessorService {
       this.validateInput(input)
 
       // Update progress
-      await db.documentProcessingJob.update({
+      await db.automationJob.update({
         where: { id: processingJob.id },
         data: { progress: 0.1 }
       })
@@ -78,7 +78,7 @@ class DocumentProcessorService {
       logger.info(`Processing ${messages.length} messages into document with AI analysis`)
 
       // Update progress
-      await db.documentProcessingJob.update({
+      await db.automationJob.update({
         where: { id: processingJob.id },
         data: { progress: 0.2 }
       })
@@ -88,7 +88,7 @@ class DocumentProcessorService {
       logger.info(`Detected and replaced ${piiResults.replacements} PII instances`)
 
       // Update progress
-      await db.documentProcessingJob.update({
+      await db.automationJob.update({
         where: { id: processingJob.id },
         data: { progress: 0.4 }
       })
@@ -106,7 +106,7 @@ class DocumentProcessorService {
       const conversationAnalysis = conversationAnalysisResult.success ? conversationAnalysisResult.data : null
       
       // Update progress
-      await db.documentProcessingJob.update({
+      await db.automationJob.update({
         where: { id: processingJob.id },
         data: { progress: 0.6 }
       })
@@ -115,7 +115,7 @@ class DocumentProcessorService {
       const document = await this.createDocument(input, messages, conversationAnalysis)
 
       // Update progress
-      await db.documentProcessingJob.update({
+      await db.automationJob.update({
         where: { id: processingJob.id },
         data: { progress: 0.8 }
       })
@@ -132,11 +132,11 @@ class DocumentProcessorService {
       // Update the document to reference the processing job
       await db.processedDocument.update({
         where: { id: document.id },
-        data: { processingJobId: processingJob.id }
+        data: { automationJobId: processingJob.id }
       })
 
       // Mark job as complete
-      await db.documentProcessingJob.update({
+      await db.automationJob.update({
         where: { id: processingJob.id },
         data: {
           status: 'COMPLETE',
@@ -166,7 +166,7 @@ class DocumentProcessorService {
 
     } catch (error) {
       // Mark job as failed
-      await db.documentProcessingJob.update({
+      await db.automationJob.update({
         where: { id: processingJob.id },
         data: {
           status: 'FAILED',
@@ -398,7 +398,8 @@ class DocumentProcessorService {
         description: metadata.description,
         category: metadata.category,
         confidenceScore: metadata.confidence,
-        status: 'DRAFT',
+        status: 'COMPLETE',
+        automationJobId: null,
         createdBy: userId || 'system',
         ...(conversationAnalysis && { conversationAnalysis: conversationAnalysis as any }),
       },

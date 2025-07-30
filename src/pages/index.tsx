@@ -11,7 +11,7 @@ import { FilterBar } from '@/components/FilterBar'
 import { Header } from '@/components/Header'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
-import { DebugModal } from '@/components/DebugModal'
+
 import { useRealTimeMessages } from '@/hooks/useRealTimeMessages'
 import type { 
   MessageDisplay, 
@@ -132,7 +132,6 @@ const Dashboard: React.FC = () => {
   })
   const [channels, setChannels] = useState<string[]>([])
   const [realTimeEnabled, setRealTimeEnabled] = useState(true)
-  const [debugModalOpen, setDebugModalOpen] = useState(false)
   const [viewMode, setViewMode] = useState<'feed' | 'table' | 'grouped'>('feed')
   const [groupBy, setGroupBy] = useState<'channel' | 'date' | 'document'>('channel')
 
@@ -348,18 +347,12 @@ const Dashboard: React.FC = () => {
         {/* Header */}
         <Header 
           isConnected={isConnected}
-          onDebugClick={() => setDebugModalOpen(true)}
         />
 
         {/* Main Content */}
         <main className="container mx-auto px-4 py-6 max-w-6xl">
 
-          {/* Debug Modal (opened from header menu) */}
-          <DebugModal 
-            isOpen={debugModalOpen}
-            onClose={() => setDebugModalOpen(false)}
-            isConnected={isConnected}
-          />
+
 
           {/* Page Header - Compact */}
           <div className="flex items-center justify-between mb-4">

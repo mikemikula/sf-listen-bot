@@ -13,7 +13,7 @@ import { piiDetectorService } from '@/lib/piiDetector'
 import { pineconeService } from '@/lib/pinecone'
 import { 
   ApiResponse, 
-  DocumentProcessingJob,
+  AutomationJob,
   ValidationError,
   DatabaseError
 } from '@/types'
@@ -33,8 +33,8 @@ interface ProcessingStatusResponse {
     }
   }
   processingJobs: {
-    active: DocumentProcessingJob[]
-    recent: DocumentProcessingJob[]
+      active: AutomationJob[]
+  recent: AutomationJob[]
     statistics: {
       totalJobs: number
       completedJobs: number
@@ -60,7 +60,7 @@ interface ProcessingStatusResponse {
  */
 export default async function handler(
   req: NextApiRequest,
-  res: NextApiResponse<ApiResponse<ProcessingStatusResponse | DocumentProcessingJob | { jobId: string }>>
+  res: NextApiResponse<ApiResponse<ProcessingStatusResponse | AutomationJob | { jobId: string }>>
 ) {
   try {
     switch (req.method) {
@@ -182,7 +182,7 @@ async function handleGetSystemStatus(
  */
 async function handleGetJobStatus(
   req: NextApiRequest,
-  res: NextApiResponse<ApiResponse<DocumentProcessingJob>>
+  res: NextApiResponse<ApiResponse<AutomationJob>>
 ) {
   try {
     const { jobId } = req.query
@@ -191,7 +191,7 @@ async function handleGetJobStatus(
       throw new ValidationError('jobId parameter is required')
     }
 
-    const job = await db.documentProcessingJob.findUnique({
+    const job = await db.automationJob.findUnique({
       where: { id: jobId },
       include: {
         processedDocuments: true
@@ -209,7 +209,7 @@ async function handleGetJobStatus(
 
     return res.status(200).json({
       success: true,
-      data: job as DocumentProcessingJob
+              data: job as AutomationJob
     })
 
   } catch (error) {
@@ -311,8 +311,8 @@ async function checkDatabaseHealth(): Promise<boolean> {
   }
 }
 
-async function getActiveJobs(): Promise<DocumentProcessingJob[]> {
-  return await db.documentProcessingJob.findMany({
+async function getActiveJobs(): Promise<AutomationJob[]> {
+  return await db.automationJob.findMany({
     where: {
       status: {
         in: ['QUEUED', 'PROCESSING']
@@ -320,11 +320,11 @@ async function getActiveJobs(): Promise<DocumentProcessingJob[]> {
     },
     orderBy: { createdAt: 'desc' },
     take: 10
-  }) as DocumentProcessingJob[]
+  }) as AutomationJob[]
 }
 
-async function getRecentJobs(): Promise<DocumentProcessingJob[]> {
-  return await db.documentProcessingJob.findMany({
+async function getRecentJobs(): Promise<AutomationJob[]> {
+  return await db.automationJob.findMany({
     where: {
       createdAt: {
         gte: new Date(Date.now() - 24 * 60 * 60 * 1000) // Last 24 hours
@@ -332,11 +332,11 @@ async function getRecentJobs(): Promise<DocumentProcessingJob[]> {
     },
     orderBy: { createdAt: 'desc' },
     take: 20
-  }) as DocumentProcessingJob[]
+  }) as AutomationJob[]
 }
 
 async function getJobStatistics() {
-  const jobs = await db.documentProcessingJob.findMany({
+  const jobs = await db.automationJob.findMany({
     select: {
       status: true,
       createdAt: true,
@@ -407,13 +407,14 @@ async function getSystemStatistics() {
  */
 
 async function createDocumentProcessingJob(data: any): Promise<string> {
-  const job = await db.documentProcessingJob.create({
+  const job = await db.automationJob.create({
     data: {
-      status: 'QUEUED',
+      automationRuleId: data.automationRuleId || 'manual',
       jobType: 'DOCUMENT_CREATION',
+      status: 'QUEUED',
       inputData: data,
       progress: 0,
-      createdBy: data.userId
+      retryCount: 0
     }
   })
 
@@ -424,13 +425,14 @@ async function createDocumentProcessingJob(data: any): Promise<string> {
 }
 
 async function createFAQGenerationJob(data: any): Promise<string> {
-  const job = await db.documentProcessingJob.create({
+  const job = await db.automationJob.create({
     data: {
-      status: 'QUEUED',
+      automationRuleId: data.automationRuleId || 'manual',
       jobType: 'FAQ_GENERATION',
+      status: 'QUEUED',
       inputData: data,
       progress: 0,
-      createdBy: data.userId
+      retryCount: 0
     }
   })
 
@@ -439,13 +441,14 @@ async function createFAQGenerationJob(data: any): Promise<string> {
 }
 
 async function createBatchProcessingJob(data: any): Promise<string> {
-  const job = await db.documentProcessingJob.create({
+  const job = await db.automationJob.create({
     data: {
-      status: 'QUEUED',
+      automationRuleId: data.automationRuleId || 'manual',
       jobType: 'DOCUMENT_ENHANCEMENT',
+      status: 'QUEUED',
       inputData: data,
       progress: 0,
-      createdBy: data.userId
+      retryCount: 0
     }
   })
 

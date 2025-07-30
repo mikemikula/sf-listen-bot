@@ -23,7 +23,6 @@ import {
   RefreshCw,
   BarChart3,
   PieChart,
-  Timeline,
   Users
 } from 'lucide-react'
 
@@ -335,7 +334,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
           <div className="flex items-center gap-3 mb-4">
             <TrendingUp className="w-6 h-6 text-blue-600" />
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-              Today's Activity
+              Today&apos;s Activity
             </h2>
           </div>
           

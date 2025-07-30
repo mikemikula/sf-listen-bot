@@ -202,30 +202,30 @@ async function getJobStatistics() {
     avgProcessingTimeResult
   ] = await Promise.all([
     // Total jobs count
-    db.documentProcessingJob.count(),
+    db.automationJob.count(),
     
     // Completed jobs
-    db.documentProcessingJob.count({
+    db.automationJob.count({
       where: { status: 'COMPLETE' }
     }),
     
     // Failed jobs
-    db.documentProcessingJob.count({
+    db.automationJob.count({
       where: { status: 'FAILED' }
     }),
     
     // Queued jobs
-    db.documentProcessingJob.count({
+    db.automationJob.count({
       where: { status: 'QUEUED' }
     }),
     
     // Processing jobs
-    db.documentProcessingJob.count({
+    db.automationJob.count({
       where: { status: 'PROCESSING' }
     }),
     
     // Average processing time (in seconds) - calculated from startedAt to completedAt
-    db.documentProcessingJob.findMany({
+    db.automationJob.findMany({
       where: {
         status: 'COMPLETE',
         startedAt: { not: null },
@@ -288,7 +288,7 @@ async function getRecentActivity(today: Date, tomorrow: Date) {
     }),
     
     // Processing errors today
-    db.documentProcessingJob.count({
+    db.automationJob.count({
       where: {
         status: 'FAILED',
         createdAt: {
@@ -348,7 +348,7 @@ async function checkDatabaseHealth() {
 async function checkDocumentProcessorHealth() {
   try {
     // Check if document processing is functioning
-    const recentJob = await db.documentProcessingJob.findFirst({
+    const recentJob = await db.automationJob.findFirst({
       where: { jobType: 'DOCUMENT_CREATION' },
       orderBy: { createdAt: 'desc' }
     })

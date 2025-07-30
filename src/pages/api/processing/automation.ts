@@ -12,6 +12,110 @@
 import { NextApiRequest, NextApiResponse } from 'next'
 import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
+import { backgroundJobService } from '@/lib/backgroundJobs'
+
+/**
+ * Initialize default automation rules in the database
+ * Creates the basic document processing and FAQ generation rules if they don't exist
+ */
+async function initializeDefaultAutomationRules() {
+  try {
+    // Check if default rules already exist
+    const existingRules = await db.automationRule.findMany({
+      where: { 
+        id: { 
+          in: ['doc-automation', 'faq-automation'] 
+        } 
+      }
+    })
+
+    const existingIds = existingRules.map(rule => rule.id)
+
+    // Create document processing rule if it doesn't exist
+    if (!existingIds.includes('doc-automation')) {
+      await db.automationRule.create({
+        data: {
+          id: 'doc-automation',
+          name: 'Document Processing Automation',
+          description: 'Automatically process messages into documents',
+          enabled: false, // Default to disabled
+          jobType: 'DOCUMENT_CREATION',
+          jobConfig: {
+            type: 'document',
+            parameters: {
+              batchSize: 25,
+              minMessagesRequired: 3,
+              channelFilters: [],
+              excludeThreads: false,
+              requireQuestionAnswer: true,
+              autoTitle: true,
+              autoCategory: true
+            }
+          },
+          createdBy: 'system'
+        }
+      })
+      logger.info('Created default document processing automation rule')
+    }
+
+    // Create or update FAQ generation rule
+    if (!existingIds.includes('faq-automation')) {
+      await db.automationRule.create({
+        data: {
+          id: 'faq-automation',
+          name: 'FAQ Generation Automation',
+          description: 'Generate FAQs from processed documents',
+          enabled: false, // Default to disabled
+          jobType: 'FAQ_GENERATION',
+          jobConfig: {
+            type: 'faq',
+            parameters: {
+              maxFAQsPerRun: 10,
+              minDocumentsRequired: 0,
+              requireApproval: false,
+              categories: ['technical', 'general', 'product'],
+              qualityThreshold: 0.7
+            }
+          },
+          createdBy: 'system'
+        }
+      })
+      logger.info('Created default FAQ generation automation rule')
+    } else {
+      // Update existing rule to ensure it has the latest defaults
+      const existingRule = existingRules.find(rule => rule.id === 'faq-automation')
+      if (existingRule) {
+        const currentConfig = existingRule.jobConfig as any
+        const needsUpdate = !currentConfig?.parameters || 
+                           currentConfig.parameters.minDocumentsRequired !== 0 ||
+                           currentConfig.parameters.requireApproval !== false
+        
+        if (needsUpdate) {
+          await db.automationRule.update({
+            where: { id: 'faq-automation' },
+            data: {
+              jobConfig: {
+                type: 'faq',
+                parameters: {
+                  maxFAQsPerRun: currentConfig?.parameters?.maxFAQsPerRun || 10,
+                  minDocumentsRequired: 0,
+                  requireApproval: false,
+                  categories: currentConfig?.parameters?.categories || ['technical', 'general', 'product'],
+                  qualityThreshold: currentConfig?.parameters?.qualityThreshold || 0.7
+                }
+              }
+            }
+          })
+          logger.info('Updated FAQ generation automation rule with improved defaults')
+        }
+      }
+    }
+
+  } catch (error) {
+    logger.error('Failed to initialize default automation rules:', error)
+    // Don't throw - let the app continue with hardcoded fallbacks
+  }
+}
 
 /**
  * Automation Data Response Interface
@@ -52,26 +156,70 @@ interface AutomationResponse {
         avgProcessingTime: number
       }
     }
-    automationRules: Array<{
-      id: string
-      name: string
-      description: string
-      enabled: boolean
-      trigger: {
-        type: 'schedule' | 'event' | 'manual'
-        schedule?: string
-        eventType?: string
-      }
-      action: {
-        type: 'document' | 'faq' | 'cleanup' | 'batch'
-        parameters: Record<string, any>
-      }
-      permissions: string[]
-      lastRun?: string
-      nextRun?: string
-      runCount: number
-      successRate: number
-    }>
+    automationRules: {
+      documentProcessing: {
+        id: string
+        name: string
+        description: string
+        enabled: boolean
+        schedule: {
+          frequency: 'manual' | 'hourly' | 'daily' | 'weekly' | 'custom'
+          hour?: number | null
+          dayOfWeek?: number | null
+          customInterval?: number
+          customUnit?: 'minutes' | 'hours' | 'days' | 'weeks'
+          customTime?: string
+          customDayOfWeek?: number
+          lastRun: string | null
+          nextRun: string | null
+        }
+        settings: {
+          batchSize: number
+          minMessagesRequired: number
+          channelFilters: string[]
+          excludeThreads: boolean
+          requireQuestionAnswer: boolean
+          autoTitle: boolean
+          autoCategory: boolean
+        }
+        stats: {
+          totalRuns: number
+          successfulRuns: number
+          documentsCreated: number
+          avgProcessingTime: number
+        }
+      } | null
+      faqGeneration: {
+        id: string
+        name: string
+        description: string
+        enabled: boolean
+        schedule: {
+          frequency: 'manual' | 'hourly' | 'daily' | 'weekly' | 'custom'
+          hour?: number | null
+          dayOfWeek?: number | null
+          customInterval?: number
+          customUnit?: 'minutes' | 'hours' | 'days' | 'weeks'
+          customTime?: string
+          customDayOfWeek?: number
+          lastRun: string | null
+          nextRun: string | null
+        }
+        settings: {
+          maxFAQsPerRun: number
+          minDocumentsRequired: number
+          requireApproval: boolean
+          categories: string[]
+          qualityThreshold: number
+        }
+        stats: {
+          totalRuns: number
+          successfulRuns: number
+          faqsGenerated: number
+          avgProcessingTime: number
+        }
+      } | null
+    }
     processingSettings: {
       maxConcurrentJobs: number
       defaultJobPriority: number
@@ -111,6 +259,9 @@ export default async function handler(
   try {
     logger.info('Fetching automation data')
 
+    // Initialize default automation rules on first request
+    await initializeDefaultAutomationRules()
+
     // Parallel data fetching for performance
     const [
       processingJobs,
@@ -146,12 +297,12 @@ export default async function handler(
 
 /**
  * Get Processing Jobs Data
- * Retrieves active and recent jobs with statistics
+ * Retrieves active and recent jobs of all types with statistics
  */
 async function getProcessingJobsData() {
   const [activeJobs, recentJobs, statistics] = await Promise.all([
-    // Active jobs (processing or queued)
-    db.documentProcessingJob.findMany({
+    // Active jobs (processing or queued) - ALL job types
+    db.automationJob.findMany({
       where: {
         status: {
           in: ['PROCESSING', 'QUEUED']
@@ -161,27 +312,33 @@ async function getProcessingJobsData() {
       take: 20
     }),
     
-    // Recent jobs (last 100)
-    db.documentProcessingJob.findMany({
+    // Recent jobs (last 50) - ALL job types
+    db.automationJob.findMany({
       orderBy: { createdAt: 'desc' },
-      take: 100
+      take: 50
     }),
     
-    // Job statistics
+    // Job statistics across all job types
     getJobStatistics()
   ])
 
-  // Transform jobs to match interface
+  // Transform jobs to match interface with proper job type handling
   const transformJob = (job: any) => ({
     id: job.id,
     status: job.status,
-    jobType: job.jobType,
+    jobType: job.jobType, // This will show DOCUMENT_CREATION, FAQ_GENERATION, etc.
     progress: job.progress || 0,
     createdAt: job.createdAt.toISOString(),
     startedAt: job.startedAt?.toISOString(),
     completedAt: job.completedAt?.toISOString(),
     errorMessage: job.errorMessage,
-    createdBy: job.createdBy || 'system'
+    createdBy: job.createdBy || 'system',
+    // Add job type specific display name
+    displayName: getJobDisplayName(job.jobType),
+    // Add duration if completed
+    duration: job.completedAt && job.startedAt 
+      ? Math.round((new Date(job.completedAt).getTime() - new Date(job.startedAt).getTime()) / 1000)
+      : null
   })
 
   return {
@@ -192,136 +349,226 @@ async function getProcessingJobsData() {
 }
 
 /**
+ * Get user-friendly display name for job types
+ */
+function getJobDisplayName(jobType: string): string {
+  const displayNames: Record<string, string> = {
+    'DOCUMENT_CREATION': 'Document Creation',
+    'DOCUMENT_ENHANCEMENT': 'Document Enhancement', 
+    'FAQ_GENERATION': 'FAQ Generation'
+  }
+  
+  return displayNames[jobType] || jobType.replace(/_/g, ' ').toLowerCase()
+}
+
+/**
  * Get Job Statistics
- * Calculates job performance metrics
+ * Calculates statistics across all job types
  */
 async function getJobStatistics() {
-  const [
-    totalJobs,
-    completedJobs,
-    failedJobs,
-    queuedJobs,
-    processingJobs,
-    avgProcessingTimeResult
-  ] = await Promise.all([
-    db.documentProcessingJob.count(),
-    db.documentProcessingJob.count({ where: { status: 'COMPLETE' } }),
-    db.documentProcessingJob.count({ where: { status: 'FAILED' } }),
-    db.documentProcessingJob.count({ where: { status: 'QUEUED' } }),
-    db.documentProcessingJob.count({ where: { status: 'PROCESSING' } }),
-    db.documentProcessingJob.findMany({
-      where: {
+  try {
+    const [
+      totalJobs,
+      completedJobs,
+      failedJobs,
+      queuedJobs,
+      processingJobs,
+      // Get stats by job type
+      jobTypeStats
+    ] = await Promise.all([
+      db.automationJob.count(),
+      db.automationJob.count({ where: { status: 'COMPLETE' } }),
+      db.automationJob.count({ where: { status: 'FAILED' } }),
+      db.automationJob.count({ where: { status: 'QUEUED' } }),
+      db.automationJob.count({ where: { status: 'PROCESSING' } }),
+      // Get breakdown by job type
+      db.automationJob.groupBy({
+        by: ['jobType'],
+        _count: { id: true },
+        _avg: { progress: true }
+      })
+    ])
+
+    // Calculate average processing time for completed jobs
+    const completedJobsWithTiming = await db.automationJob.findMany({
+      where: { 
         status: 'COMPLETE',
         startedAt: { not: null },
         completedAt: { not: null }
       },
-      select: {
-        startedAt: true,
-        completedAt: true
-      }
+      select: { startedAt: true, completedAt: true }
     })
-  ])
 
-  // Calculate average processing time from completed jobs
-  let avgProcessingTime = 0
-  if (avgProcessingTimeResult.length > 0) {
-    const totalDuration = avgProcessingTimeResult.reduce((sum, job) => {
-      if (job.startedAt && job.completedAt) {
-        const duration = Math.floor((new Date(job.completedAt).getTime() - new Date(job.startedAt).getTime()) / 1000)
-        return sum + duration
+    const avgProcessingTime = completedJobsWithTiming.length > 0
+      ? completedJobsWithTiming.reduce((sum, job) => {
+          const duration = new Date(job.completedAt!).getTime() - new Date(job.startedAt!).getTime()
+          return sum + duration
+        }, 0) / completedJobsWithTiming.length
+      : 0
+
+    // Transform job type stats
+    const jobTypeBreakdown = jobTypeStats.reduce((acc, stat) => {
+      acc[stat.jobType] = {
+        count: stat._count.id,
+        avgProgress: stat._avg.progress || 0
       }
-      return sum
-    }, 0)
-    avgProcessingTime = Math.round(totalDuration / avgProcessingTimeResult.length)
-  }
+      return acc
+    }, {} as Record<string, { count: number, avgProgress: number }>)
 
-  return {
-    totalJobs,
-    completedJobs,
-    failedJobs,
-    queuedJobs,
-    processingJobs,
-    avgProcessingTime
+    return {
+      totalJobs,
+      completedJobs,
+      failedJobs,
+      queuedJobs,
+      processingJobs,
+      avgProcessingTime: Math.round(avgProcessingTime),
+      successRate: totalJobs > 0 ? Math.round((completedJobs / totalJobs) * 100) : 0,
+      // Add breakdown by job type
+      byJobType: jobTypeBreakdown
+    }
+
+  } catch (error) {
+    logger.error('Failed to get job statistics:', error)
+    
+    // Return fallback statistics
+    return {
+      totalJobs: 0,
+      completedJobs: 0,
+      failedJobs: 0,
+      queuedJobs: 0,
+      processingJobs: 0,
+      avgProcessingTime: 0,
+      successRate: 0,
+      byJobType: {}
+    }
   }
 }
 
 /**
- * Get Automation Rules
- * Retrieves configured automation rules with their statistics
+ * Get Automation Configuration
+ * Retrieves real automation settings from database for job processing
  */
 async function getAutomationRules() {
-  // For now, return mock automation rules
-  // In a real implementation, these would be stored in the database
-  const mockRules = [
-    {
-      id: 'rule-1',
-      name: 'Auto Process New Messages',
-      description: 'Automatically process new messages into documents when they arrive',
-      enabled: true,
-      trigger: {
-        type: 'event' as const,
-        eventType: 'message_received'
-      },
-      action: {
-        type: 'document' as const,
-        parameters: {
-          batchSize: 10,
-          priority: 'normal'
-        }
-      },
-      permissions: ['document:create'],
-      lastRun: new Date(Date.now() - 3600000).toISOString(), // 1 hour ago
-      nextRun: new Date(Date.now() + 1800000).toISOString(), // 30 minutes from now
-      runCount: 45,
-      successRate: 0.95
-    },
-    {
-      id: 'rule-2',
-      name: 'Daily FAQ Generation',
-      description: 'Generate FAQs from processed documents every day at 3 AM',
-      enabled: false,
-      trigger: {
-        type: 'schedule' as const,
-        schedule: '0 3 * * *' // Daily at 3 AM
-      },
-      action: {
-        type: 'faq' as const,
-        parameters: {
-          maxFAQs: 20,
-          reviewRequired: true
-        }
-      },
-      permissions: ['faq:create'],
-      lastRun: new Date(Date.now() - 86400000).toISOString(), // Yesterday
-      nextRun: new Date(Date.now() + 43200000).toISOString(), // Tomorrow 3 AM
-      runCount: 12,
-      successRate: 0.88
-    },
-    {
-      id: 'rule-3',
-      name: 'Weekly Cleanup',
-      description: 'Clean up old processing jobs and optimize database performance',
-      enabled: true,
-      trigger: {
-        type: 'schedule' as const,
-        schedule: '0 2 * * 0' // Weekly on Sunday at 2 AM
-      },
-      action: {
-        type: 'cleanup' as const,
-        parameters: {
-          retentionDays: 30,
-          optimizeDatabase: true
-        }
-      },
-      permissions: ['system:cleanup'],
-      lastRun: new Date(Date.now() - 604800000).toISOString(), // Last week
-      nextRun: new Date(Date.now() + 259200000).toISOString(), // Next Sunday
-      runCount: 8,
-      successRate: 1.0
-    }
-  ]
+  try {
+    // Fetch automation rules from the database
+    const docRule = await db.automationRule.findUnique({ where: { id: 'doc-automation' } })
+    const faqRule = await db.automationRule.findUnique({ where: { id: 'faq-automation' } })
 
-  return mockRules
+    // Transform database rules to expected interface format
+        const documentProcessing = docRule ? {
+      id: docRule.id,
+      name: docRule.name,
+      description: docRule.description,
+      enabled: docRule.enabled,
+      schedule: {
+        frequency: ((docRule.jobConfig as any)?.trigger?.schedule?.frequency || 'manual') as 'manual' | 'hourly' | 'daily' | 'weekly' | 'custom',
+        hour: (docRule.jobConfig as any)?.trigger?.schedule?.hour || null,
+        dayOfWeek: (docRule.jobConfig as any)?.trigger?.schedule?.dayOfWeek || null,
+        customInterval: (docRule.jobConfig as any)?.trigger?.customInterval || 1,
+        customUnit: ((docRule.jobConfig as any)?.trigger?.customUnit || 'hours') as 'minutes' | 'hours' | 'days' | 'weeks',
+        customTime: (docRule.jobConfig as any)?.trigger?.customTime || '09:00',
+        customDayOfWeek: (docRule.jobConfig as any)?.trigger?.customDayOfWeek || 1,
+        lastRun: docRule.lastRun?.toISOString() || null,
+        nextRun: docRule.nextRun?.toISOString() || null
+      },
+      settings: {
+        batchSize: (docRule.jobConfig as any)?.action?.batchSize || 25,
+        minMessagesRequired: (docRule.jobConfig as any)?.action?.minMessagesRequired || 3,
+        channelFilters: (docRule.jobConfig as any)?.action?.channelFilters || [],
+        excludeThreads: (docRule.jobConfig as any)?.action?.excludeThreads || false,
+        requireQuestionAnswer: (docRule.jobConfig as any)?.action?.requireQuestionAnswer || true,
+        autoTitle: (docRule.jobConfig as any)?.action?.autoTitle || true,
+        autoCategory: (docRule.jobConfig as any)?.action?.autoCategory || true
+      },
+      stats: {
+        totalRuns: docRule.runCount,
+        successfulRuns: (docRule.jobConfig as any)?.stats?.successCount || 0,
+        documentsCreated: (docRule.jobConfig as any)?.stats?.successCount || 0, // Approximation
+        avgProcessingTime: (docRule.jobConfig as any)?.stats?.avgExecutionTime || 0
+      }
+    } : null
+
+        const faqGeneration = faqRule ? {
+      id: faqRule.id,
+      name: faqRule.name,
+      description: faqRule.description,
+      enabled: faqRule.enabled,
+      schedule: {
+        frequency: ((faqRule.jobConfig as any)?.trigger?.frequency || 'manual') as 'manual' | 'hourly' | 'daily' | 'weekly' | 'custom',
+        hour: (faqRule.jobConfig as any)?.trigger?.hour || null,
+        dayOfWeek: (faqRule.jobConfig as any)?.trigger?.dayOfWeek || null,
+        customInterval: (faqRule.jobConfig as any)?.trigger?.customInterval || 1,
+        customUnit: ((faqRule.jobConfig as any)?.trigger?.customUnit || 'hours') as 'minutes' | 'hours' | 'days' | 'weeks',
+        customTime: (faqRule.jobConfig as any)?.trigger?.customTime || '09:00',
+        customDayOfWeek: (faqRule.jobConfig as any)?.trigger?.customDayOfWeek || 1,
+        lastRun: faqRule.lastRun?.toISOString() || null,
+        nextRun: faqRule.nextRun?.toISOString() || null
+      },
+      settings: {
+        maxFAQsPerRun: (faqRule.jobConfig as any)?.parameters?.maxFAQsPerRun || 10,
+        minDocumentsRequired: (faqRule.jobConfig as any)?.parameters?.minDocumentsRequired || 0,
+        requireApproval: (faqRule.jobConfig as any)?.parameters?.requireApproval || false,
+        categories: (faqRule.jobConfig as any)?.parameters?.categories || ['technical', 'general', 'product'],
+        qualityThreshold: (faqRule.jobConfig as any)?.parameters?.qualityThreshold || 0.7
+      },
+     stats: {
+        totalRuns: faqRule.runCount,
+        successfulRuns: (faqRule.jobConfig as any)?.stats?.successCount || 0,
+        faqsGenerated: (faqRule.jobConfig as any)?.stats?.successCount || 0, // Approximation
+        avgProcessingTime: (faqRule.jobConfig as any)?.stats?.avgExecutionTime || 0
+      }
+    } : null
+
+    return {
+      documentProcessing,
+      faqGeneration
+    }
+
+  } catch (error) {
+    logger.error('Failed to fetch automation rules from database:', error)
+    
+    // Fallback to default values if database fails
+    return {
+      documentProcessing: {
+        id: 'doc-automation',
+        name: 'Document Processing Automation',
+        description: 'Automatically process messages into documents',
+        enabled: false,
+        schedule: { 
+          frequency: 'manual' as const, 
+          hour: null, 
+          dayOfWeek: null, 
+          customInterval: 1,
+          customUnit: 'hours' as const,
+          customTime: '09:00',
+          customDayOfWeek: 1,
+          lastRun: null, 
+          nextRun: null 
+        },
+        settings: { batchSize: 25, minMessagesRequired: 3, channelFilters: [], excludeThreads: false, requireQuestionAnswer: true, autoTitle: true, autoCategory: true },
+        stats: { totalRuns: 0, successfulRuns: 0, documentsCreated: 0, avgProcessingTime: 0 }
+      },
+      faqGeneration: {
+        id: 'faq-automation',
+        name: 'FAQ Generation Automation',
+        description: 'Generate FAQs from processed documents',
+        enabled: false,
+        schedule: { 
+          frequency: 'manual' as const, 
+          hour: null, 
+          dayOfWeek: null, 
+          customInterval: 1,
+          customUnit: 'hours' as const,
+          customTime: '09:00',
+          customDayOfWeek: 1,
+          lastRun: null, 
+          nextRun: null 
+        },
+        settings: { maxFAQsPerRun: 10, minDocumentsRequired: 0, requireApproval: false, categories: ['technical', 'general', 'product'], qualityThreshold: 0.7 },
+        stats: { totalRuns: 0, successfulRuns: 0, faqsGenerated: 0, avgProcessingTime: 0 }
+      }
+    }
+  }
 }
 
 /**

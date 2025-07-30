@@ -15,16 +15,16 @@ import {
   Bot, 
   Bug, 
   Activity,
-  X
+  X,
+  Download
 } from 'lucide-react'
-import { ThemeToggle } from './ThemeToggle'
 
 interface HeaderProps {
   isConnected: boolean
-  onDebugClick: () => void
+  onDebugClick?: () => void
 }
 
-export const Header: React.FC<HeaderProps> = ({ isConnected, onDebugClick }) => {
+export const Header: React.FC<HeaderProps> = ({ isConnected = false }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
@@ -157,15 +157,32 @@ export const Header: React.FC<HeaderProps> = ({ isConnected, onDebugClick }) => 
             >
               PII Review
             </Link>
+            
+            <Link
+              href="/slack/channel-pull"
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                isActivePage('/slack/channel-pull')
+                  ? 'bg-white/20 text-white shadow-lg'
+                  : 'text-white/80 hover:text-white hover:bg-white/10'
+              }`}
+            >
+              Channel Pull
+            </Link>
+            
+            <Link
+              href="/debug/events"
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                isActivePage('/debug')
+                  ? 'bg-white/20 text-white shadow-lg'
+                  : 'text-white/80 hover:text-white hover:bg-white/10'
+              }`}
+            >
+              Debug
+            </Link>
           </nav>
 
           {/* Right Side Actions */}
           <div className="flex items-center space-x-4">
-            {/* Theme Toggle - Desktop */}
-            <div className="hidden md:block">
-              <ThemeToggle />
-            </div>
-            
             {/* Connection Status */}
             <div className="hidden sm:flex items-center space-x-2">
               <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-400' : 'bg-red-400'}`} />
@@ -369,19 +386,31 @@ export const Header: React.FC<HeaderProps> = ({ isConnected, onDebugClick }) => 
                               <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
                             )}
                           </Link>
-                        </div>
-
-                        {/* Theme Settings - Mobile */}
-                        <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700">
-                          <div className="mb-4">
-                            <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                              Theme Settings
-                            </h3>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-gray-900 dark:text-gray-100 font-medium">Appearance</span>
-                            <ThemeToggle />
-                          </div>
+                          
+                          <Link
+                            href="/slack/channel-pull"
+                            onClick={() => setIsMenuOpen(false)}
+                            className={`flex items-center justify-between px-6 py-4 text-base transition-colors ${
+                              isActivePage('/slack/channel-pull')
+                                ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border-r-4 border-blue-500'
+                                : 'text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-800'
+                            }`}
+                          >
+                            <div className="flex items-center space-x-4">
+                              <Download className={`w-6 h-6 ${
+                                isActivePage('/slack/channel-pull')
+                                  ? 'text-blue-700 dark:text-blue-300'
+                                  : 'text-gray-500 dark:text-gray-400'
+                              }`} />
+                              <div>
+                                <div className="font-semibold">Channel Pull</div>
+                                <div className="text-sm text-gray-500 dark:text-gray-400">Pull all data from Slack channels</div>
+                              </div>
+                            </div>
+                            {isActivePage('/slack/channel-pull') && (
+                              <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                            )}
+                          </Link>
                         </div>
 
                         {/* Connection Status */}
@@ -437,16 +466,14 @@ export const Header: React.FC<HeaderProps> = ({ isConnected, onDebugClick }) => 
                           </div>
                           
                           <div className="space-y-2">
-                            <button
-                              onClick={() => {
-                                onDebugClick()
-                                setIsMenuOpen(false)
-                              }}
-                              className="flex items-center space-x-4 w-full text-left px-4 py-3 rounded-lg bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group"
+                            <Link
+                              href="/debug/events"
+                              onClick={() => setIsMenuOpen(false)}
+                              className="flex items-center space-x-4 px-4 py-3 rounded-lg bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group"
                             >
                               <Bug className="w-6 h-6 text-orange-600 dark:text-orange-400 group-hover:text-orange-700 dark:group-hover:text-orange-300 transition-colors" />
                               <span className="font-medium text-gray-900 dark:text-gray-100">Debug Events</span>
-                            </button>
+                            </Link>
                             
                             <Link
                               href="/api/health"
@@ -498,16 +525,14 @@ export const Header: React.FC<HeaderProps> = ({ isConnected, onDebugClick }) => 
                       </h3>
                     </div>
                     
-                    <button
-                      onClick={() => {
-                        onDebugClick()
-                        setIsMenuOpen(false)
-                      }}
-                      className="flex items-center space-x-3 w-full text-left px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group"
+                    <Link
+                      href="/debug/events"
+                      onClick={() => setIsMenuOpen(false)}
+                      className="flex items-center space-x-3 px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group"
                     >
                       <Bug className="w-5 h-5 text-orange-600 dark:text-orange-400 group-hover:text-orange-700 dark:group-hover:text-orange-300 transition-colors" />
                       <span className="font-medium">Debug Events</span>
-                    </button>
+                    </Link>
                     
                     <Link
                       href="/api/health"

@@ -135,7 +135,7 @@ async function handleProcessAllMessages(
               description: documentWithStats.description || '',
               category: documentWithStats.category,
               status: documentWithStats.status,
-              processingJobId: documentWithStats.processingJobId,
+              automationJobId: documentWithStats.automationJobId,
               confidenceScore: documentWithStats.confidenceScore,
               createdBy: documentWithStats.createdBy,
               messageCount: documentWithStats.documentMessages.length,

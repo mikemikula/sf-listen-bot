@@ -81,7 +81,7 @@ const AutomationControlPage: React.FC = () => {
       case 'document':
         return '/api/documents/process-all'
       case 'faq':
-        return '/api/faqs/generate'
+        return '/api/faqs/generate-bulk'
       case 'cleanup':
         return '/api/processing/cleanup'
       default:

@@ -1,6 +1,3 @@
-// Prisma schema for Listen Bot
-// Database: Supabase Postgres
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -14,52 +11,36 @@ datasource db {
 /// Message model for storing Slack messages
 model Message {
   /// Unique identifier for the message
-  id String @id @default(cuid())
-  
+  id                        String                      @id @default(cuid())
   /// Slack message ID (unique)
-  slackId String @unique @map("slack_id")
-  
+  slackId                   String                      @unique @map("slack_id")
   /// Message text content
-  text String
-  
+  text                      String
   /// Slack user ID who sent the message
-  userId String @map("user_id")
-  
+  userId                    String                      @map("user_id")
   /// Username of the sender
-  username String
-  
+  username                  String
   /// Channel where message was sent
-  channel String
-  
+  channel                   String
   /// Slack timestamp (converted to DateTime)
-  timestamp DateTime
-  
+  timestamp                 DateTime
   /// Thread timestamp - same as timestamp for parent messages, different for replies
-  threadTs String? @map("thread_ts")
-  
+  threadTs                  String?                     @map("thread_ts")
   /// Whether this is a thread reply (has threadTs different from slackId)
-  isThreadReply Boolean @default(false) @map("is_thread_reply")
-  
+  isThreadReply             Boolean                     @default(false) @map("is_thread_reply")
   /// Parent message (self-referential for thread support)
-  parentMessageId String? @map("parent_message_id")
-  parentMessage Message? @relation("ThreadReplies", fields: [parentMessageId], references: [id])
-  
-  /// Thread replies (child messages)
-  threadReplies Message[] @relation("ThreadReplies")
-  
+  parentMessageId           String?                     @map("parent_message_id")
   /// Record creation timestamp
-  createdAt DateTime @default(now()) @map("created_at")
-  
+  createdAt                 DateTime                    @default(now()) @map("created_at")
   /// Record update timestamp
-  updatedAt DateTime @updatedAt @map("updated_at")
+  updatedAt                 DateTime                    @updatedAt @map("updated_at")
+  MessageToMessageSelection MessageToMessageSelection[]
+  documentMessages          DocumentMessage[]
+  messageFAQs               MessageFAQ[]
+  parentMessage             Message?                    @relation("ThreadReplies", fields: [parentMessageId], references: [id])
+  threadReplies             Message[]                   @relation("ThreadReplies")
+  piiDetections             PIIDetection[]
 
-  /// Junction table relationships for document processing
-  documentMessages DocumentMessage[]
-  messageFAQs MessageFAQ[]
-  messageSelections MessageSelection[]
-  piiDetections PIIDetection[]
-
-  /// Indexes for performance
   @@index([channel])
   @@index([timestamp])
   @@index([userId])
@@ -72,87 +53,62 @@ model Message {
 /// Processed documents created from Slack messages
 model ProcessedDocument {
   /// Unique identifier for the document
-  id String @id @default(cuid())
-  
+  id                   String            @id @default(cuid())
   /// Document title
-  title String
-  
+  title                String
   /// Document description/summary
-  description String
-  
+  description          String
   /// Document category for organization
-  category String
-  
+  category             String
   /// Document processing status
-  status DocumentStatus @default(DRAFT)
-  
-  /// Related processing job
-  processingJobId String? @map("processing_job_id")
-  processingJob DocumentProcessingJob? @relation(fields: [processingJobId], references: [id])
-  
+  status               DocumentStatus    @default(DRAFT)
   /// AI confidence score for document quality (0-1)
-  confidenceScore Float @default(0) @map("confidence_score")
-  
+  confidenceScore      Float             @default(0) @map("confidence_score")
   /// User who created the document (if manual)
-  createdBy String? @map("created_by")
-  
+  createdBy            String?           @map("created_by")
   /// Record creation timestamp
-  createdAt DateTime @default(now()) @map("created_at")
-  
+  createdAt            DateTime          @default(now()) @map("created_at")
   /// Record update timestamp
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  /// Junction table relationships
-  documentMessages DocumentMessage[]
-  documentFAQs DocumentFAQ[]
+  updatedAt            DateTime          @updatedAt @map("updated_at")
   /// AI-powered conversation analysis results
-  conversationAnalysis Json? @map("conversation_analysis")
+  conversationAnalysis Json?             @map("conversation_analysis")
+  /// Related automation job that created this document
+  automationJobId      String?           @map("automation_job_id")
+  documentFAQs         DocumentFAQ[]
+  documentMessages     DocumentMessage[]
+  automationJob        AutomationJob?    @relation(fields: [automationJobId], references: [id])
 
-  /// Indexes for performance
   @@index([status])
   @@index([category])
   @@index([createdAt])
-  @@index([processingJobId])
   @@map("processed_documents")
 }
 
 /// FAQ entries generated from processed documents
 model FAQ {
   /// Unique identifier for the FAQ
-  id String @id @default(cuid())
-  
+  id              String        @id @default(cuid())
   /// FAQ question text
-  question String
-  
+  question        String
   /// FAQ answer text
-  answer String
-  
+  answer          String
   /// FAQ category for organization
-  category String
-  
+  category        String
   /// FAQ approval status
-  status FAQStatus @default(PENDING)
-  
+  status          FAQStatus     @default(PENDING)
   /// AI confidence score for FAQ quality (0-1)
-  confidenceScore Float @default(0) @map("confidence_score")
-  
+  confidenceScore Float         @default(0) @map("confidence_score")
   /// User who approved the FAQ
-  approvedBy String? @map("approved_by")
-  
+  approvedBy      String?       @map("approved_by")
   /// Approval timestamp
-  approvedAt DateTime? @map("approved_at")
-  
+  approvedAt      DateTime?     @map("approved_at")
   /// Record creation timestamp
-  createdAt DateTime @default(now()) @map("created_at")
-  
+  createdAt       DateTime      @default(now()) @map("created_at")
   /// Record update timestamp
-  updatedAt DateTime @updatedAt @map("updated_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+  documentFAQs    DocumentFAQ[]
+  messageFAQs     MessageFAQ[]
 
-  /// Junction table relationships
-  documentFAQs DocumentFAQ[]
-  messageFAQs MessageFAQ[]
-
-  /// Indexes for performance
   @@index([status])
   @@index([category])
   @@index([createdAt])
@@ -160,137 +116,82 @@ model FAQ {
   @@map("faqs")
 }
 
-/// Background processing jobs for document and FAQ generation
-model DocumentProcessingJob {
-  /// Unique identifier for the job
-  id String @id @default(cuid())
-  
-  /// Job processing status
-  status JobStatus @default(QUEUED)
-  
-  /// Type of processing job
-  jobType JobType @default(DOCUMENT_CREATION)
-  
-  /// Input data for the job (JSON)
-  inputData Json @map("input_data")
-  
-  /// Output data from the job (JSON)
-  outputData Json? @map("output_data")
-  
-  /// Error message if job failed
-  errorMessage String? @map("error_message")
-  
-  /// Job progress (0-1)
-  progress Float @default(0)
-  
-  /// Number of retry attempts
-  retryCount Int @default(0) @map("retry_count")
-  
-  /// Job start timestamp
-  startedAt DateTime? @map("started_at")
-  
-  /// Job completion timestamp
-  completedAt DateTime? @map("completed_at")
-  
-  /// User who created the job
-  createdBy String? @map("created_by")
-  
-  /// Record creation timestamp
-  createdAt DateTime @default(now()) @map("created_at")
-  
-  /// Record update timestamp
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  /// Related documents
-  processedDocuments ProcessedDocument[]
-
-  /// Indexes for performance
-  @@index([status])
-  @@index([jobType])
-  @@index([createdAt])
-  @@index([createdBy])
-  @@map("document_processing_jobs")
-}
-
 /// Automation rules for scheduled and event-driven processing
 model AutomationRule {
   /// Unique identifier for the rule
-  id String @id @default(cuid())
-  
+  id          String          @id @default(cuid())
   /// Rule name
-  name String
-  
+  name        String
   /// Rule description
   description String
-  
   /// Whether the rule is enabled
-  enabled Boolean @default(true)
-  
-  /// Trigger type (schedule, event, manual)
-  triggerType String @map("trigger_type")
-  
-  /// Trigger configuration (JSON)
-  triggerConfig Json @map("trigger_config")
-  
-  /// Action type (document, faq, cleanup, etc.)
-  actionType String @map("action_type")
-  
-  /// Action configuration (JSON)
-  actionConfig Json @map("action_config")
-  
-  /// Required permissions
-  permissions String[]
-  
+  enabled     Boolean         @default(true)
   /// User who created the rule
-  createdBy String @map("created_by")
-  
-  /// User who last updated the rule
-  updatedBy String? @map("updated_by")
-  
-  /// Last execution timestamp
-  lastRun DateTime? @map("last_run")
-  
-  /// Next scheduled execution
-  nextRun DateTime? @map("next_run")
-  
-  /// Total execution count
-  runCount Int @default(0) @map("run_count")
-  
-  /// Successful execution count
-  successCount Int @default(0) @map("success_count")
-  
-  /// Failed execution count
-  failureCount Int @default(0) @map("failure_count")
-  
-  /// Average execution time in milliseconds
-  avgExecutionTime Int @default(0) @map("avg_execution_time")
-  
-  /// Record creation timestamp
-  createdAt DateTime @default(now()) @map("created_at")
-  
-  /// Record update timestamp
-  updatedAt DateTime @updatedAt @map("updated_at")
+  createdBy   String          @map("created_by")
+  /// Simple execution tracking
+  lastRun     DateTime?       @map("last_run")
+  nextRun     DateTime?       @map("next_run")
+  runCount    Int             @default(0) @map("run_count")
+  /// Record timestamps
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+  /// When to run (cron expression for scheduled rules)
+  schedule    String?
+  /// What type of job to create
+  jobType     JobType?        @default(DOCUMENT_CREATION)
+  /// Configuration for the job (JSON)
+  jobConfig   Json?           @default("{}") @map("job_config")
+  jobs        AutomationJob[]
 
-  /// Indexes for performance
   @@index([enabled])
-  @@index([triggerType])
-  @@index([actionType])
   @@index([nextRun])
   @@index([createdAt])
   @@map("automation_rules")
 }
 
+/// Jobs created by automation rules
+model AutomationJob {
+  /// Unique identifier for the job
+  id                 String              @id(map: "automation_jobs_new_pkey") @default(cuid())
+  /// Which automation rule created this job
+  automationRuleId   String              @map("automation_rule_id")
+  /// Job type (inherited from rule)
+  jobType            JobType             @default(DOCUMENT_CREATION)
+  /// Job status
+  status             JobStatus           @default(QUEUED)
+  /// Input data for the job (JSON)
+  inputData          Json                @map("input_data")
+  /// Output data from the job (JSON)
+  outputData         Json?               @map("output_data")
+  /// Error message if job failed
+  errorMessage       String?             @map("error_message")
+  /// Job progress (0-1)
+  progress           Float               @default(0)
+  /// Number of retry attempts
+  retryCount         Int                 @default(0) @map("retry_count")
+  /// Job timestamps
+  startedAt          DateTime?           @map("started_at")
+  completedAt        DateTime?           @map("completed_at")
+  createdAt          DateTime            @default(now()) @map("created_at")
+  updatedAt          DateTime            @default(now()) @updatedAt @map("updated_at")
+  automationRule     AutomationRule      @relation(fields: [automationRuleId], references: [id], onDelete: Cascade)
+  processedDocuments ProcessedDocument[]
+
+  @@index([automationRuleId])
+  @@index([status])
+  @@index([jobType])
+  @@index([createdAt])
+  @@map("automation_jobs")
+}
+
 /// System-wide processing settings and configuration
 model ProcessingSettings {
   /// Settings identifier (usually 'default')
-  id String @id
-  
+  id        String   @id
   /// Settings configuration (JSON)
-  settings Json
-  
+  settings  Json
   /// Record creation timestamp
   createdAt DateTime @default(now()) @map("created_at")
-  
   /// Record update timestamp
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -300,42 +201,29 @@ model ProcessingSettings {
 /// PII detection and removal tracking
 model PIIDetection {
   /// Unique identifier for the PII detection
-  id String @id @default(cuid())
-  
+  id              String        @id @default(cuid())
   /// Source type (MESSAGE, DOCUMENT)
-  sourceType PIISourceType @default(MESSAGE)
-  
+  sourceType      PIISourceType @default(MESSAGE)
   /// Source entity ID
-  sourceId String @map("source_id")
-  
+  sourceId        String        @map("source_id")
   /// Type of PII detected
-  piiType PIIType @default(EMAIL)
-  
+  piiType         PIIType       @default(EMAIL)
   /// Original text before replacement
-  originalText String @map("original_text")
-  
+  originalText    String        @map("original_text")
   /// Replacement text used
-  replacementText String @map("replacement_text")
-  
+  replacementText String        @map("replacement_text")
   /// AI confidence in PII detection (0-1)
-  confidence Float @default(0)
-  
+  confidence      Float         @default(0)
   /// Review status
-  status PIIStatus @default(AUTO_REPLACED)
-  
+  status          PIIStatus     @default(AUTO_REPLACED)
   /// User who reviewed the PII detection
-  reviewedBy String? @map("reviewed_by")
-  
+  reviewedBy      String?       @map("reviewed_by")
   /// Review timestamp
-  reviewedAt DateTime? @map("reviewed_at")
-  
+  reviewedAt      DateTime?     @map("reviewed_at")
   /// Record creation timestamp
-  createdAt DateTime @default(now()) @map("created_at")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  message         Message       @relation(fields: [sourceId], references: [id])
 
-  /// Related message (if source is MESSAGE)
-  message Message? @relation(fields: [sourceId], references: [id])
-
-  /// Indexes for performance
   @@index([sourceType, sourceId])
   @@index([piiType])
   @@index([status])
@@ -346,35 +234,26 @@ model PIIDetection {
 /// Junction table: Message to Document relationship with full traceability
 model DocumentMessage {
   /// Unique identifier for the relationship
-  id String @id @default(cuid())
-  
+  id                   String            @id @default(cuid())
   /// Document ID
-  documentId String @map("document_id")
-  document ProcessedDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  
+  documentId           String            @map("document_id")
   /// Message ID
-  messageId String @map("message_id")
-  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
-  
+  messageId            String            @map("message_id")
   /// How the message was included in the document
-  inclusionMethod InclusionMethod @default(AI_AUTOMATIC)
-  
+  inclusionMethod      InclusionMethod   @default(AI_AUTOMATIC)
   /// Role of the message in the document
-  messageRole MessageRole @default(CONTEXT)
-  
+  messageRole          MessageRole       @default(CONTEXT)
   /// User who added the message (if manual)
-  addedBy String? @map("added_by")
-  
+  addedBy              String?           @map("added_by")
   /// Timestamp when message was added
-  addedAt DateTime @default(now()) @map("added_at")
-  
+  addedAt              DateTime          @default(now()) @map("added_at")
   /// AI confidence in including this message (0-1)
-  processingConfidence Float @default(0) @map("processing_confidence")
-  
+  processingConfidence Float             @default(0) @map("processing_confidence")
   /// Reason if message was later removed
-  removalReason String? @map("removal_reason")
+  removalReason        String?           @map("removal_reason")
+  document             ProcessedDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  message              Message           @relation(fields: [messageId], references: [id], onDelete: Cascade)
 
-  /// Unique constraint on document-message pairs
   @@unique([documentId, messageId])
   @@index([documentId])
   @@index([messageId])
@@ -386,32 +265,24 @@ model DocumentMessage {
 /// Junction table: Document to FAQ relationship with generation tracking
 model DocumentFAQ {
   /// Unique identifier for the relationship
-  id String @id @default(cuid())
-  
+  id               String            @id @default(cuid())
   /// Document ID
-  documentId String @map("document_id")
-  document ProcessedDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  
+  documentId       String            @map("document_id")
   /// FAQ ID
-  faqId String @map("faq_id")
-  faq FAQ @relation(fields: [faqId], references: [id], onDelete: Cascade)
-  
+  faqId            String            @map("faq_id")
   /// How the FAQ was generated
-  generationMethod GenerationMethod @default(AI_GENERATED)
-  
+  generationMethod GenerationMethod  @default(AI_GENERATED)
   /// Specific message IDs that contributed to this FAQ
-  sourceMessageIds String[] @map("source_message_ids")
-  
+  sourceMessageIds String[]          @map("source_message_ids")
   /// AI confidence in FAQ generation (0-1)
-  confidenceScore Float @default(0) @map("confidence_score")
-  
+  confidenceScore  Float             @default(0) @map("confidence_score")
   /// User who generated the FAQ (if manual)
-  generatedBy String? @map("generated_by")
-  
+  generatedBy      String?           @map("generated_by")
   /// Record creation timestamp
-  createdAt DateTime @default(now()) @map("created_at")
+  createdAt        DateTime          @default(now()) @map("created_at")
+  document         ProcessedDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  faq              FAQ               @relation(fields: [faqId], references: [id], onDelete: Cascade)
 
-  /// Unique constraint on document-FAQ pairs
   @@unique([documentId, faqId])
   @@index([documentId])
   @@index([faqId])
@@ -422,26 +293,20 @@ model DocumentFAQ {
 /// Junction table: Direct Message to FAQ traceability
 model MessageFAQ {
   /// Unique identifier for the relationship
-  id String @id @default(cuid())
-  
+  id               String           @id @default(cuid())
   /// Message ID
-  messageId String @map("message_id")
-  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
-  
+  messageId        String           @map("message_id")
   /// FAQ ID
-  faqId String @map("faq_id")
-  faq FAQ @relation(fields: [faqId], references: [id], onDelete: Cascade)
-  
+  faqId            String           @map("faq_id")
   /// Type of contribution this message made to the FAQ
   contributionType ContributionType @default(SUPPORTING_CONTEXT)
-  
   /// Document that facilitated this relationship
-  documentId String? @map("document_id")
-  
+  documentId       String?          @map("document_id")
   /// Record creation timestamp
-  createdAt DateTime @default(now()) @map("created_at")
+  createdAt        DateTime         @default(now()) @map("created_at")
+  faq              FAQ              @relation(fields: [faqId], references: [id], onDelete: Cascade)
+  message          Message          @relation(fields: [messageId], references: [id], onDelete: Cascade)
 
-  /// Unique constraint on message-FAQ pairs
   @@unique([messageId, faqId])
   @@index([messageId])
   @@index([faqId])
@@ -453,27 +318,19 @@ model MessageFAQ {
 /// Manual message selections for curation
 model MessageSelection {
   /// Unique identifier for the selection
-  id String @id @default(cuid())
-  
+  id                        String                      @id @default(cuid())
   /// User who made the selection
-  userId String @map("user_id")
-  
+  userId                    String                      @map("user_id")
   /// Name/description of the selection
-  selectionName String @map("selection_name")
-  
+  selectionName             String                      @map("selection_name")
   /// Array of selected message IDs
-  messageIds String[] @map("message_ids")
-  
+  messageIds                String[]                    @map("message_ids")
   /// Purpose of the selection
-  purpose SelectionPurpose @default(DOCUMENT_CREATION)
-  
+  purpose                   SelectionPurpose            @default(DOCUMENT_CREATION)
   /// Record creation timestamp
-  createdAt DateTime @default(now()) @map("created_at")
+  createdAt                 DateTime                    @default(now()) @map("created_at")
+  MessageToMessageSelection MessageToMessageSelection[]
 
-  /// Related messages
-  messages Message[]
-
-  /// Indexes for performance
   @@index([userId])
   @@index([purpose])
   @@index([createdAt])
@@ -483,24 +340,18 @@ model MessageSelection {
 /// User curation activity tracking
 model CurationActivity {
   /// Unique identifier for the activity
-  id String @id @default(cuid())
-  
+  id           String       @id @default(cuid())
   /// User who performed the activity
-  userId String @map("user_id")
-  
+  userId       String       @map("user_id")
   /// Type of curation activity
   activityType ActivityType @default(MESSAGE_ADDED)
-  
   /// Target entity ID (document, selection, etc.)
-  targetId String @map("target_id")
-  
+  targetId     String       @map("target_id")
   /// Details about what changed (JSON)
-  details Json
-  
+  details      Json
   /// Activity timestamp
-  timestamp DateTime @default(now())
+  timestamp    DateTime     @default(now())
 
-  /// Indexes for performance
   @@index([userId])
   @@index([activityType])
   @@index([timestamp])
@@ -511,45 +362,32 @@ model CurationActivity {
 /// Slack webhook event log for audit trail and error recovery
 model SlackEvent {
   /// Unique identifier for the event
-  id String @id @default(cuid())
-  
+  id            String           @id @default(cuid())
   /// Slack event ID (for deduplication)
-  slackEventId String? @map("slack_event_id")
-  
+  slackEventId  String?          @map("slack_event_id")
   /// Event type (event_callback, url_verification)
-  eventType String @map("event_type")
-  
+  eventType     String           @map("event_type")
   /// Event subtype (message, message_changed, message_deleted)
-  eventSubtype String? @map("event_subtype")
-  
+  eventSubtype  String?          @map("event_subtype")
   /// Raw payload from Slack
-  payload Json
-  
+  payload       Json
   /// Processing status
-  status SlackEventStatus @default(PENDING)
-  
+  status        SlackEventStatus @default(PENDING)
   /// Error message if processing failed
-  errorMessage String? @map("error_message")
-  
+  errorMessage  String?          @map("error_message")
   /// Number of processing attempts
-  attempts Int @default(0)
-  
+  attempts      Int              @default(0)
   /// Last attempt timestamp
-  lastAttemptAt DateTime? @map("last_attempt_at")
-  
+  lastAttemptAt DateTime?        @map("last_attempt_at")
   /// Related message ID (if applicable)
-  messageId String? @map("message_id")
-  
+  messageId     String?          @map("message_id")
   /// Channel where event occurred
-  channel String?
-  
+  channel       String?
   /// Record creation timestamp
-  createdAt DateTime @default(now()) @map("created_at")
-  
+  createdAt     DateTime         @default(now()) @map("created_at")
   /// Record update timestamp
-  updatedAt DateTime @updatedAt @map("updated_at")
+  updatedAt     DateTime         @updatedAt @map("updated_at")
 
-  /// Indexes for performance and querying
   @@index([slackEventId])
   @@index([status])
   @@index([eventType])
@@ -561,137 +399,148 @@ model SlackEvent {
 /// Channel model for future enhancements
 model Channel {
   /// Unique identifier for the channel
-  id String @id @default(cuid())
-  
+  id          String   @id @default(cuid())
   /// Slack channel ID (unique)
-  slackId String @unique @map("slack_id")
-  
+  slackId     String   @unique @map("slack_id")
   /// Channel name
-  name String
-  
+  name        String
   /// Channel description
   description String?
-  
   /// Whether channel is private
-  isPrivate Boolean @default(false) @map("is_private")
-  
+  isPrivate   Boolean  @default(false) @map("is_private")
   /// Record creation timestamp
-  createdAt DateTime @default(now()) @map("created_at")
-  
+  createdAt   DateTime @default(now()) @map("created_at")
   /// Record update timestamp  
-  updatedAt DateTime @updatedAt @map("updated_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
   @@map("channels")
 }
 
-// ===== ENUMS =====
+model MessageToMessageSelection {
+  A                  String
+  B                  String
+  messages           Message          @relation(fields: [A], references: [id], onDelete: Cascade)
+  message_selections MessageSelection @relation(fields: [B], references: [id], onDelete: Cascade)
+
+  @@unique([A, B], map: "_MessageToMessageSelection_AB_unique")
+  @@index([B], map: "_MessageToMessageSelection_B_index")
+  @@map("_MessageToMessageSelection")
+}
 
 /// Document processing status
 enum DocumentStatus {
-  DRAFT       // Document created but not processed
-  PROCESSING  // Currently being processed
-  COMPLETE    // Processing completed successfully
-  ERROR       // Processing failed with errors
+  DRAFT
+  PROCESSING
+  COMPLETE
+  ERROR
 }
 
 /// FAQ approval status
 enum FAQStatus {
-  PENDING   // Awaiting review and approval
-  APPROVED  // Approved for use
-  REJECTED  // Rejected after review
-  ARCHIVED  // Archived/deprecated
+  PENDING
+  APPROVED
+  REJECTED
+  ARCHIVED
 }
 
 /// Background job status
 enum JobStatus {
-  QUEUED      // Job queued for processing
-  PROCESSING  // Job currently running
-  COMPLETE    // Job completed successfully
-  FAILED      // Job failed with errors
-  CANCELLED   // Job was cancelled
-  PAUSED      // Job is paused
-  DELETED     // Job was deleted
+  QUEUED
+  PROCESSING
+  COMPLETE
+  FAILED
+  CANCELLED
+  PAUSED
+  DELETED
 }
 
 /// Background job types
 enum JobType {
-  DOCUMENT_CREATION    // Create documents from messages
-  DOCUMENT_ENHANCEMENT // Add messages to existing documents
-  FAQ_GENERATION       // Generate FAQs from documents
+  DOCUMENT_CREATION
+  DOCUMENT_ENHANCEMENT
+  FAQ_GENERATION
 }
 
 /// PII source types
 enum PIISourceType {
-  MESSAGE   // PII found in a message
-  DOCUMENT  // PII found in a processed document
+  MESSAGE
+  DOCUMENT
 }
 
 /// PII detection types
 enum PIIType {
-  EMAIL   // Email addresses
-  PHONE   // Phone numbers
-  NAME    // Person names
-  URL     // URLs/links
-  CUSTOM  // Custom patterns
+  EMAIL
+  PHONE
+  NAME
+  URL
+  CUSTOM
 }
 
 /// PII detection status
 enum PIIStatus {
-  AUTO_REPLACED   // Automatically replaced by AI
-  PENDING_REVIEW  // Awaiting manual review
-  WHITELISTED     // Approved to keep original text
-  FLAGGED         // Flagged for attention
+  AUTO_REPLACED
+  PENDING_REVIEW
+  WHITELISTED
+  FLAGGED
 }
 
 /// Message inclusion methods
 enum InclusionMethod {
-  AI_AUTOMATIC  // Automatically included by AI
-  USER_MANUAL   // Manually added by user
-  USER_ENHANCED // User-enhanced AI selection
+  AI_AUTOMATIC
+  USER_MANUAL
+  USER_ENHANCED
 }
 
 /// Message roles in documents
 enum MessageRole {
-  QUESTION      // Primary question message
-  ANSWER        // Primary answer message
-  CONTEXT       // Supporting context
-  FOLLOW_UP     // Follow-up question
-  CONFIRMATION  // Confirmation/acknowledgment
+  QUESTION
+  ANSWER
+  CONTEXT
+  FOLLOW_UP
+  CONFIRMATION
 }
 
 /// FAQ generation methods
 enum GenerationMethod {
-  AI_GENERATED  // Generated by AI
-  USER_CREATED  // Created manually by user
-  HYBRID        // AI-generated with user input
+  AI_GENERATED
+  USER_CREATED
+  HYBRID
 }
 
 /// Message contribution types to FAQs
 enum ContributionType {
-  PRIMARY_QUESTION    // Main question for the FAQ
-  PRIMARY_ANSWER      // Main answer for the FAQ
-  SUPPORTING_CONTEXT  // Additional context/details
+  PRIMARY_QUESTION
+  PRIMARY_ANSWER
+  SUPPORTING_CONTEXT
 }
 
 /// Message selection purposes
 enum SelectionPurpose {
-  DOCUMENT_CREATION    // Creating new documents
-  DOCUMENT_ENHANCEMENT // Enhancing existing documents
-  RESEARCH             // Research/analysis purposes
+  DOCUMENT_CREATION
+  DOCUMENT_ENHANCEMENT
+  RESEARCH
 }
 
 /// Curation activity types
 enum ActivityType {
-  MESSAGE_ADDED     // Message added to document
-  DOCUMENT_MERGED   // Documents merged together
-  MESSAGES_SELECTED // Messages selected for processing
+  MESSAGE_ADDED
+  DOCUMENT_MERGED
+  MESSAGES_SELECTED
 }
 
 /// Slack event processing status
 enum SlackEventStatus {
-  PENDING     // Received but not processed
-  PROCESSING  // Currently being processed
-  SUCCESS     // Successfully processed
-  FAILED      // Failed after all retries
-  SKIPPED     // Intentionally skipped (duplicate, etc.)
-} 
+  PENDING
+  PROCESSING
+  SUCCESS
+  FAILED
+  SKIPPED
+}
+
+enum AutomationStatus {
+  RUNNING
+  COMPLETED
+  PARTIAL
+  FAILED
+  CANCELLED
+}

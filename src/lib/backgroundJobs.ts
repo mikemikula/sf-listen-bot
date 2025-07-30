@@ -8,6 +8,7 @@ import Queue from 'bull'
 import { logger } from './logger'
 import { documentProcessorService } from './documentProcessor'
 import { faqGeneratorService } from './faqGenerator'
+import { SlackChannelPuller } from './slackChannelPuller'
 import { DocumentProcessingInput, FAQGenerationInput } from '@/types'
 
 // Job types
@@ -143,6 +144,9 @@ class BackgroundJobService {
               break
             case 'completed-jobs':
               result = await this.cleanupCompletedJobs(olderThanDays)
+              break
+            case 'channel-puller-progress':
+              result = await this.cleanupChannelPullerProgress()
               break
             default:
               throw new Error(`Unknown cleanup type: ${type}`)
@@ -444,6 +448,69 @@ class BackgroundJobService {
   }
 
   /**
+   * Clean up old channel puller progress records
+   */
+  private async cleanupChannelPullerProgress(): Promise<number> {
+    try {
+      SlackChannelPuller.cleanupOldProgress()
+      logger.info('Channel puller progress cleanup completed')
+      return 1 // Return 1 to indicate cleanup was executed
+    } catch (error) {
+      logger.error('Failed to cleanup channel puller progress:', error)
+      throw error
+    }
+  }
+
+  /**
+   * Schedule periodic cleanup jobs
+   */
+  async schedulePeriodicCleanup(): Promise<void> {
+    if (!this.initialized) {
+      throw new Error('Background job service not initialized')
+    }
+
+    try {
+      // Schedule channel puller progress cleanup every hour
+      await this.cleanupQueue.add(
+        JobType.CLEANUP,
+        { type: 'channel-puller-progress' },
+        {
+          repeat: { cron: '0 * * * *' }, // Every hour
+          removeOnComplete: 5,
+          removeOnFail: 3
+        }
+      )
+
+      // Schedule failed jobs cleanup daily
+      await this.cleanupQueue.add(
+        JobType.CLEANUP,
+        { type: 'failed-jobs', olderThanDays: 7 },
+        {
+          repeat: { cron: '0 2 * * *' }, // Daily at 2 AM
+          removeOnComplete: 5,
+          removeOnFail: 3
+        }
+      )
+
+      // Schedule completed jobs cleanup weekly
+      await this.cleanupQueue.add(
+        JobType.CLEANUP,
+        { type: 'completed-jobs', olderThanDays: 30 },
+        {
+          repeat: { cron: '0 3 * * 0' }, // Weekly on Sunday at 3 AM
+          removeOnComplete: 5,
+          removeOnFail: 3
+        }
+      )
+
+      logger.info('✅ Periodic cleanup jobs scheduled successfully')
+    } catch (error) {
+      logger.error('❌ Failed to schedule periodic cleanup jobs:', error)
+      throw error
+    }
+  }
+
+  /**
    * Health check for background job system
    */
   async healthCheck(): Promise<{
@@ -505,7 +572,12 @@ export default backgroundJobService
 
 // Auto-initialize if in server environment
 if (typeof window === 'undefined') {
-  backgroundJobService.initialize().catch((error) => {
-    logger.error('Failed to auto-initialize background job system:', error)
-  })
+  backgroundJobService.initialize()
+    .then(() => {
+      // Schedule periodic cleanup jobs after successful initialization
+      return backgroundJobService.schedulePeriodicCleanup()
+    })
+    .catch((error) => {
+      logger.error('Failed to auto-initialize background job system:', error)
+    })
 } 

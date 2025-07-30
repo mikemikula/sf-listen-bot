@@ -19,6 +19,9 @@ export const db = globalThis.prisma || new PrismaClient({
   errorFormat: 'pretty',
 })
 
+// Export prisma as alias for db to maintain compatibility
+export const prisma = db
+
 // Prevent multiple instances in development hot reload
 if (process.env.NODE_ENV !== 'production') {
   globalThis.prisma = db

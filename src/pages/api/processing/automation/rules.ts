@@ -172,16 +172,18 @@ async function handleCreateRule(
         name,
         description,
         enabled: true,
-        triggerType: trigger.type,
-        triggerConfig: trigger,
-        actionType: action.type,
-        actionConfig: action,
-        permissions: permissions,
+        jobConfig: {
+          trigger: trigger,
+          action: action,
+          permissions: permissions,
+          stats: {
+            successCount: 0,
+            avgExecutionTime: 0,
+            failureCount: 0
+          }
+        },
         createdBy: 'system', // TODO: Get from auth context
-        runCount: 0,
-        successCount: 0,
-        failureCount: 0,
-        avgExecutionTime: 0
+        runCount: 0
       }
     })
 
@@ -222,83 +224,161 @@ async function handleUpdateRule(
   res: NextApiResponse<ApiResponse<AutomationRule>>
 ) {
   try {
-    const { ruleId, enabled, name, description, trigger, action, permissions } = req.body
+    const { ruleId, enabled, name, description, trigger, action, permissions, schedule, settings } = req.body
+
+    logger.info('PATCH automation rules called with:', { ruleId, enabled, name, description, schedule, settings })
 
     if (!ruleId || typeof ruleId !== 'string') {
       throw new ValidationError('Rule ID is required')
     }
 
-    // Find existing rule
-    const existingRule = await db.automationRule.findUnique({
-      where: { id: ruleId }
-    })
+    // Handle automation rule updates with persistent state storage
+    if (ruleId === 'doc-automation' || ruleId === 'faq-automation') {
+      logger.info(`Updating automation rule ${ruleId}: enabled = ${enabled}`)
+      
+      // Build update data
+      const updateData: any = {
+        updatedBy: 'system',
+        updatedAt: new Date()
+      }
 
-    if (!existingRule) {
-      return res.status(404).json({
-        success: false,
-        error: 'Automation rule not found'
+      if (enabled !== undefined) {
+        updateData.enabled = enabled
+      }
+
+      // Update trigger config if schedule is provided
+      if (schedule !== undefined) {
+        updateData.triggerConfig = schedule
+      }
+
+      // Update action config if settings is provided
+      if (settings !== undefined) {
+        updateData.actionConfig = settings
+      }
+      
+      // Update the automation rule in the database
+      await db.automationRule.update({
+        where: { id: ruleId },
+        data: updateData
+      })
+      
+      // Build and return the updated automation rule
+      const automationRule: AutomationRule = {
+        id: ruleId,
+        name: ruleId === 'doc-automation' ? 'Document Processing Automation' : 'FAQ Generation Automation',
+        description: ruleId === 'doc-automation' 
+          ? 'Automatically process messages into documents' 
+          : 'Automatically generate FAQs from documents',
+        enabled: enabled,
+        trigger: {
+          type: 'manual'
+        },
+        action: {
+          type: ruleId === 'doc-automation' ? 'document' : 'faq',
+          parameters: {}
+        },
+        permissions: [],
+        metadata: {
+          createdBy: 'system',
+          createdAt: new Date().toISOString(),
+          runCount: 0,
+          successCount: 0,
+          failureCount: 0,
+          avgExecutionTime: 0
+        }
+      }
+
+      return res.status(200).json({
+        success: true,
+        data: automationRule,
+        message: 'Automation rule updated successfully'
       })
     }
 
-    // Build update data
-    const updateData: any = {
-      updatedBy: 'system', // TODO: Get from auth context
-      updatedAt: new Date()
+    // Try database operations for full rule management
+    try {
+      // Find existing rule
+      const existingRule = await db.automationRule.findUnique({
+        where: { id: ruleId }
+      })
+
+      if (!existingRule) {
+        return res.status(404).json({
+          success: false,
+          error: 'Automation rule not found'
+        })
+      }
+
+      // Build update data
+      const updateData: any = {
+        updatedBy: 'system', // TODO: Get from auth context
+        updatedAt: new Date()
+      }
+
+      if (enabled !== undefined) {
+        updateData.enabled = enabled
+      }
+
+      if (name !== undefined) {
+        updateData.name = name
+      }
+
+      if (description !== undefined) {
+        updateData.description = description
+      }
+
+      if (trigger !== undefined) {
+        validateTrigger(trigger)
+        updateData.triggerType = trigger.type
+        updateData.triggerConfig = trigger
+      }
+
+      if (action !== undefined) {
+        validateAction(action)
+        updateData.actionType = action.type
+        updateData.actionConfig = action
+      }
+
+      if (permissions !== undefined) {
+        updateData.permissions = permissions
+      }
+
+      // Update rule in database
+      const updatedRule = await db.automationRule.update({
+        where: { id: ruleId },
+        data: updateData
+      })
+
+      // Handle scheduling changes
+      if (trigger && trigger.type === 'schedule') {
+        await scheduleAutomationRule(ruleId, trigger.schedule)
+      } else if (enabled === false) {
+        await unscheduleAutomationRule(ruleId)
+      }
+
+      const apiRule = transformDbRuleToApi(updatedRule)
+
+      logger.info(`Updated automation rule: ${ruleId}`)
+
+      return res.status(200).json({
+        success: true,
+        data: apiRule,
+        message: 'Automation rule updated successfully'
+      })
+
+    } catch (dbError) {
+      logger.error('Database operation failed:', dbError)
+      
+      // If database fails, return error for now
+      return res.status(500).json({
+        success: false,
+        error: 'Database operation failed - automation rules need database setup'
+      })
     }
-
-    if (enabled !== undefined) {
-      updateData.enabled = enabled
-    }
-
-    if (name !== undefined) {
-      updateData.name = name
-    }
-
-    if (description !== undefined) {
-      updateData.description = description
-    }
-
-    if (trigger !== undefined) {
-      validateTrigger(trigger)
-      updateData.triggerType = trigger.type
-      updateData.triggerConfig = trigger
-    }
-
-    if (action !== undefined) {
-      validateAction(action)
-      updateData.actionType = action.type
-      updateData.actionConfig = action
-    }
-
-    if (permissions !== undefined) {
-      updateData.permissions = permissions
-    }
-
-    // Update rule in database
-    const updatedRule = await db.automationRule.update({
-      where: { id: ruleId },
-      data: updateData
-    })
-
-    // Handle scheduling changes
-    if (trigger && trigger.type === 'schedule') {
-      await scheduleAutomationRule(ruleId, trigger.schedule)
-    } else if (enabled === false) {
-      await unscheduleAutomationRule(ruleId)
-    }
-
-    const apiRule = transformDbRuleToApi(updatedRule)
-
-    logger.info(`Updated automation rule: ${ruleId}`)
-
-    return res.status(200).json({
-      success: true,
-      data: apiRule,
-      message: 'Automation rule updated successfully'
-    })
 
   } catch (error) {
     if (error instanceof ValidationError) {
+      logger.error('Validation error:', error.message)
       return res.status(400).json({
         success: false,
         error: error.message
@@ -541,13 +621,22 @@ async function executeAutomationRule(ruleId: string): Promise<void> {
     const executionTime = Date.now() - startTime
     
     // Update success metrics
+    const currentStats = (rule.jobConfig as any)?.stats || { successCount: 0, avgExecutionTime: 0, failureCount: 0 }
+    const newJobConfig = {
+      ...(rule.jobConfig as any),
+      stats: {
+        ...currentStats,
+        successCount: currentStats.successCount + 1,
+        avgExecutionTime: Math.round(
+          (currentStats.avgExecutionTime * rule.runCount + executionTime) / (rule.runCount + 1)
+        )
+      }
+    }
+    
     await db.automationRule.update({
       where: { id: ruleId },
       data: {
-        successCount: rule.successCount + 1,
-        avgExecutionTime: Math.round(
-          (rule.avgExecutionTime * rule.runCount + executionTime) / (rule.runCount + 1)
-        )
+        jobConfig: newJobConfig
       }
     })
 
@@ -556,9 +645,18 @@ async function executeAutomationRule(ruleId: string): Promise<void> {
   } catch (error) {
     // Update failure count if rule exists
     if (rule) {
+      const currentStats = (rule.jobConfig as any)?.stats || { successCount: 0, avgExecutionTime: 0, failureCount: 0 }
+      const newJobConfig = {
+        ...(rule.jobConfig as any),
+        stats: {
+          ...currentStats,
+          failureCount: currentStats.failureCount + 1
+        }
+      }
+      
       await db.automationRule.update({
         where: { id: ruleId },
-        data: { failureCount: rule.failureCount + 1 }
+        data: { jobConfig: newJobConfig }
       })
     }
 
