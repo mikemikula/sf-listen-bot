@@ -16,12 +16,10 @@ import {
   Users, 
   Calendar,
   AlertTriangle,
-  CheckCircle,
   XCircle,
   Clock,
   Activity,
   Zap,
-  Shield,
   Eye,
   EyeOff,
   ChevronDown,
@@ -123,21 +121,10 @@ interface ProcessingSettings {
   }
 }
 
-interface UserPermissions {
-  canStartJobs: boolean
-  canStopJobs: boolean
-  canDeleteJobs: boolean
-  canModifySettings: boolean
-  canManageAutomation: boolean
-  canViewLogs: boolean
-  allowedJobTypes: string[]
-}
-
 interface ProcessingDashboardProps {
   className?: string
   refreshInterval?: number
   onTriggerProcessing?: (type: string, data: any) => void
-  userPermissions?: UserPermissions
 }
 
 /**
@@ -146,16 +133,7 @@ interface ProcessingDashboardProps {
 export const ProcessingDashboard: React.FC<ProcessingDashboardProps> = ({
   className = '',
   refreshInterval = 30000, // 30 seconds
-  onTriggerProcessing,
-  userPermissions = {
-    canStartJobs: true,
-    canStopJobs: true,
-    canDeleteJobs: false,
-    canModifySettings: false,
-    canManageAutomation: false,
-    canViewLogs: true,
-    allowedJobTypes: ['document', 'faq']
-  }
+  onTriggerProcessing
 }) => {
   // State management
   const [data, setData] = useState<ProcessingStatusData | null>(null)
@@ -166,7 +144,7 @@ export const ProcessingDashboard: React.FC<ProcessingDashboardProps> = ({
   const [showAdvancedControls, setShowAdvancedControls] = useState(false)
   const [showAutomationPanel, setShowAutomationPanel] = useState(false)
   const [showSettingsPanel, setShowSettingsPanel] = useState(false)
-  const [showPermissionsPanel, setShowPermissionsPanel] = useState(false)
+
   const [selectedJobs, setSelectedJobs] = useState<string[]>([])
   const [jobFilter, setJobFilter] = useState<'all' | 'active' | 'failed' | 'completed'>('all')
   const [searchTerm, setSearchTerm] = useState('')
@@ -279,10 +257,6 @@ export const ProcessingDashboard: React.FC<ProcessingDashboardProps> = ({
    * Job management actions
    */
   const handleJobAction = useCallback(async (action: string, jobIds: string[]) => {
-    if (!userPermissions.canStartJobs && ['start', 'retry'].includes(action)) return
-    if (!userPermissions.canStopJobs && ['stop', 'pause'].includes(action)) return
-    if (!userPermissions.canDeleteJobs && action === 'delete') return
-
     try {
       const response = await fetch('/api/processing/jobs/manage', {
         method: 'POST',
@@ -302,14 +276,12 @@ export const ProcessingDashboard: React.FC<ProcessingDashboardProps> = ({
       console.error(`Failed to ${action} jobs:`, error)
       setError(error instanceof Error ? error.message : `Failed to ${action} jobs`)
     }
-  }, [userPermissions, fetchProcessingStatus])
+  }, [fetchProcessingStatus])
 
   /**
    * Automation rule management
    */
   const handleAutomationRuleToggle = useCallback(async (ruleId: string, enabled: boolean) => {
-    if (!userPermissions.canManageAutomation) return
-
     try {
       const response = await fetch('/api/processing/automation/rules', {
         method: 'PATCH',
@@ -330,14 +302,12 @@ export const ProcessingDashboard: React.FC<ProcessingDashboardProps> = ({
     } catch (error) {
       console.error('Failed to update automation rule:', error)
     }
-  }, [userPermissions])
+  }, [])
 
   /**
    * Settings management
    */
   const handleSettingsUpdate = useCallback(async (newSettings: Partial<ProcessingSettings>) => {
-    if (!userPermissions.canModifySettings) return
-
     try {
       const response = await fetch('/api/processing/settings', {
         method: 'PATCH',
@@ -354,7 +324,7 @@ export const ProcessingDashboard: React.FC<ProcessingDashboardProps> = ({
     } catch (error) {
       console.error('Failed to update settings:', error)
     }
-  }, [userPermissions])
+  }, [])
 
   /**
    * Load automation rules and settings
@@ -427,10 +397,9 @@ export const ProcessingDashboard: React.FC<ProcessingDashboardProps> = ({
           )}
         </div>
         
-        <div className="flex items-center gap-4">
-          {/* Quick Actions */}
-          <div className="flex items-center gap-2">
-            {userPermissions.canStartJobs && (
+                  <div className="flex items-center gap-4">
+            {/* Quick Actions */}
+            <div className="flex items-center gap-2">
               <button
                 onClick={() => setShowAutomationPanel(!showAutomationPanel)}
                 className="flex items-center gap-2 px-3 py-2 text-sm bg-purple-600 hover:bg-purple-700 text-white rounded-md transition-colors duration-200"
@@ -438,9 +407,7 @@ export const ProcessingDashboard: React.FC<ProcessingDashboardProps> = ({
                 <Zap className="w-4 h-4" />
                 Automation
               </button>
-            )}
-            
-            {userPermissions.canModifySettings && (
+              
               <button
                 onClick={() => setShowSettingsPanel(!showSettingsPanel)}
                 className="flex items-center gap-2 px-3 py-2 text-sm bg-gray-600 hover:bg-gray-700 text-white rounded-md transition-colors duration-200"
@@ -448,16 +415,7 @@ export const ProcessingDashboard: React.FC<ProcessingDashboardProps> = ({
                 <Settings className="w-4 h-4" />
                 Settings
               </button>
-            )}
-
-            <button
-              onClick={() => setShowPermissionsPanel(!showPermissionsPanel)}
-              className="flex items-center gap-2 px-3 py-2 text-sm bg-orange-600 hover:bg-orange-700 text-white rounded-md transition-colors duration-200"
-            >
-              <Shield className="w-4 h-4" />
-              Permissions
-            </button>
-          </div>
+            </div>
 
           <div className="flex items-center gap-2 border-l border-gray-300 dark:border-gray-600 pl-4">
             <label className="flex items-center gap-2">
@@ -482,7 +440,7 @@ export const ProcessingDashboard: React.FC<ProcessingDashboardProps> = ({
       </div>
 
       {/* Automation Rules Panel */}
-      {showAutomationPanel && userPermissions.canManageAutomation && (
+      {showAutomationPanel && (
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Automation Rules</h2>
@@ -544,7 +502,7 @@ export const ProcessingDashboard: React.FC<ProcessingDashboardProps> = ({
       )}
 
       {/* Settings Panel */}
-      {showSettingsPanel && userPermissions.canModifySettings && (
+      {showSettingsPanel && (
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Processing Settings</h2>
           
@@ -640,27 +598,7 @@ export const ProcessingDashboard: React.FC<ProcessingDashboardProps> = ({
         </div>
       )}
 
-      {/* Permissions Panel */}
-      {showPermissionsPanel && (
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Current Permissions</h2>
-          
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {Object.entries(userPermissions).map(([permission, hasPermission]) => (
-              <div key={permission} className="flex items-center gap-2">
-                {hasPermission ? (
-                  <CheckCircle className="w-4 h-4 text-green-600" />
-                ) : (
-                  <XCircle className="w-4 h-4 text-red-600" />
-                )}
-                <span className="text-sm text-gray-700 dark:text-gray-300 capitalize">
-                  {permission.replace(/([A-Z])/g, ' $1').trim()}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+
 
       {/* System Health Overview */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
@@ -962,33 +900,27 @@ export const ProcessingDashboard: React.FC<ProcessingDashboardProps> = ({
                   {selectedJobs.length} selected
                 </span>
                 <div className="flex items-center gap-1">
-                  {userPermissions.canStartJobs && (
-                    <button
-                      onClick={() => handleJobAction('retry', selectedJobs)}
-                      className="p-1 text-green-600 hover:bg-green-100 dark:hover:bg-green-900 rounded transition-colors"
-                      title="Retry selected jobs"
-                    >
-                      <RotateCcw className="w-4 h-4" />
-                    </button>
-                  )}
-                  {userPermissions.canStopJobs && (
-                    <button
-                      onClick={() => handleJobAction('stop', selectedJobs)}
-                      className="p-1 text-red-600 hover:bg-red-100 dark:hover:bg-red-900 rounded transition-colors"
-                      title="Stop selected jobs"
-                    >
-                      <Square className="w-4 h-4" />
-                    </button>
-                  )}
-                  {userPermissions.canDeleteJobs && (
-                    <button
-                      onClick={() => handleJobAction('delete', selectedJobs)}
-                      className="p-1 text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
-                      title="Delete selected jobs"
-                    >
-                      <XCircle className="w-4 h-4" />
-                    </button>
-                  )}
+                  <button
+                    onClick={() => handleJobAction('retry', selectedJobs)}
+                    className="p-1 text-green-600 hover:bg-green-100 dark:hover:bg-green-900 rounded transition-colors"
+                    title="Retry selected jobs"
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => handleJobAction('stop', selectedJobs)}
+                    className="p-1 text-red-600 hover:bg-red-100 dark:hover:bg-red-900 rounded transition-colors"
+                    title="Stop selected jobs"
+                  >
+                    <Square className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => handleJobAction('delete', selectedJobs)}
+                    className="p-1 text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+                    title="Delete selected jobs"
+                  >
+                    <XCircle className="w-4 h-4" />
+                  </button>
                 </div>
               </div>
             )}
@@ -1062,7 +994,7 @@ export const ProcessingDashboard: React.FC<ProcessingDashboardProps> = ({
                       </div>
 
                       <div className="flex items-center gap-2">
-                        {job.status.toLowerCase() === 'failed' && userPermissions.canStartJobs && (
+                        {job.status.toLowerCase() === 'failed' && (
                           <button
                             onClick={() => handleJobAction('retry', [job.id])}
                             className="p-2 text-green-600 hover:bg-green-100 dark:hover:bg-green-900 rounded transition-colors"
@@ -1071,7 +1003,7 @@ export const ProcessingDashboard: React.FC<ProcessingDashboardProps> = ({
                             <RotateCcw className="w-4 h-4" />
                           </button>
                         )}
-                        {['processing', 'queued'].includes(job.status.toLowerCase()) && userPermissions.canStopJobs && (
+                        {['processing', 'queued'].includes(job.status.toLowerCase()) && (
                           <button
                             onClick={() => handleJobAction('stop', [job.id])}
                             className="p-2 text-red-600 hover:bg-red-100 dark:hover:bg-red-900 rounded transition-colors"
@@ -1080,14 +1012,12 @@ export const ProcessingDashboard: React.FC<ProcessingDashboardProps> = ({
                             <Square className="w-4 h-4" />
                           </button>
                         )}
-                        {userPermissions.canViewLogs && (
-                          <button
-                            className="p-2 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900 rounded transition-colors"
-                            title="View logs"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
-                        )}
+                        <button
+                          className="p-2 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900 rounded transition-colors"
+                          title="View logs"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
                       </div>
                     </div>
 
@@ -1114,50 +1044,44 @@ export const ProcessingDashboard: React.FC<ProcessingDashboardProps> = ({
         <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Quick Start Templates</h2>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {userPermissions.allowedJobTypes.includes('document') && (
-            <button
-              onClick={() => onTriggerProcessing?.('document', { template: 'quick-document' })}
-              className="p-4 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-left"
-            >
-              <div className="flex items-center gap-3 mb-2">
-                <Activity className="w-5 h-5 text-blue-600" />
-                <span className="font-medium text-gray-900 dark:text-white">Process Documents</span>
-              </div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                Batch process recent messages into documents
-              </p>
-            </button>
-          )}
+          <button
+            onClick={() => onTriggerProcessing?.('document', { template: 'quick-document' })}
+            className="p-4 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-left"
+          >
+            <div className="flex items-center gap-3 mb-2">
+              <Activity className="w-5 h-5 text-blue-600" />
+              <span className="font-medium text-gray-900 dark:text-white">Process Documents</span>
+            </div>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Batch process recent messages into documents
+            </p>
+          </button>
 
-          {userPermissions.allowedJobTypes.includes('faq') && (
-            <button
-              onClick={() => onTriggerProcessing?.('faq', { template: 'quick-faq' })}
-              className="p-4 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-left"
-            >
-              <div className="flex items-center gap-3 mb-2">
-                <Zap className="w-5 h-5 text-purple-600" />
-                <span className="font-medium text-gray-900 dark:text-white">Generate FAQs</span>
-              </div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                Generate FAQs from existing documents
-              </p>
-            </button>
-          )}
+          <button
+            onClick={() => onTriggerProcessing?.('faq', { template: 'quick-faq' })}
+            className="p-4 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-left"
+          >
+            <div className="flex items-center gap-3 mb-2">
+              <Zap className="w-5 h-5 text-purple-600" />
+              <span className="font-medium text-gray-900 dark:text-white">Generate FAQs</span>
+            </div>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Generate FAQs from existing documents
+            </p>
+          </button>
 
-          {userPermissions.canStartJobs && (
-            <button
-              onClick={() => onTriggerProcessing?.('cleanup', { template: 'maintenance' })}
-              className="p-4 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-left"
-            >
-              <div className="flex items-center gap-3 mb-2">
-                <Settings className="w-5 h-5 text-gray-600" />
-                <span className="font-medium text-gray-900 dark:text-white">System Cleanup</span>
-              </div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                Clean up old jobs and optimize performance
-              </p>
-            </button>
-          )}
+          <button
+            onClick={() => onTriggerProcessing?.('cleanup', { template: 'maintenance' })}
+            className="p-4 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-left"
+          >
+            <div className="flex items-center gap-3 mb-2">
+              <Settings className="w-5 h-5 text-gray-600" />
+              <span className="font-medium text-gray-900 dark:text-white">System Cleanup</span>
+            </div>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Clean up old jobs and optimize performance
+            </p>
+          </button>
         </div>
       </div>
     </div>

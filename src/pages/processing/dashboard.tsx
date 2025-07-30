@@ -60,15 +60,6 @@ const ProcessingDashboardPage: React.FC = () => {
 
           {/* Processing Dashboard Component */}
           <ProcessingDashboard 
-            userPermissions={{
-              canStartJobs: true,
-              canStopJobs: true,
-              canDeleteJobs: false,
-              canModifySettings: true,
-              canManageAutomation: true,
-              canViewLogs: true,
-              allowedJobTypes: ['document', 'faq', 'cleanup']
-            }}
             onTriggerProcessing={(type, data) => {
               console.log('Triggering processing:', type, data)
               // TODO: Implement processing trigger logic
