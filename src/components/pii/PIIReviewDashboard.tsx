@@ -219,7 +219,7 @@ const PIIReviewDashboard: React.FC<PIIReviewDashboardProps> = ({
   /**
    * Update single PII detection status
    */
-  const updatePIIStatus = async (
+  const updatePIIStatus = useCallback(async (
     detectionId: string, 
     status: PIIStatus,
     customReplacement?: string,
@@ -282,7 +282,7 @@ const PIIReviewDashboard: React.FC<PIIReviewDashboardProps> = ({
           : item
       ))
     }
-  }
+  }, [currentUser, fetchPIIReviews])
 
   /**
    * Bulk update selected PII detections
@@ -344,7 +344,7 @@ const PIIReviewDashboard: React.FC<PIIReviewDashboardProps> = ({
   /**
    * Toggle item selection
    */
-  const toggleItemSelection = (detectionId: string): void => {
+  const toggleItemSelection = useCallback((detectionId: string): void => {
     setSelectedItems((prev: Set<string>) => {
       const newSet = new Set(prev)
       if (newSet.has(detectionId)) {
@@ -354,7 +354,7 @@ const PIIReviewDashboard: React.FC<PIIReviewDashboardProps> = ({
       }
       return newSet
     })
-  }
+  }, [])
 
   /**
    * Toggle item expansion

@@ -158,7 +158,8 @@ export const useRealTimeMessages = ({
          onError('Failed to establish real-time connection')
        }
      }
-   }, [enabled]) // Stable dependency array to prevent frequent reconnections
+   // eslint-disable-next-line react-hooks/exhaustive-deps
+   }, [enabled, onNewMessage, onMessageEdited, onMessagesDeleted, onThreadReplyAdded, onTransactionUpdate, onError, isConnected]) // disconnect intentionally omitted to avoid circular dependency
 
   /**
    * Disconnect from SSE stream
@@ -197,7 +198,8 @@ export const useRealTimeMessages = ({
         clearTimeout(reconnectTimeoutRef.current)
       }
     }
-  }, [enabled]) // Only depend on enabled to avoid unnecessary reconnections
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled]) // connect and disconnect intentionally omitted to avoid circular dependencies and unnecessary reconnections
 
   return {
     isConnected,

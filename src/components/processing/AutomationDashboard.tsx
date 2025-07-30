@@ -15,7 +15,7 @@
  * - Dependency Inversion: Depends on abstractions for job management
  */
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { 
@@ -76,6 +76,7 @@ export const AutomationDashboard: React.FC<AutomationDashboardProps> = ({
   const [error, setError] = useState<string | null>(null)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [autoRefresh, setAutoRefresh] = useState(true)
+  const isInitialLoadRef = useRef(true)
 
   // Job management state
   const [selectedJobs, setSelectedJobs] = useState<string[]>([])
@@ -109,7 +110,7 @@ export const AutomationDashboard: React.FC<AutomationDashboardProps> = ({
    */
   const fetchAutomationData = useCallback(async () => {
     try {
-      setLoading(data === null) // Only show loading on initial load
+      setLoading(isInitialLoadRef.current) // Only show loading on initial load
       setError(null)
 
       // Fetch automation-specific data from API
@@ -127,6 +128,7 @@ export const AutomationDashboard: React.FC<AutomationDashboardProps> = ({
 
       setData(result.data)
       setLastUpdated(new Date())
+      isInitialLoadRef.current = false // Mark that initial load is complete
 
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred'
@@ -135,7 +137,7 @@ export const AutomationDashboard: React.FC<AutomationDashboardProps> = ({
     } finally {
       setLoading(false)
     }
-  }, []) // Remove 'data' dependency to prevent infinite loops
+  }, [])
 
   /**
    * Auto-refresh Effect
@@ -148,7 +150,7 @@ export const AutomationDashboard: React.FC<AutomationDashboardProps> = ({
       const interval = setInterval(fetchAutomationData, refreshInterval)
       return () => clearInterval(interval)
     }
-  }, [autoRefresh, refreshInterval]) // Remove fetchAutomationData dependency
+  }, [autoRefresh, refreshInterval, fetchAutomationData])
 
   /**
    * Job Management Actions

@@ -102,16 +102,6 @@ export const ChannelPullDashboard: React.FC = () => {
 
   // ===== EFFECTS =====
 
-  // Load channels on component mount
-  useEffect(() => {
-    loadChannels()
-  }, [])
-
-  // Reload channels when show all toggle changes
-  useEffect(() => {
-    loadChannels()
-  }, [showAllChannels])
-
   // Filter channels based on search term
   useEffect(() => {
     if (!searchTerm) {
@@ -208,6 +198,16 @@ export const ChannelPullDashboard: React.FC = () => {
       setIsLoadingChannels(false)
     }
   }, [showAllChannels, selectedChannel])
+
+  // Load channels on component mount
+  useEffect(() => {
+    loadChannels()
+  }, [loadChannels])
+
+  // Reload channels when show all toggle changes
+  useEffect(() => {
+    loadChannels()
+  }, [showAllChannels, loadChannels])
 
   /**
    * Start a channel pull operation
