@@ -94,32 +94,65 @@ async function handleCleanDuplicates(
 
             if (duplicatesToRemove.length > 0) {
               // Delete duplicate FAQs and their relationships
+              // IMPROVED: Better error handling following SOLID principles
               for (const duplicateId of duplicatesToRemove) {
                 try {
-                  // Delete DocumentFAQ relationships
+                  // Step 1: Check if FAQ exists before attempting deletion (DRY principle)
+                  const existingFAQ = await db.fAQ.findUnique({
+                    where: { id: duplicateId },
+                    select: { id: true }
+                  })
+
+                  if (!existingFAQ) {
+                    logger.warn(`FAQ ${duplicateId} not found in database (stale Pinecone data) - cleaning up Pinecone only`)
+                    
+                    // Clean up stale Pinecone reference
+                    try {
+                      await pineconeService.deleteFAQEmbedding(duplicateId)
+                      logger.info(`Cleaned up stale Pinecone embedding for: ${duplicateId}`)
+                    } catch (pineconeError) {
+                      logger.warn(`Failed to clean up Pinecone embedding for ${duplicateId}:`, pineconeError)
+                    }
+                    
+                    processedFAQs.add(duplicateId)
+                    continue // Skip database deletion since FAQ doesn't exist
+                  }
+
+                  // Step 2: Delete relationships first (referential integrity)
                   await db.documentFAQ.deleteMany({
                     where: { faqId: duplicateId }
                   })
 
-                  // Delete MessageFAQ relationships  
                   await db.messageFAQ.deleteMany({
                     where: { faqId: duplicateId }
                   })
 
-                  // Delete the FAQ itself
+                  // Step 3: Delete the FAQ itself
                   await db.fAQ.delete({
                     where: { id: duplicateId }
                   })
 
-                  // Delete from Pinecone
-                  await pineconeService.deleteFAQEmbedding(duplicateId)
+                  // Step 4: Clean up Pinecone embedding
+                  try {
+                    await pineconeService.deleteFAQEmbedding(duplicateId)
+                    logger.info(`Deleted FAQ embedding for: ${duplicateId}`)
+                  } catch (pineconeError) {
+                    logger.warn(`Failed to delete Pinecone embedding for ${duplicateId}:`, pineconeError)
+                    // Continue - don't fail the entire operation for Pinecone issues
+                  }
 
                   processedFAQs.add(duplicateId)
                   totalDuplicatesRemoved++
 
                   logger.info(`Deleted duplicate FAQ: ${duplicateId}`)
                 } catch (deleteError) {
-                  logger.error(`Failed to delete duplicate FAQ ${duplicateId}:`, deleteError)
+                  // IMPROVED: More specific error handling with better logging
+                  if (deleteError instanceof Error && deleteError.message.includes('Record to delete does not exist')) {
+                    logger.warn(`FAQ ${duplicateId} already deleted - skipping (concurrent deletion)`)
+                    processedFAQs.add(duplicateId)
+                  } else {
+                    logger.error(`Failed to delete duplicate FAQ ${duplicateId}:`, deleteError)
+                  }
                 }
               }
 

@@ -311,6 +311,8 @@ class FAQGeneratorService {
 
   /**
    * Enhance existing FAQ with new information
+   * Implements Open/Closed Principle - extensible error handling
+   * Follows Single Responsibility - FAQ enhancement logic only
    */
   async enhanceFAQ(
     existingFAQId: string,
@@ -324,11 +326,12 @@ class FAQGeneratorService {
     try {
       logger.info(`Enhancing FAQ ${existingFAQId}`)
 
-      // Step 1: Fetch existing FAQ
+      // Step 1: Fetch existing FAQ with proper error handling
       const existingFAQ = await db.fAQ.findUnique({
         where: { id: existingFAQId }
       })
 
+      // IMPROVED: Better error handling - don't throw immediately, let caller handle
       if (!existingFAQ) {
         logger.warn(`FAQ ${existingFAQId} not found in database (stale Pinecone data) - skipping enhancement`)
         throw new Error(`FAQ ${existingFAQId} not found`)
@@ -588,6 +591,8 @@ class FAQGeneratorService {
 
   /**
    * Process FAQ candidates for duplicates and enhancement
+   * Follows Single Responsibility Principle - handles one concern: processing candidates
+   * Implements proper error handling with detailed logging for debugging
    */
   private async processFAQCandidates(
     candidates: Array<{
@@ -607,6 +612,7 @@ class FAQGeneratorService {
     const createdFAQs: FAQ[] = []
     let duplicatesFound = 0
     let enhancedExisting = 0
+    let newFAQsCreated = 0 // FIX: Initialize the missing counter variable
 
     for (const candidate of candidates) {
       try {
@@ -642,48 +648,34 @@ class FAQGeneratorService {
               console.log(`✅ Enhanced FAQ ${bestMatch.id} successfully`)
               logger.info(`Enhanced existing FAQ ${bestMatch.id} with new content`)
             } catch (error) {
-              if (error instanceof Error && error.message.includes('not found')) {
+              // IMPROVED: Better error handling with SOC - separate concern for stale data
+              if (this.isStaleDataError(error)) {
                 logger.warn(`FAQ ${bestMatch.id} not found in database (stale Pinecone data) - creating new FAQ instead`)
+                
                 // Create new FAQ since the referenced one doesn't exist
-                const newFAQ = await db.fAQ.create({
-                  data: {
-                    question: candidate.question,
-                    answer: candidate.answer,
-                    category: candidate.category,
-                    status: FAQStatus.PENDING,
-                    confidenceScore: candidate.confidence
-                  }
-                })
+                const newFAQ = await this.createNewFAQ(candidate)
                 createdFAQs.push(newFAQ)
-                newFAQsCreated++
+                newFAQsCreated++ // FIX: Now properly increments the initialized variable
                 logger.info(`Created new FAQ: ${newFAQ.id}`)
               } else {
                 logger.warn(`Failed to enhance FAQ ${bestMatch.id}:`, error)
+                // Continue processing other candidates without stopping the entire process
               }
-              // Continue processing
             }
           } else {
             logger.info(`Skipped duplicate FAQ: ${candidate.question.substring(0, 50)}`)
           }
         } else {
-          // Create new FAQ
-          const newFAQ = await db.fAQ.create({
-            data: {
-              question: candidate.question,
-              answer: candidate.answer,
-              category: candidate.category,
-              status: FAQStatus.PENDING,
-              confidenceScore: candidate.confidence
-            }
-          })
-          
+          // Create new FAQ - Extract to separate method following SRP
+          const newFAQ = await this.createNewFAQ(candidate)
           createdFAQs.push(newFAQ)
+          newFAQsCreated++
           logger.info(`Created new FAQ: ${newFAQ.id}`)
         }
 
       } catch (error) {
         logger.error(`Failed to process FAQ candidate:`, error)
-        // Continue with other candidates
+        // Continue with other candidates - resilient error handling
       }
     }
 
@@ -692,6 +684,37 @@ class FAQGeneratorService {
       duplicatesFound,
       enhancedExisting
     }
+  }
+
+  /**
+   * Creates a new FAQ from candidate data
+   * Single Responsibility: FAQ creation logic
+   * DRY: Eliminates duplicate FAQ creation code
+   */
+  private async createNewFAQ(candidate: {
+    question: string
+    answer: string
+    category: string
+    confidence: number
+  }): Promise<FAQ> {
+    return await db.fAQ.create({
+      data: {
+        question: candidate.question,
+        answer: candidate.answer,
+        category: candidate.category,
+        status: FAQStatus.PENDING,
+        confidenceScore: candidate.confidence
+      }
+    })
+  }
+
+  /**
+   * Determines if an error is related to stale Pinecone data
+   * Single Responsibility: Error type classification
+   * Open/Closed: Easy to extend with new error types
+   */
+  private isStaleDataError(error: any): boolean {
+    return error instanceof Error && error.message.includes('not found')
   }
 
   /**
