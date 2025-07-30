@@ -227,6 +227,7 @@ interface AutomationResponse {
           messageBatchSize: number
           maxDocumentsPerRun: number
           messageProcessingEnabled: boolean
+          faqGenerationEnabled: boolean
         }
         stats: {
           totalRuns: number
@@ -530,7 +531,8 @@ async function getAutomationRules() {
         maxUnprocessedMessages: (faqRule.jobConfig as any)?.parameters?.maxUnprocessedMessages || 50,
         messageBatchSize: (faqRule.jobConfig as any)?.parameters?.messageBatchSize || 10,
         maxDocumentsPerRun: (faqRule.jobConfig as any)?.parameters?.maxDocumentsPerRun || 50,
-        messageProcessingEnabled: (faqRule.jobConfig as any)?.parameters?.messageProcessingEnabled ?? true
+        messageProcessingEnabled: (faqRule.jobConfig as any)?.parameters?.messageProcessingEnabled ?? true,
+        faqGenerationEnabled: (faqRule.jobConfig as any)?.parameters?.faqGenerationEnabled ?? true
       },
      stats: {
         totalRuns: faqRule.runCount,
@@ -594,7 +596,8 @@ async function getAutomationRules() {
           maxUnprocessedMessages: 50,
           messageBatchSize: 10,
           maxDocumentsPerRun: 50,
-          messageProcessingEnabled: true
+          messageProcessingEnabled: true,
+          faqGenerationEnabled: true
         },
         stats: { totalRuns: 0, successfulRuns: 0, faqsGenerated: 0, avgProcessingTime: 0 }
       }

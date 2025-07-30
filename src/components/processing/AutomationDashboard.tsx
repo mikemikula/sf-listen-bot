@@ -317,7 +317,8 @@ export const AutomationDashboard: React.FC<AutomationDashboardProps> = ({
           // NEW: Message processing settings
           ...(key === 'maxUnprocessedMessages' ? { maxUnprocessedMessages: parseInt(value) || 50 } : {}),
           ...(key === 'messageBatchSize' ? { messageBatchSize: parseInt(value) || 10 } : {}),
-          ...(key === 'messageProcessingEnabled' ? { messageProcessingEnabled: value } : {})
+          ...(key === 'messageProcessingEnabled' ? { messageProcessingEnabled: value } : {}),
+          ...(key === 'faqGenerationEnabled' ? { faqGenerationEnabled: value } : {})
         }
       }
 
@@ -847,7 +848,23 @@ export const AutomationDashboard: React.FC<AutomationDashboardProps> = ({
                     />
                     <span className="text-gray-300 text-sm">Convert unprocessed messages to documents</span>
                   </div>
-                  <span className="text-xs text-gray-400 mt-1 block">Disable to only generate FAQs from existing documents</span>
+                  <span className="text-xs text-gray-400 mt-1 block">Step 1: Process raw messages into organized documents</span>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    FAQ Generation:
+                  </label>
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={getCurrentFAQData()?.settings?.faqGenerationEnabled ?? true}
+                      onChange={(e) => handleFAQSettingsUpdate('faqGenerationEnabled', e.target.checked)}
+                      className="rounded mr-2"
+                    />
+                    <span className="text-gray-300 text-sm">Generate FAQs from processed documents</span>
+                  </div>
+                  <span className="text-xs text-gray-400 mt-1 block">Step 2: Create searchable FAQ entries from documents</span>
                 </div>
               </div>
             </div>

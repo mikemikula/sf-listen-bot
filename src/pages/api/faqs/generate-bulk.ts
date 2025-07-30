@@ -22,6 +22,7 @@ interface BulkGenerateRequest {
     messageBatchSize?: number          // Batch size for processing messages (default: 25)  
     maxDocumentsPerRun?: number        // Max documents to process for FAQ generation (default: 50)
     messageProcessingEnabled?: boolean // Whether to process unprocessed messages (default: true)
+    faqGenerationEnabled?: boolean     // Whether to generate FAQs from documents (default: true)
     [key: string]: any
   }
 }
@@ -61,7 +62,8 @@ async function handleBulkGenerateFAQs(
       maxUnprocessedMessages = 50,
       messageBatchSize = 25, // ✅ Larger default to reduce conversation splitting
       maxDocumentsPerRun = 50,
-      messageProcessingEnabled = true
+      messageProcessingEnabled = true,
+      faqGenerationEnabled = true
     } = data
 
     logger.info(`🚀 Starting bulk FAQ generation`, {
@@ -119,7 +121,14 @@ async function handleBulkGenerateFAQs(
       }
     }
 
-    logger.info(`📋 Step 2: Finding eligible documents for FAQ generation...`)
+    // Initialize FAQ processing variables
+    let documentsProcessed = 0
+    let faqsGenerated = 0
+    const errors: string[] = []
+
+    // Step 2: Generate FAQs from documents (if enabled)
+    if (faqGenerationEnabled) {
+      logger.info(`📋 Step 2: Finding eligible documents for FAQ generation...`)
 
     // Step 2: Find eligible documents for FAQ generation (including newly created ones)
     const eligibleDocuments = await db.processedDocument.findMany({
@@ -165,11 +174,7 @@ async function handleBulkGenerateFAQs(
       })
     }
 
-    logger.info(`📋 Found ${eligibleDocuments.length} eligible documents for FAQ generation`)
-
-    let documentsProcessed = 0
-    let faqsGenerated = 0
-    const errors: string[] = []
+      logger.info(`📋 Found ${eligibleDocuments.length} eligible documents for FAQ generation`)
 
     // Process each document
     for (const document of eligibleDocuments) {
@@ -209,8 +214,11 @@ async function handleBulkGenerateFAQs(
         logger.error(`❌ Error processing document ${document.id}:`, error)
       }
     }
+    } else {
+      logger.info(`📋 Step 2: FAQ generation disabled, skipping FAQ generation`)
+    }
 
-    const message = `Bulk FAQ generation completed. Created ${newDocumentsCreated} documents from messages, processed ${documentsProcessed} documents, generated ${faqsGenerated} FAQs`
+    const message = `Bulk FAQ generation completed. Created ${newDocumentsCreated} documents from ${messageProcessingEnabled ? maxUnprocessedMessages : 0} messages (max), processed ${documentsProcessed} documents, generated ${faqsGenerated} FAQs`
     
     logger.info(`🎉 ${message}`, {
       newDocumentsCreated,
