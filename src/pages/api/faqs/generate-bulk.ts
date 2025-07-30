@@ -17,6 +17,11 @@ interface BulkGenerateRequest {
     minDocumentsRequired?: number
     requireApproval?: boolean
     categories?: string[]
+    // NEW: Configurable message processing limits
+    maxUnprocessedMessages?: number    // Max messages to process into documents per run (default: 50)
+    messageBatchSize?: number          // Batch size for processing messages (default: 10)  
+    maxDocumentsPerRun?: number        // Max documents to process for FAQ generation (default: 50)
+    messageProcessingEnabled?: boolean // Whether to process unprocessed messages (default: true)
     [key: string]: any
   }
 }
@@ -51,7 +56,12 @@ async function handleBulkGenerateFAQs(
       maxFAQsPerRun = 10,
       minDocumentsRequired = 2,
       requireApproval = false,
-      categories = []
+      categories = [],
+      // NEW: Configurable message processing limits
+      maxUnprocessedMessages = 50,
+      messageBatchSize = 10,
+      maxDocumentsPerRun = 50,
+      messageProcessingEnabled = true
     } = data
 
     logger.info(`🚀 Starting bulk FAQ generation`, {
@@ -68,7 +78,7 @@ async function handleBulkGenerateFAQs(
       where: {
         documentMessages: { none: {} }
       },
-      take: 50 // Limit for performance
+      take: maxUnprocessedMessages // Now configurable!
     })
 
     logger.info(`📊 Found ${unprocessedMessages.length} unprocessed messages`)
@@ -79,10 +89,9 @@ async function handleBulkGenerateFAQs(
         // Import document processor service
         const { documentProcessorService } = await import('@/lib/documentProcessor')
         
-        // Process messages in batches of 10
-        const batchSize = 10
-        for (let i = 0; i < unprocessedMessages.length; i += batchSize) {
-          const batch = unprocessedMessages.slice(i, i + batchSize)
+        // Process messages in configurable batches
+        for (let i = 0; i < unprocessedMessages.length; i += messageBatchSize) {
+          const batch = unprocessedMessages.slice(i, i + messageBatchSize)
           
           const processingInput = {
             messageIds: batch.map(m => m.id),
@@ -124,7 +133,7 @@ async function handleBulkGenerateFAQs(
           }
         }
       },
-      take: Math.min(maxFAQsPerRun, 50), // Cap at 50 for performance
+      take: Math.min(maxFAQsPerRun, maxDocumentsPerRun), // Now uses both limits!
       orderBy: {
         createdAt: 'desc'
       },

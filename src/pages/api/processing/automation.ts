@@ -74,7 +74,12 @@ async function initializeDefaultAutomationRules() {
               minDocumentsRequired: 0,
               requireApproval: false,
               categories: ['technical', 'general', 'product'],
-              qualityThreshold: 0.7
+              qualityThreshold: 0.7,
+              // NEW: Message processing limits
+              maxUnprocessedMessages: 50,
+              messageBatchSize: 10,
+              maxDocumentsPerRun: 50,
+              messageProcessingEnabled: true
             }
           },
           createdBy: 'system'
@@ -88,7 +93,8 @@ async function initializeDefaultAutomationRules() {
         const currentConfig = existingRule.jobConfig as any
         const needsUpdate = !currentConfig?.parameters || 
                            currentConfig.parameters.minDocumentsRequired !== 0 ||
-                           currentConfig.parameters.requireApproval !== false
+                           currentConfig.parameters.requireApproval !== false ||
+                           !currentConfig.parameters.maxUnprocessedMessages
         
         if (needsUpdate) {
           await db.automationRule.update({
@@ -101,12 +107,17 @@ async function initializeDefaultAutomationRules() {
                   minDocumentsRequired: 0,
                   requireApproval: false,
                   categories: currentConfig?.parameters?.categories || ['technical', 'general', 'product'],
-                  qualityThreshold: currentConfig?.parameters?.qualityThreshold || 0.7
+                  qualityThreshold: currentConfig?.parameters?.qualityThreshold || 0.7,
+                  // NEW: Message processing limits with backwards compatibility
+                  maxUnprocessedMessages: currentConfig?.parameters?.maxUnprocessedMessages || 50,
+                  messageBatchSize: currentConfig?.parameters?.messageBatchSize || 10,
+                  maxDocumentsPerRun: currentConfig?.parameters?.maxDocumentsPerRun || 50,
+                  messageProcessingEnabled: currentConfig?.parameters?.messageProcessingEnabled !== false
                 }
               }
             }
           })
-          logger.info('Updated FAQ generation automation rule with improved defaults')
+          logger.info('Updated FAQ generation automation rule with improved defaults and message processing controls')
         }
       }
     }
@@ -211,6 +222,11 @@ interface AutomationResponse {
           requireApproval: boolean
           categories: string[]
           qualityThreshold: number
+          // NEW: Message processing limits
+          maxUnprocessedMessages: number
+          messageBatchSize: number
+          maxDocumentsPerRun: number
+          messageProcessingEnabled: boolean
         }
         stats: {
           totalRuns: number
@@ -509,7 +525,12 @@ async function getAutomationRules() {
         minDocumentsRequired: (faqRule.jobConfig as any)?.parameters?.minDocumentsRequired || 0,
         requireApproval: (faqRule.jobConfig as any)?.parameters?.requireApproval || false,
         categories: (faqRule.jobConfig as any)?.parameters?.categories || ['technical', 'general', 'product'],
-        qualityThreshold: (faqRule.jobConfig as any)?.parameters?.qualityThreshold || 0.7
+        qualityThreshold: (faqRule.jobConfig as any)?.parameters?.qualityThreshold || 0.7,
+        // NEW: Message processing limits with defaults
+        maxUnprocessedMessages: (faqRule.jobConfig as any)?.parameters?.maxUnprocessedMessages || 50,
+        messageBatchSize: (faqRule.jobConfig as any)?.parameters?.messageBatchSize || 10,
+        maxDocumentsPerRun: (faqRule.jobConfig as any)?.parameters?.maxDocumentsPerRun || 50,
+        messageProcessingEnabled: (faqRule.jobConfig as any)?.parameters?.messageProcessingEnabled ?? true
       },
      stats: {
         totalRuns: faqRule.runCount,
@@ -564,7 +585,17 @@ async function getAutomationRules() {
           lastRun: null, 
           nextRun: null 
         },
-        settings: { maxFAQsPerRun: 10, minDocumentsRequired: 0, requireApproval: false, categories: ['technical', 'general', 'product'], qualityThreshold: 0.7 },
+        settings: { 
+          maxFAQsPerRun: 10, 
+          minDocumentsRequired: 0, 
+          requireApproval: false, 
+          categories: ['technical', 'general', 'product'], 
+          qualityThreshold: 0.7,
+          maxUnprocessedMessages: 50,
+          messageBatchSize: 10,
+          maxDocumentsPerRun: 50,
+          messageProcessingEnabled: true
+        },
         stats: { totalRuns: 0, successfulRuns: 0, faqsGenerated: 0, avgProcessingTime: 0 }
       }
     }

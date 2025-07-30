@@ -311,9 +311,13 @@ export const AutomationDashboard: React.FC<AutomationDashboardProps> = ({
         },
         settings: {
           ...currentFAQGeneration.settings,
-          ...(key === 'maxFAQsPerRun' ? { maxFAQsPerRun: parseInt(value) } : {}),
+          ...(key === 'maxFAQsPerRun' ? { maxFAQsPerRun: parseInt(value) || 10 } : {}),
           ...(key === 'qualityThreshold' ? { qualityThreshold: parseFloat(value) } : {}),
-          ...(key === 'requireApproval' ? { requireApproval: value } : {})
+          ...(key === 'requireApproval' ? { requireApproval: value } : {}),
+          // NEW: Message processing settings
+          ...(key === 'maxUnprocessedMessages' ? { maxUnprocessedMessages: parseInt(value) || 50 } : {}),
+          ...(key === 'messageBatchSize' ? { messageBatchSize: parseInt(value) || 10 } : {}),
+          ...(key === 'messageProcessingEnabled' ? { messageProcessingEnabled: value } : {})
         }
       }
 
@@ -563,7 +567,7 @@ export const AutomationDashboard: React.FC<AutomationDashboardProps> = ({
               <button
                 onClick={() => onTriggerProcessing?.('faq', { 
                   template: 'automation',
-                  ...data.automationRules.faqGeneration?.settings 
+                  ...getCurrentFAQData()?.settings // Use current settings (includes pending changes)
                 })}
                 disabled={loading}
                 className={`px-4 py-2 rounded-lg font-medium transition-colors ${
@@ -763,37 +767,91 @@ export const AutomationDashboard: React.FC<AutomationDashboardProps> = ({
             <div className="mt-4 p-4 bg-gray-800/50 rounded-lg border border-gray-600">
               <h4 className="text-white font-medium mb-3">Advanced Settings</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Existing Quality Filter */}
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">
                     Quality Filter:
                   </label>
-                                     <select
-                     value={getCurrentFAQData()?.settings?.qualityThreshold || 'medium'}
-                     onChange={(e) => handleFAQSettingsUpdate('qualityThreshold', e.target.value)}
-                     className="w-full bg-gray-600 border border-gray-500 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-purple-500"
-                   >
-                     <option value="low">Process all conversations</option>
-                     <option value="medium">Skip low-quality conversations</option>
-                     <option value="high">Only high-quality conversations</option>
-                   </select>
-                 </div>
-                 <div>
-                   <label className="block text-sm font-medium text-gray-300 mb-2">
-                     Approval Required:
-                   </label>
-                   <div className="flex items-center">
-                     <input
-                       type="checkbox"
-                       checked={getCurrentFAQData()?.settings?.requireApproval ?? false}
-                       onChange={(e) => handleFAQSettingsUpdate('requireApproval', e.target.checked)}
-                       className="rounded mr-2"
-                     />
-                     <span className="text-gray-300 text-sm">Require manual approval before publishing FAQs</span>
-                   </div>
-                 </div>
+                  <select
+                    value={getCurrentFAQData()?.settings?.qualityThreshold || 'medium'}
+                    onChange={(e) => handleFAQSettingsUpdate('qualityThreshold', e.target.value)}
+                    className="w-full bg-gray-600 border border-gray-500 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-purple-500"
+                  >
+                    <option value="low">Process all conversations</option>
+                    <option value="medium">Skip low-quality conversations</option>
+                    <option value="high">Only high-quality conversations</option>
+                  </select>
+                </div>
+
+                {/* Existing Approval Required */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Approval Required:
+                  </label>
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={getCurrentFAQData()?.settings?.requireApproval ?? false}
+                      onChange={(e) => handleFAQSettingsUpdate('requireApproval', e.target.checked)}
+                      className="rounded mr-2"
+                    />
+                    <span className="text-gray-300 text-sm">Require manual approval before publishing FAQs</span>
+                  </div>
+                </div>
+
+                {/* NEW: Message Processing Controls */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Max Messages Per Run:
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="1000"
+                    value={getCurrentFAQData()?.settings?.maxUnprocessedMessages || 50}
+                    onChange={(e) => handleFAQSettingsUpdate('maxUnprocessedMessages', e.target.value)}
+                    className="w-full bg-gray-600 border border-gray-500 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-purple-500"
+                    placeholder="50"
+                  />
+                  <span className="text-xs text-gray-400 mt-1 block">Maximum unprocessed messages to convert to documents</span>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Message Batch Size:
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="100"
+                    value={getCurrentFAQData()?.settings?.messageBatchSize || 10}
+                    onChange={(e) => handleFAQSettingsUpdate('messageBatchSize', e.target.value)}
+                    className="w-full bg-gray-600 border border-gray-500 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-purple-500"
+                    placeholder="10"
+                  />
+                  <span className="text-xs text-gray-400 mt-1 block">How many messages to process at once</span>
+                </div>
+
+
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Message Processing:
+                  </label>
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={getCurrentFAQData()?.settings?.messageProcessingEnabled ?? true}
+                      onChange={(e) => handleFAQSettingsUpdate('messageProcessingEnabled', e.target.checked)}
+                      className="rounded mr-2"
+                    />
+                    <span className="text-gray-300 text-sm">Convert unprocessed messages to documents</span>
+                  </div>
+                  <span className="text-xs text-gray-400 mt-1 block">Disable to only generate FAQs from existing documents</span>
+                </div>
               </div>
             </div>
-                     )}
+          )}
 
            {/* Save/Cancel Buttons */}
            {hasUnsavedChanges && (

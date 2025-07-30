@@ -238,7 +238,6 @@ async function handleUpdateRule(
       
       // Build update data
       const updateData: any = {
-        updatedBy: 'system',
         updatedAt: new Date()
       }
 
@@ -246,14 +245,20 @@ async function handleUpdateRule(
         updateData.enabled = enabled
       }
 
-      // Update trigger config if schedule is provided
-      if (schedule !== undefined) {
-        updateData.triggerConfig = schedule
-      }
-
-      // Update action config if settings is provided
-      if (settings !== undefined) {
-        updateData.actionConfig = settings
+      // Update job config with both schedule and settings
+      if (schedule !== undefined || settings !== undefined) {
+        const currentJobConfig = await db.automationRule.findUnique({ 
+          where: { id: ruleId },
+          select: { jobConfig: true }
+        })
+        
+        const existingConfig = (currentJobConfig?.jobConfig as any) || {}
+        
+        updateData.jobConfig = {
+          ...existingConfig,
+          ...(schedule !== undefined && { schedule }),
+          ...(settings !== undefined && { parameters: settings })
+        }
       }
       
       // Update the automation rule in the database
