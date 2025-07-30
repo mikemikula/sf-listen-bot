@@ -80,7 +80,7 @@ export const Header: React.FC<HeaderProps> = ({ isConnected, onDebugClick }) => 
   }
 
   return (
-    <header className="bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-800 shadow-lg sticky top-0 z-50 border-b border-white/10">
+    <header className="bg-gradient-to-r from-blue-600 via-blue-700 to-blue-800 shadow-lg sticky top-0 z-50 border-b border-white/10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-14 sm:h-16">
           {/* Brand */}
@@ -212,7 +212,7 @@ export const Header: React.FC<HeaderProps> = ({ isConnected, onDebugClick }) => 
                     {/* Full-Screen Navigation Panel */}
                     <div className="fixed inset-0 bg-white dark:bg-gray-900 flex flex-col">
                       {/* Navigation Header - Fixed at top */}
-                      <div className="flex-shrink-0 bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-800 px-4 py-4 flex items-center justify-between">
+<div className="flex-shrink-0 bg-gradient-to-r from-blue-600 via-blue-700 to-blue-800 px-4 py-4 flex items-center justify-between">
                         <div className="flex items-center space-x-3">
                           <div className="w-8 h-8 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center border border-white/20">
                             <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

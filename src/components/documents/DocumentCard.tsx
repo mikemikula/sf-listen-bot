@@ -222,7 +222,7 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
             {/* Primary Action - Full Width on Mobile */}
             <Link 
               href={`/documents/${document.id}`}
-              className="flex items-center justify-center gap-2 w-full sm:w-auto text-sm bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-4 py-2.5 sm:py-2 rounded-lg font-medium transition-all duration-200 touch-manipulation"
+              className="flex items-center justify-center gap-2 w-full sm:w-auto text-sm bg-gradient-to-r from-blue-600 to-blue-800 hover:from-blue-700 hover:to-blue-900 text-white px-4 py-2.5 sm:py-2 rounded-lg font-medium transition-all duration-200 touch-manipulation"
               title="View full document details"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
