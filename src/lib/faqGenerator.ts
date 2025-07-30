@@ -741,16 +741,21 @@ class FAQGeneratorService {
         // Create MessageFAQ relationships for traceability
         for (const indexStr of candidate.sourceMessageIds) {
           const index = parseInt(indexStr)
-          const messageId = documentData.messages[index]?.id
+          const message = documentData.messages[index]
           
-          if (!messageId) continue
+          if (!message?.id) continue
 
-          // Determine contribution type based on message role
-          const contributionType = this.determineContributionType(indexStr, i)
+          // Determine contribution type based on message content
+          const contributionType = this.determineContributionType(
+            indexStr, 
+            i, 
+            message.text, 
+            candidate.question
+          )
 
           await db.messageFAQ.create({
             data: {
-              messageId,
+              messageId: message.id,
               faqId: faq.id,
               contributionType,
               documentId: documentData.document.id
@@ -786,18 +791,51 @@ class FAQGeneratorService {
   }
 
   /**
-   * Determine contribution type for message-FAQ relationship
+   * Determine contribution type for message-FAQ relationship based on content analysis
    */
   private determineContributionType(
     messageIndex: string,
-    faqIndex: number
+    faqIndex: number,
+    messageText?: string,
+    faqQuestion?: string
   ): ContributionType {
-    // Simple heuristic - could be enhanced with more sophisticated logic
-    const index = parseInt(messageIndex) || 0
+    if (!messageText) {
+      // Fallback to simple position-based logic if no content
+      const index = parseInt(messageIndex) || 0
+      if (index === 0) return ContributionType.PRIMARY_QUESTION
+      if (index === 1) return ContributionType.PRIMARY_ANSWER
+      return ContributionType.SUPPORTING_CONTEXT
+    }
+
+    const text = messageText.toLowerCase().trim()
     
-    if (index === 0 || faqIndex === 0) {
+    // Check if message contains question indicators
+    const questionWords = ['what', 'where', 'when', 'why', 'how', 'which', 'who', 'can', 'should', 'would', 'could', 'is', 'are', 'do', 'does']
+    const hasQuestionWord = questionWords.some(word => text.includes(word))
+    const hasQuestionMark = text.includes('?')
+    const isQuestion = hasQuestionMark || (hasQuestionWord && text.length < 200)
+
+    // Check if message provides informational content (likely an answer)
+    const answerIndicators = ['mailto:', 'http', 'contact', 'email', 'phone', 'address', '@']
+    const providesInfo = answerIndicators.some(indicator => text.includes(indicator))
+    const isLongInformative = text.length > 50 && !hasQuestionMark
+
+    // Check semantic similarity with FAQ question if provided
+    if (faqQuestion && isQuestion) {
+      const faqLower = faqQuestion.toLowerCase()
+      const sharedWords = text.split(' ').filter(word => 
+        word.length > 3 && faqLower.includes(word)
+      ).length
+      
+      if (sharedWords >= 2) {
+        return ContributionType.PRIMARY_QUESTION
+      }
+    }
+
+    // Determine contribution type based on content analysis
+    if (isQuestion && !providesInfo) {
       return ContributionType.PRIMARY_QUESTION
-    } else if (index === 1 || faqIndex === 1) {
+    } else if (providesInfo || isLongInformative) {
       return ContributionType.PRIMARY_ANSWER
     } else {
       return ContributionType.SUPPORTING_CONTEXT
