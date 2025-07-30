@@ -798,3 +798,132 @@ export class PineconeError extends Error {
     this.name = 'PineconeError'
   }
 } 
+
+/**
+ * Dashboard System Types
+ * Shared interfaces for analytics and automation dashboards
+ * Following DRY principle to avoid code duplication
+ */
+
+// System Health Types
+export interface SystemHealth {
+  isHealthy: boolean
+  services: {
+    database: { status: 'healthy' | 'error'; error?: string }
+    documentProcessor: { status: 'healthy' | 'error'; error?: string; stats?: any }
+    faqGenerator: { status: 'healthy' | 'error'; error?: string; stats?: any }
+    piiDetector: { status: 'healthy' | 'error'; error?: string; stats?: any }
+    pinecone: { status: 'healthy' | 'error'; error?: string; stats?: any }
+  }
+}
+
+// Job Management Types
+export interface JobStatistics {
+  totalJobs: number
+  completedJobs: number
+  failedJobs: number
+  queuedJobs: number
+  processingJobs: number
+  avgProcessingTime: number
+}
+
+export interface ProcessingJob {
+  id: string
+  status: string
+  jobType: string
+  progress: number
+  createdAt: string
+  startedAt?: string
+  completedAt?: string
+  errorMessage?: string
+  createdBy?: string
+}
+
+// System Statistics Types
+export interface SystemStats {
+  totalDocuments: number
+  totalFAQs: number
+  totalMessages: number
+  pendingFAQReviews: number
+  piiDetectionsToday: number
+  documentsCreatedToday: number
+  faqsGeneratedToday: number
+}
+
+// Analytics Dashboard Data Structure
+export interface AnalyticsData {
+  systemHealth: SystemHealth
+  systemStats: SystemStats
+  jobStatistics: JobStatistics
+  recentActivity: {
+    documentsProcessed: number
+    faqsGenerated: number
+    errorsDetected: number
+    lastUpdate: string
+  }
+}
+
+// Automation Types
+export interface AutomationRule {
+  id: string
+  name: string
+  description: string
+  enabled: boolean
+  trigger: {
+    type: 'schedule' | 'event' | 'manual'
+    schedule?: string // cron expression
+    eventType?: string
+  }
+  action: {
+    type: 'document' | 'faq' | 'cleanup' | 'batch'
+    parameters: Record<string, any>
+  }
+  permissions: string[]
+  lastRun?: string
+  nextRun?: string
+  runCount: number
+  successRate: number
+}
+
+export interface ProcessingSettings {
+  maxConcurrentJobs: number
+  defaultJobPriority: number
+  autoRetryFailedJobs: boolean
+  maxRetryAttempts: number
+  jobTimeoutMinutes: number
+  enableScheduledProcessing: boolean
+  enableAutoCleanup: boolean
+  cleanupRetentionDays: number
+  notificationSettings: {
+    enableEmailAlerts: boolean
+    enableSlackAlerts: boolean
+    alertOnFailure: boolean
+    alertOnSuccess: boolean
+  }
+}
+
+// Automation Dashboard Data Structure
+export interface AutomationData {
+  processingJobs: {
+    active: ProcessingJob[]
+    recent: ProcessingJob[]
+    statistics: JobStatistics
+  }
+  automationRules: AutomationRule[]
+  processingSettings: ProcessingSettings
+}
+
+// Shared Dashboard Props
+export interface DashboardProps {
+  className?: string
+  refreshInterval?: number
+}
+
+// Job Action Types
+export type JobAction = 'retry' | 'stop' | 'delete' | 'pause' | 'resume'
+export type JobFilter = 'all' | 'active' | 'failed' | 'completed' | 'queued'
+export type JobSource = {
+  type: 'manual' | 'automated' | 'scheduled'
+  color: string
+  label: string
+} 
