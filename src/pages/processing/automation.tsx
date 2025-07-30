@@ -42,13 +42,13 @@ const AutomationControlPage: React.FC = () => {
    * Manages manual job initiation and processing requests
    */
   const handleTriggerProcessing = async (type: string, data: any) => {
+    // Show loading toast outside try-catch so it's accessible in both blocks
+    const loadingToast = toast.loading(
+      type === 'faq' ? 'Processing messages and generating FAQs...' : `Starting ${type} processing...`
+    )
+    
     try {
       console.log('Triggering processing:', type, data)
-      
-      // Show loading toast
-      const loadingToast = toast.loading(
-        type === 'faq' ? 'Processing messages and generating FAQs...' : `Starting ${type} processing...`
-      )
       
       // Call the appropriate API endpoint based on processing type
       const endpoint = getProcessingEndpoint(type)
