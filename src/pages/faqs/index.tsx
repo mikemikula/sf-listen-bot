@@ -155,6 +155,10 @@ const FAQsPage: React.FC = () => {
   const [categoryFilter, setCategoryFilter] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
 
+  // Bulk operations state
+  const [selectedFAQs, setSelectedFAQs] = useState<Set<string>>(new Set())
+  const [bulkProcessing, setBulkProcessing] = useState(false)
+
   /**
    * Show notification temporarily
    */
@@ -387,6 +391,71 @@ const FAQsPage: React.FC = () => {
     }
   }, [showNotification, fetchFAQs])
 
+  /**
+   * Handle selecting/deselecting FAQs for bulk operations
+   */
+  const handleSelectFAQ = useCallback((faqId: string, selected: boolean) => {
+    setSelectedFAQs(prev => {
+      const newSet = new Set(prev)
+      if (selected) {
+        newSet.add(faqId)
+      } else {
+        newSet.delete(faqId)
+      }
+      return newSet
+    })
+  }, [])
+
+  /**
+   * Handle select all/none toggle
+   */
+  const handleSelectAll = useCallback((selectAll: boolean) => {
+    if (selectAll) {
+      setSelectedFAQs(new Set(faqs.map(faq => faq.id)))
+    } else {
+      setSelectedFAQs(new Set())
+    }
+  }, [faqs])
+
+  /**
+   * Handle bulk delete operation
+   */
+  const handleBulkDelete = useCallback(async () => {
+    if (selectedFAQs.size === 0) return
+    
+    const confirmed = confirm(`Are you sure you want to delete ${selectedFAQs.size} FAQ(s)? This action cannot be undone.`)
+    if (!confirmed) return
+
+    setBulkProcessing(true)
+    
+    try {
+      const deletePromises = Array.from(selectedFAQs).map(async (faqId) => {
+        const response = await fetch(`/api/faqs/${faqId}`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' }
+        })
+
+        if (!response.ok) {
+          const result = await response.json()
+          throw new Error(result.error || `Failed to delete FAQ ${faqId}`)
+        }
+      })
+
+      await Promise.all(deletePromises)
+      
+      showNotification('success', `Successfully deleted ${selectedFAQs.size} FAQ(s)!`)
+      setSelectedFAQs(new Set()) // Clear selection
+      fetchFAQs() // Refresh the FAQ list
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to delete FAQs'
+      showNotification('error', errorMessage)
+      console.error('Failed to delete FAQs:', error)
+    } finally {
+      setBulkProcessing(false)
+    }
+  }, [selectedFAQs, showNotification, fetchFAQs])
+
   return (
     <>
       <Head>
@@ -431,8 +500,44 @@ const FAQsPage: React.FC = () => {
                 >
                   {processing ? 'Cleaning...' : 'Clean Duplicates'}
                 </button>
+                
+                <button
+                  onClick={() => handleSelectAll(true)}
+                  disabled={faqs.length === 0}
+                  className="px-4 py-2 text-sm bg-gray-600 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-md transition-colors duration-200"
+                >
+                  Select All
+                </button>
               </div>
             </div>
+
+            {/* Bulk Operations Bar */}
+            {selectedFAQs.size > 0 && (
+              <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900 border border-blue-200 dark:border-blue-700 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <span className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                      {selectedFAQs.size} FAQ(s) selected
+                    </span>
+                    <button
+                      onClick={() => setSelectedFAQs(new Set())}
+                      className="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-300 dark:hover:text-blue-100"
+                    >
+                      Clear selection
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={handleBulkDelete}
+                      disabled={bulkProcessing}
+                      className="px-4 py-2 text-sm bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-md transition-colors duration-200"
+                    >
+                      {bulkProcessing ? 'Deleting...' : 'Delete Selected'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Mobile Actions */}
             <div className="sm:hidden mt-4 space-y-3">
@@ -562,6 +667,40 @@ const FAQsPage: React.FC = () => {
           {/* FAQ Grid */}
           {!loading && !error && faqs.length > 0 && (
             <div className="space-y-6">
+              {/* Bulk Selection Header */}
+              <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <label className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={selectedFAQs.size === faqs.length && faqs.length > 0}
+                        onChange={(e) => handleSelectAll(e.target.checked)}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded"
+                      />
+                      <span className="ml-2 text-sm font-medium text-gray-900 dark:text-white">
+                        Select All ({faqs.length})
+                      </span>
+                    </label>
+                    {selectedFAQs.size > 0 && (
+                      <span className="text-sm text-gray-500 dark:text-gray-400">
+                        {selectedFAQs.size} selected
+                      </span>
+                    )}
+                  </div>
+                  {selectedFAQs.size > 0 && (
+                    <button
+                      onClick={handleBulkDelete}
+                      disabled={bulkProcessing}
+                      className="px-3 py-2 text-sm bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-md transition-colors duration-200"
+                    >
+                      Delete {selectedFAQs.size} FAQ{selectedFAQs.size !== 1 ? 's' : ''}
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* FAQ List */}
               {faqs.map((faq) => (
                 <FAQCard
                   key={faq.id}
@@ -569,6 +708,9 @@ const FAQsPage: React.FC = () => {
                   onApprove={handleApproveFAQ}
                   onReject={handleRejectFAQ}
                   onDelete={handleDeleteFAQ}
+                  showBulkSelect={true}
+                  isSelected={selectedFAQs.has(faq.id)}
+                  onSelect={(selected) => handleSelectFAQ(faq.id, selected)}
                 />
               ))}
             </div>

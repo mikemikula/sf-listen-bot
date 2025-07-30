@@ -19,6 +19,9 @@ interface FAQCardProps {
   onEdit?: (faqId: string) => void
   onDelete?: (faqId: string) => void
   onViewSources?: (faqId: string) => void
+  showBulkSelect?: boolean
+  isSelected?: boolean
+  onSelect?: (selected: boolean) => void
 }
 
 /**
@@ -34,7 +37,10 @@ export const FAQCard: React.FC<FAQCardProps> = ({
   onReject,
   onEdit,
   onDelete,
-  onViewSources
+  onViewSources,
+  showBulkSelect = false,
+  isSelected = false,
+  onSelect
 }) => {
   const [cardExpanded, setCardExpanded] = useState(false)
   const [answerExpanded, setAnswerExpanded] = useState(false)
@@ -146,6 +152,19 @@ export const FAQCard: React.FC<FAQCardProps> = ({
       {/* Compact Header - Always Visible */}
       <div className="p-4 pb-5">
         <div className="flex items-start justify-between gap-3">
+          {/* Bulk Selection Checkbox */}
+          {showBulkSelect && (
+            <div className="flex-shrink-0 pt-1">
+              <input
+                type="checkbox"
+                checked={isSelected}
+                onChange={(e) => onSelect?.(e.target.checked)}
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded"
+                onClick={(e) => e.stopPropagation()}
+              />
+            </div>
+          )}
+          
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-3">
               <span className={getStatusStyle(faq.status)}>
