@@ -29,6 +29,7 @@ export interface ChannelPullConfig {
   includeThreads?: boolean
   batchSize?: number
   delayBetweenRequests?: number
+  skipPIIDetection?: boolean // Skip PII detection for faster historical imports
   userId?: string // User who initiated the pull
 }
 
@@ -361,7 +362,11 @@ export class SlackChannelPuller {
         }
 
         // Process through existing event processor
-        const result = await processSlackEvent(webhookPayload, JSON.stringify(webhookPayload))
+        const result = await processSlackEvent(
+          webhookPayload, 
+          JSON.stringify(webhookPayload),
+          { skipPIIDetection: config.skipPIIDetection }
+        )
 
         // Update stats based on result
         switch (result.result) {
@@ -454,7 +459,11 @@ export class SlackChannelPuller {
             event_time: Math.floor(parseSlackTimestamp(reply.ts).getTime() / 1000)
           }
 
-          await processSlackEvent(webhookPayload, JSON.stringify(webhookPayload))
+          await processSlackEvent(
+            webhookPayload, 
+            JSON.stringify(webhookPayload),
+            { skipPIIDetection: config.skipPIIDetection }
+          )
           progress.stats.threadRepliesFetched++
         }
 

@@ -35,6 +35,7 @@ interface PullConfig {
   includeThreads: boolean
   batchSize: number
   delayBetweenRequests: number
+  skipPIIDetection: boolean
 }
 
 interface PullProgress {
@@ -90,8 +91,9 @@ export const ChannelPullDashboard: React.FC = () => {
     startDate: '',
     endDate: '',
     includeThreads: true,
-    batchSize: 100,
-    delayBetweenRequests: 1000
+    batchSize: 200,
+    delayBetweenRequests: 500,
+    skipPIIDetection: true // Default to true for faster historical imports
   })
 
   // UI state
@@ -166,7 +168,7 @@ export const ChannelPullDashboard: React.FC = () => {
           }
         }
       })
-    }, 3000) // Poll every 3 seconds
+            }, 5000) // Poll every 5 seconds (reduced frequency)
 
     return () => clearInterval(pollInterval)
   }, [activePulls])
@@ -523,6 +525,20 @@ export const ChannelPullDashboard: React.FC = () => {
                   </label>
                 </div>
 
+                {/* Skip PII Detection */}
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="skipPIIDetection"
+                    checked={pullConfig.skipPIIDetection}
+                    onChange={(e) => setPullConfig(prev => ({ ...prev, skipPIIDetection: e.target.checked }))}
+                    className="w-4 h-4 text-blue-600 border-gray-300 dark:border-gray-600 rounded focus:ring-blue-500 bg-white dark:bg-gray-700"
+                  />
+                  <label htmlFor="skipPIIDetection" className="ml-2 text-sm text-gray-700 dark:text-gray-300">
+                    Skip PII detection (⚡ faster imports)
+                  </label>
+                </div>
+
                 {/* Advanced Settings */}
                 {showAdvancedSettings && (
                   <div className="border-t pt-4 space-y-4">
@@ -564,12 +580,12 @@ export const ChannelPullDashboard: React.FC = () => {
                                                   <input
                             type="number"
                             min="50"
-                            max="200"
+                            max="500"
                             value={pullConfig.batchSize}
-                            onChange={(e) => setPullConfig(prev => ({ ...prev, batchSize: parseInt(e.target.value) || 100 }))}
+                            onChange={(e) => setPullConfig(prev => ({ ...prev, batchSize: parseInt(e.target.value) || 200 }))}
                             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                           />
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Messages per API request (50-200)</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Messages per API request (50-500)</p>
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -577,14 +593,14 @@ export const ChannelPullDashboard: React.FC = () => {
                         </label>
                                                   <input
                             type="number"
-                            min="500"
-                            max="5000"
+                            min="200"
+                            max="3000"
                             step="100"
                             value={pullConfig.delayBetweenRequests}
-                            onChange={(e) => setPullConfig(prev => ({ ...prev, delayBetweenRequests: parseInt(e.target.value) || 1000 }))}
+                            onChange={(e) => setPullConfig(prev => ({ ...prev, delayBetweenRequests: parseInt(e.target.value) || 500 }))}
                             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                           />
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Delay between requests (500-5000ms)</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Delay between requests (200-3000ms)</p>
                       </div>
                     </div>
                   </div>

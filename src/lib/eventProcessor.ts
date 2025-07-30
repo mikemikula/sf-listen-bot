@@ -28,12 +28,17 @@ interface ProcessingResult {
   error?: Error
 }
 
+interface ProcessingOptions {
+  skipPIIDetection?: boolean
+}
+
 /**
  * Process a Slack webhook event with full transaction logging
  */
 export const processSlackEvent = async (
   payload: SlackWebhookPayload,
-  rawPayload: string
+  rawPayload: string,
+  options: ProcessingOptions = {}
 ): Promise<ProcessingResult> => {
   const eventId = payload.event_id || `${Date.now()}-${Math.random()}`
   
@@ -334,30 +339,34 @@ const processMessageEvent = async (
 
     logger.slack(`Message stored: ${message.id} (isThreadReply: ${isThreadReply})`)
     
-    // Perform PII detection on new message
-    try {
-      logger.info(`Starting PII detection for message ${message.id} (isThreadReply: ${isThreadReply}, text length: ${message.text.length})`)
-      
-      const piiDetections = await piiDetectorService.detectPII(
-        message.text,
-        'MESSAGE' as PIISourceType,
-        message.id,
-        {
-          useAI: true,
-          preserveBusinessEmails: true,
-          confidenceThreshold: 0.7
+    // Perform PII detection on new message (if not skipped)
+    if (!options.skipPIIDetection) {
+      try {
+        logger.info(`Starting PII detection for message ${message.id} (isThreadReply: ${isThreadReply}, text length: ${message.text.length})`)
+        
+        const piiDetections = await piiDetectorService.detectPII(
+          message.text,
+          'MESSAGE' as PIISourceType,
+          message.id,
+          {
+            useAI: true,
+            preserveBusinessEmails: true,
+            confidenceThreshold: 0.7
+          }
+        )
+        
+        if (piiDetections.length > 0) {
+          logger.info(`✅ PII detection completed for message ${message.id} (isThreadReply: ${isThreadReply}): ${piiDetections.length} items detected`)
+        } else {
+          logger.info(`✅ PII detection completed for message ${message.id} (isThreadReply: ${isThreadReply}): No PII detected`)
         }
-      )
-      
-      if (piiDetections.length > 0) {
-        logger.info(`✅ PII detection completed for message ${message.id} (isThreadReply: ${isThreadReply}): ${piiDetections.length} items detected`)
-      } else {
-        logger.info(`✅ PII detection completed for message ${message.id} (isThreadReply: ${isThreadReply}): No PII detected`)
+        
+      } catch (piiError) {
+        // Don't fail message processing if PII detection fails
+        logger.error(`❌ PII detection FAILED for message ${message.id} (isThreadReply: ${isThreadReply}):`, piiError)
       }
-      
-    } catch (piiError) {
-      // Don't fail message processing if PII detection fails
-      logger.error(`❌ PII detection FAILED for message ${message.id} (isThreadReply: ${isThreadReply}):`, piiError)
+    } else {
+      logger.info(`⚡ Skipping PII detection for message ${message.id} (bulk import mode)`)
     }
     
     return {
