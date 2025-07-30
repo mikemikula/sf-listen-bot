@@ -211,7 +211,7 @@ async function handleCreateDocument(
     return res.status(201).json({
       success: true,
       data: { documentId: result.document.id },
-      message: `Document created successfully with ${result.messagesProcessed} messages processed`
+      message: `Document created successfully with ${result.analysisResults ? Object.keys(result.analysisResults).length : 0} analysis completed`
     })
 
   } catch (error) {

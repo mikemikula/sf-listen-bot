@@ -38,31 +38,62 @@ interface ProcessingStats {
 class DocumentProcessorService {
 
   /**
-   * Process a collection of messages into a structured document
+   * Process messages into a structured document with AI analysis
    */
   async processDocument(input: DocumentProcessingInput): Promise<{
     document: ProcessedDocument
-    messagesProcessed: number
-    piiDetected: PIIDetection[]
-    confidenceScore: number
-    processingTime: number
+    analysisResults: {
+      conversationAnalysis: any
+      piiDetections: PIIDetection[]
+      processingTimeMs: number
+      warnings: string[]
+    }
   }> {
     const startTime = Date.now()
     
-    try {
-      logger.info(`Starting document processing for ${input.messageIds.length} messages`)
+    // Create a job record for tracking (even for synchronous processing)
+    const processingJob = await db.documentProcessingJob.create({
+      data: {
+        status: 'PROCESSING',
+        jobType: 'DOCUMENT_CREATION',
+        inputData: input as any,
+        progress: 0,
+        startedAt: new Date(),
+        createdBy: input.userId || 'system'
+      }
+    })
 
-      // Step 1: Validate input
+    try {
+      // Validate input
       this.validateInput(input)
 
-      // Step 2: Fetch full message objects
-      const messages = await db.message.findMany({ where: { id: { in: input.messageIds } } })
-      console.log(`Fetched ${messages.length} messages for document processing:`, messages.map(m => ({ id: m.id, text: m.text.substring(0, 50) + '...' })))
+      // Update progress
+      await db.documentProcessingJob.update({
+        where: { id: processingJob.id },
+        data: { progress: 0.1 }
+      })
 
-      // Step 3: Process PII for all messages
+      // Fetch messages from database
+      const messages = await this.fetchMessages(input.messageIds)
+      logger.info(`Processing ${messages.length} messages into document with AI analysis`)
+
+      // Update progress
+      await db.documentProcessingJob.update({
+        where: { id: processingJob.id },
+        data: { progress: 0.2 }
+      })
+
+      // Process PII detection and replacement
       const piiResults = await this.processPII(messages)
+      logger.info(`Detected and replaced ${piiResults.replacements} PII instances`)
 
-      // Step 4: Run AI conversation analysis
+      // Update progress
+      await db.documentProcessingJob.update({
+        where: { id: processingJob.id },
+        data: { progress: 0.4 }
+      })
+
+      // Generate AI conversation analysis
       const conversationAnalysisResult = await geminiService.analyzeConversationPatterns(
         messages.map(m => ({
           id: m.id,
@@ -72,65 +103,77 @@ class DocumentProcessorService {
           channel: m.channel
         }))
       )
-      if (!conversationAnalysisResult.success || !conversationAnalysisResult.data) {
-        logger.warn('AI conversation analysis failed during document processing')
-        // Continue without analysis - document will be created with basic info
-      }
+      const conversationAnalysis = conversationAnalysisResult.success ? conversationAnalysisResult.data : null
+      
+      // Update progress
+      await db.documentProcessingJob.update({
+        where: { id: processingJob.id },
+        data: { progress: 0.6 }
+      })
 
-      // Step 5: Create the initial document record in the database
-      const document = await this.createDocument(input, messages, conversationAnalysisResult.data)
+      // Create the document with AI analysis
+      const document = await this.createDocument(input, messages, conversationAnalysis)
 
-      // Step 6: Create relationships between the document and messages
+      // Update progress
+      await db.documentProcessingJob.update({
+        where: { id: processingJob.id },
+        data: { progress: 0.8 }
+      })
+
+      // Create document-message relationships
       await this.createDocumentMessageRelationships(
         document.id,
         messages,
-        conversationAnalysisResult.data,
-        InclusionMethod.AI_AUTOMATIC,
+        conversationAnalysis,
+        input.userId ? InclusionMethod.USER_MANUAL : InclusionMethod.AI_AUTOMATIC,
         input.userId
       )
 
-      // Step 7: Calculate final statistics
-      const stats: ProcessingStats = {
-        messagesAnalyzed: messages.length,
-        messagesIncluded: messages.length,
-        piiItemsDetected: piiResults.detections.length,
-        piiItemsReplaced: 0, // PII replacement is handled by piiDetectorService
-        qaPairsFound: 0, // Simplified - no longer analyzing Q&A pairs
-        confidenceScore: document.confidenceScore,
-        processingTimeMs: Date.now() - startTime,
-        warnings: this.generateWarnings(piiResults)
-      }
-
-      // Step 8: Mark document as complete
-      const completedDocument = await db.processedDocument.update({
+      // Update the document to reference the processing job
+      await db.processedDocument.update({
         where: { id: document.id },
-        data: { status: 'COMPLETE' }
+        data: { processingJobId: processingJob.id }
       })
 
-      logger.info(`Document processing completed in ${stats.processingTimeMs}ms`)
-      console.log('Processing completed with stats:', stats)
+      // Mark job as complete
+      await db.documentProcessingJob.update({
+        where: { id: processingJob.id },
+        data: {
+          status: 'COMPLETE',
+          progress: 1.0,
+          completedAt: new Date(),
+          outputData: {
+            documentId: document.id,
+            messageCount: messages.length,
+            piiDetections: piiResults.detections.length,
+            confidenceScore: document.confidenceScore
+          }
+        }
+      })
+
+      const processingTimeMs = Date.now() - startTime
+      logger.info(`Document processing completed in ${processingTimeMs}ms: "${document.title}"`)
 
       return {
-        document: completedDocument,
-        messagesProcessed: messages.length,
-        piiDetected: piiResults.detections,
-        confidenceScore: completedDocument.confidenceScore,
-        processingTime: stats.processingTimeMs
+        document,
+        analysisResults: {
+          conversationAnalysis,
+          piiDetections: piiResults.detections,
+          processingTimeMs,
+          warnings: this.generateWarnings(piiResults)
+        }
       }
 
     } catch (error) {
-      // If we have a document ID, mark it as ERROR status
-      if (document) {
-        try {
-          await db.processedDocument.update({
-            where: { id: (document as any).id },
-            data: { status: 'ERROR' }
-          })
-          logger.info(`Marked document ${(document as any).id} as ERROR status`)
-        } catch (updateError) {
-          logger.error('Failed to update document status to ERROR:', updateError)
+      // Mark job as failed
+      await db.documentProcessingJob.update({
+        where: { id: processingJob.id },
+        data: {
+          status: 'FAILED',
+          completedAt: new Date(),
+          errorMessage: error instanceof Error ? error.message : 'Unknown error'
         }
-      }
+      })
 
       logger.error('Document processing failed:', error)
       throw new ProcessingError(`Document processing failed: ${error instanceof Error ? error.message : 'Unknown error'}`)

@@ -59,7 +59,21 @@ const ProcessingDashboardPage: React.FC = () => {
           </div>
 
           {/* Processing Dashboard Component */}
-          <ProcessingDashboard />
+          <ProcessingDashboard 
+            userPermissions={{
+              canStartJobs: true,
+              canStopJobs: true,
+              canDeleteJobs: false,
+              canModifySettings: true,
+              canManageAutomation: true,
+              canViewLogs: true,
+              allowedJobTypes: ['document', 'faq', 'cleanup']
+            }}
+            onTriggerProcessing={(type, data) => {
+              console.log('Triggering processing:', type, data)
+              // TODO: Implement processing trigger logic
+            }}
+          />
 
           {/* Quick Actions Section */}
           <div className="mt-12 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">

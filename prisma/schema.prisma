@@ -183,6 +183,9 @@ model DocumentProcessingJob {
   /// Job progress (0-1)
   progress Float @default(0)
   
+  /// Number of retry attempts
+  retryCount Int @default(0) @map("retry_count")
+  
   /// Job start timestamp
   startedAt DateTime? @map("started_at")
   
@@ -194,6 +197,9 @@ model DocumentProcessingJob {
   
   /// Record creation timestamp
   createdAt DateTime @default(now()) @map("created_at")
+  
+  /// Record update timestamp
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   /// Related documents
   processedDocuments ProcessedDocument[]
@@ -204,6 +210,91 @@ model DocumentProcessingJob {
   @@index([createdAt])
   @@index([createdBy])
   @@map("document_processing_jobs")
+}
+
+/// Automation rules for scheduled and event-driven processing
+model AutomationRule {
+  /// Unique identifier for the rule
+  id String @id @default(cuid())
+  
+  /// Rule name
+  name String
+  
+  /// Rule description
+  description String
+  
+  /// Whether the rule is enabled
+  enabled Boolean @default(true)
+  
+  /// Trigger type (schedule, event, manual)
+  triggerType String @map("trigger_type")
+  
+  /// Trigger configuration (JSON)
+  triggerConfig Json @map("trigger_config")
+  
+  /// Action type (document, faq, cleanup, etc.)
+  actionType String @map("action_type")
+  
+  /// Action configuration (JSON)
+  actionConfig Json @map("action_config")
+  
+  /// Required permissions
+  permissions String[]
+  
+  /// User who created the rule
+  createdBy String @map("created_by")
+  
+  /// User who last updated the rule
+  updatedBy String? @map("updated_by")
+  
+  /// Last execution timestamp
+  lastRun DateTime? @map("last_run")
+  
+  /// Next scheduled execution
+  nextRun DateTime? @map("next_run")
+  
+  /// Total execution count
+  runCount Int @default(0) @map("run_count")
+  
+  /// Successful execution count
+  successCount Int @default(0) @map("success_count")
+  
+  /// Failed execution count
+  failureCount Int @default(0) @map("failure_count")
+  
+  /// Average execution time in milliseconds
+  avgExecutionTime Int @default(0) @map("avg_execution_time")
+  
+  /// Record creation timestamp
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  /// Record update timestamp
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  /// Indexes for performance
+  @@index([enabled])
+  @@index([triggerType])
+  @@index([actionType])
+  @@index([nextRun])
+  @@index([createdAt])
+  @@map("automation_rules")
+}
+
+/// System-wide processing settings and configuration
+model ProcessingSettings {
+  /// Settings identifier (usually 'default')
+  id String @id
+  
+  /// Settings configuration (JSON)
+  settings Json
+  
+  /// Record creation timestamp
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  /// Record update timestamp
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("processing_settings")
 }
 
 /// PII detection and removal tracking
@@ -517,6 +608,9 @@ enum JobStatus {
   PROCESSING  // Job currently running
   COMPLETE    // Job completed successfully
   FAILED      // Job failed with errors
+  CANCELLED   // Job was cancelled
+  PAUSED      // Job is paused
+  DELETED     // Job was deleted
 }
 
 /// Background job types
