@@ -13,6 +13,8 @@
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
+    "db:reset": "prisma migrate reset --force",
+    "db:reset-no-seed": "prisma migrate reset --force --skip-seed",
     "db:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts"
   },
@@ -65,5 +67,8 @@
     "onlyBuiltDependencies": [
       "@prisma/client"
     ]
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
   }
 }

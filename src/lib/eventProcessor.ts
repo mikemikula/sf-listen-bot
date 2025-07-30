@@ -84,7 +84,7 @@ export const processSlackEvent = async (
 
     // Handle event callbacks
     if (payload.type === 'event_callback' && payload.event) {
-      const result = await processMessageEvent(payload.event, slackEvent.id)
+      const result = await processMessageEvent(payload.event, slackEvent.id, options)
       
       // Update event status based on result
       await db.slackEvent.update({
@@ -138,7 +138,8 @@ export const processSlackEvent = async (
  */
 const processMessageEvent = async (
   event: any,
-  slackEventId: string
+  slackEventId: string,
+  options: ProcessingOptions = {}
 ): Promise<ProcessingResult> => {
   
   // Handle message deletions

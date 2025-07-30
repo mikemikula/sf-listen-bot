@@ -266,9 +266,9 @@ export class SlackChannelPuller {
         const messages = response.messages || []
         allMessages.push(...messages)
 
-        // Update progress
+        // Update progress (0-20% for message discovery)
         progress.totalMessages = allMessages.length
-        progress.progress = Math.min(50, (allMessages.length / 1000) * 25) // Up to 50% for message fetching
+        progress.progress = Math.min(20, 5 + (allMessages.length / 50) * 15)
         await this.updateProgress(progress)
 
         // Check for more pages
@@ -331,6 +331,10 @@ export class SlackChannelPuller {
   ): Promise<void> {
     logger.info(`🔄 Processing ${messages.length} messages through event processor`)
 
+    // Set baseline progress for message processing phase
+    progress.progress = 20
+    await this.updateProgress(progress)
+
     let processed = 0
     const total = messages.length
 
@@ -382,8 +386,8 @@ export class SlackChannelPuller {
         processed++
         progress.processedMessages = processed
 
-        // Update progress (50-80% for message processing)
-        progress.progress = 50 + Math.floor((processed / total) * 30)
+        // Update progress (20-70% for message processing)
+        progress.progress = 20 + Math.floor((processed / total) * 50)
         
         if (processed % 50 === 0) {
           await this.updateProgress(progress)
@@ -424,6 +428,10 @@ export class SlackChannelPuller {
     }
 
     logger.info(`🧵 Processing ${threadsToProcess.length} threads`)
+
+    // Set baseline progress for thread processing phase
+    progress.progress = 70
+    await this.updateProgress(progress)
 
     let processed = 0
     const total = threadsToProcess.length
@@ -470,8 +478,8 @@ export class SlackChannelPuller {
         processed++
         progress.threadsProcessed = processed
 
-        // Update progress (80-90% for thread processing)
-        progress.progress = 80 + Math.floor((processed / total) * 10)
+        // Update progress (70-90% for thread processing)
+        progress.progress = 70 + Math.floor((processed / total) * 20)
         
         if (processed % 10 === 0) {
           await this.updateProgress(progress)

@@ -93,7 +93,7 @@ export const ChannelPullDashboard: React.FC = () => {
     includeThreads: true,
     batchSize: 200,
     delayBetweenRequests: 500,
-    skipPIIDetection: true // Default to true for faster historical imports
+    skipPIIDetection: false // Default to false - PII detection enabled for security
   })
 
   // UI state
@@ -535,9 +535,12 @@ export const ChannelPullDashboard: React.FC = () => {
                     className="w-4 h-4 text-blue-600 border-gray-300 dark:border-gray-600 rounded focus:ring-blue-500 bg-white dark:bg-gray-700"
                   />
                   <label htmlFor="skipPIIDetection" className="ml-2 text-sm text-gray-700 dark:text-gray-300">
-                    Skip PII detection (⚡ faster imports)
+                    Skip PII detection (⚡ faster but less secure)
                   </label>
                 </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400 ml-6">
+                  PII detection identifies sensitive information like emails and phone numbers. Recommended for production data.
+                </p>
 
                 {/* Advanced Settings */}
                 {showAdvancedSettings && (
