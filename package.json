@@ -30,6 +30,7 @@
     "node-cron": "^3.0.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
+    "react-hot-toast": "^2.5.2",
     "redis": "^5.6.1"
   },
   "devDependencies": {

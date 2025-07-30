@@ -19,6 +19,7 @@ import { Header } from '@/components/Header'
 import { AutomationDashboard } from '@/components/processing/AutomationDashboard'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { Settings, Activity, BarChart3, Zap, Bot } from 'lucide-react'
+import toast from 'react-hot-toast'
 
 /**
  * Automation Control Page Component
@@ -44,6 +45,11 @@ const AutomationControlPage: React.FC = () => {
     try {
       console.log('Triggering processing:', type, data)
       
+      // Show loading toast
+      const loadingToast = toast.loading(
+        type === 'faq' ? 'Processing messages and generating FAQs...' : `Starting ${type} processing...`
+      )
+      
       // Call the appropriate API endpoint based on processing type
       const endpoint = getProcessingEndpoint(type)
       
@@ -63,12 +69,60 @@ const AutomationControlPage: React.FC = () => {
         throw new Error(result.error || `Failed to trigger ${type} processing`)
       }
 
-      // Show success notification or update UI as needed
+      // Dismiss loading toast
+      toast.dismiss(loadingToast)
+      
+      // Show success notification with meaningful feedback
       console.log(`Successfully triggered ${type} processing:`, result.data)
       
+      // Show beautiful toast notifications based on results
+      if (type === 'faq') {
+        const { newDocumentsCreated, documentsProcessed, faqsGenerated, errors } = result.data
+        
+        if (faqsGenerated > 0) {
+          toast.success(
+            `Generated ${faqsGenerated} FAQs from ${documentsProcessed} documents. Created ${newDocumentsCreated} new documents.`,
+            { duration: 4000 }
+          )
+        } else if (documentsProcessed === 0 && newDocumentsCreated === 0) {
+          toast.error(
+            'No processing occurred. No unprocessed messages or eligible documents found. Try pulling more Slack messages first.',
+            { duration: 6000 }
+          )
+        } else if (newDocumentsCreated > 0) {
+          toast.success(
+            `Created ${newDocumentsCreated} documents from messages, but no FAQs generated. Documents may need time to process.`,
+            { duration: 5000 }
+          )
+        } else {
+          toast(
+            `Job completed: ${documentsProcessed} documents processed, ${faqsGenerated} FAQs generated, ${newDocumentsCreated} documents created`,
+            { 
+              icon: 'ℹ️',
+              duration: 4000 
+            }
+          )
+        }
+        
+        if (errors && errors.length > 0) {
+          toast.error(
+            `Some errors occurred: ${errors.slice(0, 2).join(', ')}${errors.length > 2 ? ` and ${errors.length - 2} more` : ''}`,
+            { duration: 6000 }
+          )
+        }
+      } else {
+        toast.success(`${type} processing completed successfully!`)
+      }
+      
     } catch (error) {
+      // Dismiss loading toast
+      toast.dismiss(loadingToast)
+      
       console.error(`Failed to trigger ${type} processing:`, error)
-      // Handle error display to user
+      toast.error(
+        error instanceof Error ? error.message : 'Unknown error occurred',
+        { duration: 5000 }
+      )
     }
   }
 

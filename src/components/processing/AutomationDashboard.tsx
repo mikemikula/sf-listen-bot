@@ -43,6 +43,7 @@ import {
   HelpCircle,
   Globe
 } from 'lucide-react'
+import toast from 'react-hot-toast'
 
 // Import shared types and utilities (DRY principle)
 import { AutomationData, DashboardProps, JobAction, JobFilter, ProcessingJob, ProcessingSettings } from '@/types'
@@ -211,10 +212,15 @@ export const AutomationDashboard: React.FC<AutomationDashboardProps> = ({
           ...data,
           automationRules: updatedAutomationRules
         })
+        
+        // Show success toast
+        const ruleName = ruleId === 'doc-automation' ? 'Document Processing' : 'FAQ Generation'
+        toast.success(`${ruleName} automation ${enabled ? 'enabled' : 'disabled'}`)
       }
       
     } catch (error) {
       console.error('Failed to update automation rule:', error)
+      toast.error('Failed to update automation rule. Please try again.')
       setError(error instanceof Error ? error.message : 'Failed to update automation rule')
     }
   }, [data])
@@ -376,9 +382,11 @@ export const AutomationDashboard: React.FC<AutomationDashboardProps> = ({
       setHasUnsavedChanges(false)
       
       console.log('FAQ settings saved successfully')
+      toast.success('FAQ settings saved successfully!')
       
     } catch (error) {
       console.error('Failed to save FAQ settings:', error)
+      toast.error('Failed to save FAQ settings. Please try again.')
       setError(error instanceof Error ? error.message : 'Failed to save settings')
     } finally {
       setSavingChanges(false)
