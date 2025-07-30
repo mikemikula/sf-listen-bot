@@ -19,7 +19,7 @@ interface BulkGenerateRequest {
     categories?: string[]
     // NEW: Configurable message processing limits
     maxUnprocessedMessages?: number    // Max messages to process into documents per run (default: 50)
-    messageBatchSize?: number          // Batch size for processing messages (default: 10)  
+    messageBatchSize?: number          // Batch size for processing messages (default: 25)  
     maxDocumentsPerRun?: number        // Max documents to process for FAQ generation (default: 50)
     messageProcessingEnabled?: boolean // Whether to process unprocessed messages (default: true)
     [key: string]: any
@@ -59,7 +59,7 @@ async function handleBulkGenerateFAQs(
       categories = [],
       // NEW: Configurable message processing limits
       maxUnprocessedMessages = 50,
-      messageBatchSize = 10,
+      messageBatchSize = 25, // ✅ Larger default to reduce conversation splitting
       maxDocumentsPerRun = 50,
       messageProcessingEnabled = true
     } = data
@@ -78,7 +78,8 @@ async function handleBulkGenerateFAQs(
       where: {
         documentMessages: { none: {} }
       },
-      take: maxUnprocessedMessages // Now configurable!
+      take: maxUnprocessedMessages, // Now configurable!
+      orderBy: { timestamp: 'asc' } // ✅ Order chronologically to keep related messages together
     })
 
     logger.info(`📊 Found ${unprocessedMessages.length} unprocessed messages`)
@@ -90,6 +91,8 @@ async function handleBulkGenerateFAQs(
         const { documentProcessorService } = await import('@/lib/documentProcessor')
         
         // Process messages in configurable batches
+        // ⚠️  Note: Batching may split related conversations across documents
+        // ✅ Best practice: Use larger batch sizes (20-50) to minimize this issue
         for (let i = 0; i < unprocessedMessages.length; i += messageBatchSize) {
           const batch = unprocessedMessages.slice(i, i + messageBatchSize)
           

@@ -823,13 +823,13 @@ export const AutomationDashboard: React.FC<AutomationDashboardProps> = ({
                   <input
                     type="number"
                     min="1"
-                    max="100"
-                    value={getCurrentFAQData()?.settings?.messageBatchSize || 10}
+                    max="200"
+                    value={getCurrentFAQData()?.settings?.messageBatchSize || 25}
                     onChange={(e) => handleFAQSettingsUpdate('messageBatchSize', e.target.value)}
                     className="w-full bg-gray-600 border border-gray-500 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-purple-500"
-                    placeholder="10"
+                    placeholder="25"
                   />
-                  <span className="text-xs text-gray-400 mt-1 block">How many messages to process at once</span>
+                  <span className="text-xs text-gray-400 mt-1 block">How many messages to process at once (larger = less conversation splitting)</span>
                 </div>
 
 
