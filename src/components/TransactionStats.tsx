@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react'
+import { MessageSquare, Search } from 'lucide-react'
 import { logger } from '@/lib/logger'
 import { useRealTimeMessages } from '@/hooks/useRealTimeMessages'
 
@@ -183,7 +184,7 @@ export const TransactionStats: React.FC = () => {
         const oldMessage = event.previous_message?.text || 'Unknown'
         return `✏️ Edited: "${oldMessage}" → "${newMessage}"`
       } else {
-        return `💬 Message: "${event.text || 'No text'}"`
+        return `Message: "${event.text || 'No text'}"`
       }
     }
     
@@ -249,7 +250,10 @@ export const TransactionStats: React.FC = () => {
         {expanded && (
           <div className="mt-4 pt-4 border-t border-gray-100 space-y-3">
             <div>
-              <h4 className="text-sm font-medium text-gray-900 mb-2">💬 Message Content:</h4>
+              <h4 className="text-sm font-medium text-gray-900 mb-2 flex items-center gap-1">
+                <MessageSquare className="w-4 h-4" />
+                Message Content:
+              </h4>
               <p className="text-sm text-gray-700 bg-gray-50 p-3 rounded-md">
                 {messageContent}
               </p>
@@ -290,8 +294,9 @@ export const TransactionStats: React.FC = () => {
             )}
 
             <div>
-              <h4 className="text-sm font-medium text-gray-900 mb-2">
-                🔍 View Raw Payload ({Object.keys(event.payload || {}).length} keys)
+              <h4 className="text-sm font-medium text-gray-900 mb-2 flex items-center gap-1">
+                <Search className="w-4 h-4" />
+                View Raw Payload ({Object.keys(event.payload || {}).length} keys)
               </h4>
               <details className="bg-gray-50 rounded-md">
                 <summary className="p-3 cursor-pointer text-sm text-gray-700 hover:bg-gray-100">

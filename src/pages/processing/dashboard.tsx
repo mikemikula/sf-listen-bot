@@ -17,7 +17,7 @@ import { useRouter } from 'next/router'
 import { Header } from '@/components/Header'
 import { AnalyticsDashboard } from '@/components/processing/AnalyticsDashboard'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
-import { Activity, Bug, ExternalLink, Settings } from 'lucide-react'
+import { Activity, Bug, ExternalLink, Settings, Search } from 'lucide-react'
 
 /**
  * Analytics Dashboard Page Component
@@ -133,7 +133,9 @@ const AnalyticsDashboardPage: React.FC = () => {
                 className="flex items-center justify-center px-6 py-4 bg-purple-50 dark:bg-purple-900 border border-purple-200 dark:border-purple-700 rounded-lg hover:bg-purple-100 dark:hover:bg-purple-800 transition-colors duration-200"
               >
                 <div className="text-center">
-                  <div className="text-2xl mb-2">🔍</div>
+                  <div className="mb-2">
+                    <Search className="w-8 h-8 mx-auto text-purple-700 dark:text-purple-300" />
+                  </div>
                   <div className="text-sm font-medium text-purple-700 dark:text-purple-300">Browse Messages</div>
                   <div className="text-xs text-purple-600 dark:text-purple-400 mt-1">Manual curation</div>
                 </div>
@@ -155,7 +157,9 @@ const AnalyticsDashboardPage: React.FC = () => {
                 className="flex items-center justify-center px-6 py-4 bg-blue-50 dark:bg-blue-900 border border-blue-200 dark:border-blue-700 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-800 transition-colors duration-200"
               >
                 <div className="text-center">
-                  <div className="text-2xl mb-2">⚙️</div>
+                  <div className="mb-2">
+                    <Settings className="w-8 h-8 mx-auto text-blue-700 dark:text-blue-300" />
+                  </div>
                   <div className="text-sm font-medium text-blue-700 dark:text-blue-300">Automation</div>
                   <div className="text-xs text-blue-600 dark:text-blue-400 mt-1">Control & settings</div>
                 </div>

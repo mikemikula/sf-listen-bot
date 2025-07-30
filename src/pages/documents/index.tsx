@@ -8,6 +8,7 @@ import React, { useState, useCallback } from 'react'
 import Head from 'next/head'
 import Link from 'next/link'
 import { useRouter } from 'next/router'
+import { Calendar, Zap, RotateCcw } from 'lucide-react'
 import DocumentFeed from '@/components/documents/DocumentFeed'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { Header } from '@/components/Header'
@@ -197,9 +198,18 @@ const ProcessAllModal: React.FC<ProcessAllModalProps> = ({ isOpen, onClose, onSu
                         <strong>You&apos;ve hit the Gemini free tier limits.</strong>
                       </p>
                       <div className="text-left text-sm text-yellow-700 dark:text-yellow-300 space-y-2">
-                        <p>📅 <strong>Daily Reset:</strong> Quotas typically reset every 24 hours</p>
-                        <p>⚡ <strong>Upgrade Option:</strong> Get higher limits with a paid Gemini API plan</p>
-                        <p>🔄 <strong>Alternative:</strong> Try processing fewer messages at once</p>
+                        <p className="flex items-center gap-2">
+                          <Calendar className="w-4 h-4" />
+                          <strong>Daily Reset:</strong> Quotas typically reset every 24 hours
+                        </p>
+                        <p className="flex items-center gap-2">
+                          <Zap className="w-4 h-4" />
+                          <strong>Upgrade Option:</strong> Get higher limits with a paid Gemini API plan
+                        </p>
+                        <p className="flex items-center gap-2">
+                          <RotateCcw className="w-4 h-4" />
+                          <strong>Alternative:</strong> Try processing fewer messages at once
+                        </p>
                       </div>
                     </div>
                   </>

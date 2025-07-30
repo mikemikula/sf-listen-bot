@@ -36,7 +36,12 @@ import {
   Activity,
   Plus,
   Edit3,
-  Trash2
+  Trash2,
+  Bot,
+  MessageSquare,
+  FileText,
+  HelpCircle,
+  Globe
 } from 'lucide-react'
 
 // Import shared types and utilities (DRY principle)
@@ -488,11 +493,14 @@ export const AutomationDashboard: React.FC<AutomationDashboardProps> = ({
               Help
             </button>
           </Link>
-                     <div className="bg-purple-900/50 px-3 py-2 rounded-lg border border-purple-500/30">
-             <span className="text-purple-300 text-sm font-medium">⚡ Automation ({getCurrentFAQData()?.enabled ? 1 : 0}/1)</span>
-           </div>
+                               <div className="bg-purple-900/50 px-3 py-2 rounded-lg border border-purple-500/30">
+            <span className="text-purple-300 text-sm font-medium flex items-center gap-1">
+              <Zap className="w-4 h-4" />
+              Automation ({getCurrentFAQData()?.enabled ? 1 : 0}/1)
+            </span>
+          </div>
           <button className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors">
-            ⚙️
+            <Settings className="w-4 h-4" />
           </button>
           <div className="flex items-center gap-2 text-sm">
             <input
@@ -517,7 +525,7 @@ export const AutomationDashboard: React.FC<AutomationDashboardProps> = ({
       <div className="bg-gray-800 rounded-lg p-6">
         <div className="flex items-center gap-3 mb-4">
           <div className="w-10 h-10 bg-purple-600 rounded-lg flex items-center justify-center">
-            <span className="text-white text-lg">🤖</span>
+            <Bot className="w-6 h-6 text-white" />
           </div>
           <div>
             <h2 className="text-xl font-semibold text-white">Smart FAQ Generation</h2>
@@ -532,7 +540,7 @@ export const AutomationDashboard: React.FC<AutomationDashboardProps> = ({
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 bg-purple-600 rounded-lg flex items-center justify-center">
-                <span className="text-white text-sm">💬</span>
+                <MessageSquare className="w-4 h-4 text-white" />
               </div>
               <div>
                 <h3 className="text-lg font-medium text-white">FAQ Automation</h3>
@@ -591,10 +599,10 @@ export const AutomationDashboard: React.FC<AutomationDashboardProps> = ({
              <span className="text-gray-400">
                {Math.round((getCurrentFAQData()?.stats?.successfulRuns / getCurrentFAQData()?.stats?.totalRuns) * 100) || 0}% success rate
              </span>
-             <div className="flex items-center gap-1 text-gray-400">
-               <span>🌍</span>
-               <span className="text-xs">{getNextRunTime()}</span>
-             </div>
+                         <div className="flex items-center gap-1 text-gray-400">
+              <Globe className="w-3 h-3" />
+              <span className="text-xs">{getNextRunTime()}</span>
+            </div>
            </div>
 
                      {/* Configuration */}
@@ -711,7 +719,10 @@ export const AutomationDashboard: React.FC<AutomationDashboardProps> = ({
                {/* Schedule Preview */}
                <div className="mt-3 p-3 bg-blue-900/20 rounded-lg border border-blue-500/30">
                  <div className="flex items-center gap-2">
-                   <span className="text-blue-300 text-sm font-medium">📅 Schedule Preview:</span>
+                   <span className="text-blue-300 text-sm font-medium flex items-center gap-1">
+                <Calendar className="w-4 h-4" />
+                Schedule Preview:
+              </span>
                                         <span className="text-blue-200 text-sm">
                        {(() => {
                          const currentData = getCurrentFAQData()?.schedule;
@@ -825,23 +836,32 @@ export const AutomationDashboard: React.FC<AutomationDashboardProps> = ({
 
                   {/* How It Works */}
          <div className="mt-6 p-4 bg-blue-900/20 rounded-lg border border-blue-500/30">
-           <h4 className="text-blue-300 font-medium mb-2">How This Works:</h4>
-           <div className="flex items-center gap-4 text-sm text-blue-200">
-             <span>💬 Slack Messages</span>
-             <span>→</span>
-             <span>📄 Documents</span>
-             <span>→</span>
-             <span>❓ Searchable FAQs</span>
-           </div>
+                     <h4 className="text-blue-300 font-medium mb-2">How This Works:</h4>
+          <div className="flex items-center gap-4 text-sm text-blue-200">
+            <span className="flex items-center gap-1">
+              <MessageSquare className="w-4 h-4" />
+              Slack Messages
+            </span>
+            <span>→</span>
+            <span className="flex items-center gap-1">
+              <FileText className="w-4 h-4" />
+              Documents
+            </span>
+            <span>→</span>
+            <span className="flex items-center gap-1">
+              <HelpCircle className="w-4 h-4" />
+              Searchable FAQs
+            </span>
+          </div>
            <p className="text-blue-200/80 text-sm mt-2">
              The system automatically processes your Slack conversations, creates organized documents, 
              then generates searchable FAQ entries that your team can easily find and reference.
            </p>
            <div className="mt-3 pt-3 border-t border-blue-500/30">
-             <div className="flex items-center gap-2 text-xs text-blue-300">
-               <span>🌍</span>
-               <span>All scheduled times are in your local timezone: <strong>{userTimezone}</strong></span>
-             </div>
+                         <div className="flex items-center gap-2 text-xs text-blue-300">
+              <Globe className="w-3 h-3" />
+              <span>All scheduled times are in your local timezone: <strong>{userTimezone}</strong></span>
+            </div>
            </div>
          </div>
       </div>

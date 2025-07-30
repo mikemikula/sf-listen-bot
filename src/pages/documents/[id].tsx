@@ -8,6 +8,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import Head from 'next/head'
 import Link from 'next/link'
 import { useRouter } from 'next/router'
+import { RotateCcw, Plus } from 'lucide-react'
 import { Header } from '@/components/Header'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { DocumentDisplay, MessageDisplay, FAQDisplay, ApiResponse } from '@/types'
@@ -519,15 +520,17 @@ const SourceMessages: React.FC<SourceMessagesProps> = ({
             </div>
             <button
               onClick={() => window.location.reload()}
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors mr-2"
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors mr-2 flex items-center gap-2"
             >
-              🔄 Reload Page
+              <RotateCcw className="w-4 h-4" />
+              Reload Page
             </button>
             <button
               onClick={onAddMessages}
-              className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
+              className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors flex items-center gap-2"
             >
-              ➕ Add Messages
+              <Plus className="w-4 h-4" />
+              Add Messages
             </button>
           </div>
         )}
