@@ -25,6 +25,12 @@
     </objectPermissions>
     
     <!-- Field Permissions for Slack_Document__c -->
+    <!-- Standard Name field permission -->
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>Slack_Document__c.Name</field>
+        <readable>true</readable>
+    </fieldPermissions>
     <fieldPermissions>
         <editable>true</editable>
         <field>Slack_Document__c.External_Id__c</field>
@@ -116,6 +122,12 @@
 
     
     <!-- Field Permissions for Slack_FAQ__c -->
+    <!-- Standard Name field permission -->
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>Slack_FAQ__c.Name</field>
+        <readable>true</readable>
+    </fieldPermissions>
     <fieldPermissions>
         <editable>true</editable>
         <field>Slack_FAQ__c.External_Id__c</field>
