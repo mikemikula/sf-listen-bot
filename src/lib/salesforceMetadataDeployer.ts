@@ -218,9 +218,9 @@ export class SalesforceMetadataDeployer {
       // Add type-specific properties
       if (field.length) xml += `
         <length>${field.length}</length>`
-      if (field.precision) xml += `
+      if (field.precision !== undefined) xml += `
         <precision>${field.precision}</precision>`
-      if (field.scale) xml += `
+      if (field.scale !== undefined) xml += `
         <scale>${field.scale}</scale>`
       if (field.visibleLines) xml += `
         <visibleLines>${field.visibleLines}</visibleLines>`
@@ -731,7 +731,7 @@ export class SalesforceMetadataDeployer {
         fullName: 'Tags__c',
         label: 'Tags',
         type: 'Text',
-        length: 500,
+        length: 255,
         description: 'Comma-separated tags for categorization'
       }
     ]
