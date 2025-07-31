@@ -1028,7 +1028,7 @@ export default function DocumentDetailPage(): JSX.Element {
               </div>
 
               {/* Key Metrics */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-6 border-t border-gray-200 dark:border-gray-700">
                 <div className="text-center">
                   <div className="text-2xl font-bold text-gray-900 dark:text-white">{messages.length}</div>
                   <div className="text-sm text-gray-500 dark:text-gray-400">Messages</div>
@@ -1044,12 +1044,6 @@ export default function DocumentDetailPage(): JSX.Element {
                     {document.category}
                   </div>
                   <div className="text-sm text-gray-500 dark:text-gray-400">Category</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-                    {conversationAnalysis?.patterns?.filter(p => p.type === 'qa_pair').length || 0 > 0 ? 'Ready' : 'Needs More'}
-                  </div>
-                  <div className="text-sm text-gray-500 dark:text-gray-400">FAQ Status</div>
                 </div>
               </div>
 
