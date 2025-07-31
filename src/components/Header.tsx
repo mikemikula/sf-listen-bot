@@ -16,7 +16,8 @@ import {
   Bug, 
   Activity,
   X,
-  Download
+  Download,
+  ExternalLink
 } from 'lucide-react'
 
 interface HeaderProps {
@@ -145,6 +146,17 @@ export const Header: React.FC<HeaderProps> = ({ isConnected = false }) => {
               }`}
             >
               Processing
+            </Link>
+            
+            <Link
+              href="/salesforce"
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                isActivePage('/salesforce')
+                  ? 'bg-white/20 text-white shadow-lg'
+                  : 'text-white/80 hover:text-white hover:bg-white/10'
+              }`}
+            >
+              Salesforce
             </Link>
             
             <Link
@@ -328,6 +340,31 @@ export const Header: React.FC<HeaderProps> = ({ isConnected = false }) => {
                               </div>
                             </div>
                             {isActivePage('/processing') && (
+                              <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                            )}
+                          </Link>
+                          
+                          <Link
+                            href="/salesforce"
+                            onClick={() => setIsMenuOpen(false)}
+                            className={`flex items-center justify-between px-6 py-4 text-base transition-colors ${
+                              isActivePage('/salesforce')
+                                ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border-r-4 border-blue-500'
+                                : 'text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-800'
+                            }`}
+                          >
+                            <div className="flex items-center space-x-4">
+                              <ExternalLink className={`w-6 h-6 ${
+                                isActivePage('/salesforce')
+                                  ? 'text-blue-700 dark:text-blue-300'
+                                  : 'text-gray-500 dark:text-gray-400'
+                              }`} />
+                              <div>
+                                <div className="font-semibold">Salesforce</div>
+                                <div className="text-sm text-gray-500 dark:text-gray-400">Sync with Salesforce CRM</div>
+                              </div>
+                            </div>
+                            {isActivePage('/salesforce') && (
                               <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
                             )}
                           </Link>

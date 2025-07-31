@@ -537,10 +537,91 @@ enum SlackEventStatus {
   SKIPPED
 }
 
+/// Salesforce connection and authentication tracking
+model SalesforceConnection {
+  /// Unique identifier for the connection
+  id                    String    @id @default(cuid())
+  /// Session identifier for this connection
+  sessionId             String    @unique @map("session_id")
+  /// Salesforce organization ID
+  organizationId        String    @map("organization_id")
+  /// Salesforce user ID
+  salesforceUserId      String    @map("salesforce_user_id")
+  /// Salesforce username
+  username              String
+  /// User's display name from Salesforce
+  displayName           String?   @map("display_name")
+  /// Salesforce instance URL
+  instanceUrl           String    @map("instance_url")
+  /// Encrypted access token
+  accessToken           String    @map("access_token")
+  /// Encrypted refresh token
+  refreshToken          String?   @map("refresh_token")
+  /// Token type (usually 'Bearer')
+  tokenType             String    @default("Bearer") @map("token_type")
+  /// When the access token expires
+  tokenExpiresAt        DateTime? @map("token_expires_at")
+  /// Connection status
+  status                SalesforceConnectionDBStatus @default(ACTIVE)
+  /// Last successful API call timestamp
+  lastActivityAt        DateTime? @map("last_activity_at")
+  /// Number of API calls made with this connection
+  apiCallCount          Int       @default(0) @map("api_call_count")
+  /// Last known API usage limits
+  dailyApiLimit         Int?      @map("daily_api_limit")
+  /// Last known API usage count
+  dailyApiUsed          Int?      @map("daily_api_used")
+  /// Connection metadata (JSON)
+  metadata              Json?
+  /// Record creation timestamp
+  createdAt             DateTime  @default(now()) @map("created_at")
+  /// Record update timestamp
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+  /// When connection was last used
+  lastUsedAt            DateTime? @map("last_used_at")
+  /// Connection disconnect timestamp
+  disconnectedAt        DateTime? @map("disconnected_at")
+
+  @@index([sessionId])
+  @@index([organizationId])
+  @@index([salesforceUserId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("salesforce_connections")
+}
+
+/// OAuth state storage for development persistence
+model OAuthState {
+  /// State parameter (unique identifier)
+  state         String    @id
+  /// User ID (optional)
+  userId        String?   @map("user_id")
+  /// Redirect destination after OAuth
+  redirectTo    String?   @map("redirect_to")
+  /// PKCE code verifier
+  codeVerifier  String    @map("code_verifier")
+  /// When this state expires
+  expiresAt     DateTime  @map("expires_at")
+  /// Record creation timestamp
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  @@index([expiresAt])
+  @@map("oauth_states")
+}
+
 enum AutomationStatus {
   RUNNING
   COMPLETED
   PARTIAL
   FAILED
   CANCELLED
+}
+
+/// Salesforce connection status
+enum SalesforceConnectionDBStatus {
+  ACTIVE
+  EXPIRED
+  REVOKED
+  ERROR
+  DISCONNECTED
 }

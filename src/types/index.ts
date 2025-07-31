@@ -1255,4 +1255,552 @@ export type JobSource = {
   type: 'manual' | 'automated' | 'scheduled'
   color: string
   label: string
+}
+
+// ===== SALESFORCE INTEGRATION TYPES =====
+
+/**
+ * Salesforce OAuth Configuration
+ * Configuration for Connected App OAuth flow
+ */
+export interface SalesforceOAuthConfig {
+  clientId: string
+  clientSecret: string
+  redirectUri: string
+  loginUrl: string
+  apiVersion: string
+}
+
+/**
+ * Salesforce OAuth Token Response
+ * Response from Salesforce OAuth token endpoint
+ */
+export interface SalesforceTokenResponse {
+  access_token: string
+  refresh_token?: string
+  instance_url: string
+  id: string
+  token_type: string
+  issued_at: string
+  signature: string
+  scope?: string
+}
+
+/**
+ * Salesforce User Info
+ * User information from Salesforce identity API
+ */
+export interface SalesforceUserInfo {
+  user_id: string
+  organization_id: string
+  username: string
+  display_name: string
+  nick_name: string
+  first_name: string
+  last_name: string
+  email: string
+  email_verified: boolean
+  mobile_phone?: string
+  mobile_phone_verified: boolean
+  status: {
+    created_date: string
+    body: string
+  }
+  photos: {
+    picture: string
+    thumbnail: string
+  }
+  addr_street?: string
+  addr_city?: string
+  addr_state?: string
+  addr_country?: string
+  addr_zip?: string
+  timezone: string
+  language: string
+  locale: string
+  utcOffset: number
+  last_modified_date: string
+  is_lightning_login_user: boolean
+}
+
+/**
+ * Salesforce Connection Database Status Enum
+ * Matches the database enum for connection status
+ */
+export enum SalesforceConnectionDBStatus {
+  ACTIVE = 'ACTIVE',
+  EXPIRED = 'EXPIRED',
+  REVOKED = 'REVOKED',
+  ERROR = 'ERROR',
+  DISCONNECTED = 'DISCONNECTED'
+}
+
+/**
+ * Salesforce Connection Database Model
+ * Represents stored Salesforce connection information
+ */
+export interface SalesforceConnection {
+  id: string
+  sessionId: string
+  organizationId: string
+  salesforceUserId: string
+  username: string
+  displayName: string | null
+  instanceUrl: string
+  accessToken: string
+  refreshToken: string | null
+  tokenType: string
+  tokenExpiresAt: Date | null
+  status: SalesforceConnectionDBStatus
+  lastActivityAt: Date | null
+  apiCallCount: number
+  dailyApiLimit: number | null
+  dailyApiUsed: number | null
+  metadata: any | null
+  createdAt: Date
+  updatedAt: Date
+  lastUsedAt: Date | null
+  disconnectedAt: Date | null
+}
+
+/**
+ * Salesforce Connection Input for Creation
+ * Data required to create a new connection record
+ */
+export interface CreateSalesforceConnectionInput {
+  sessionId: string
+  tokenResponse: SalesforceTokenResponse
+  userInfo: SalesforceUserInfo
+  metadata?: any
+}
+
+/**
+ * Salesforce Connection Update Input
+ * Data for updating connection information
+ */
+export interface UpdateSalesforceConnectionInput {
+  accessToken?: string
+  refreshToken?: string
+  tokenExpiresAt?: Date
+  status?: SalesforceConnectionDBStatus
+  lastActivityAt?: Date
+  apiCallCount?: number
+  dailyApiLimit?: number
+  dailyApiUsed?: number
+  lastUsedAt?: Date
+  disconnectedAt?: Date
+  metadata?: any
+}
+
+/**
+ * Salesforce API Response Wrapper
+ * Standard response structure from Salesforce REST API
+ */
+export interface SalesforceApiResponse<T = any> {
+  success: boolean
+  data?: T
+  error?: {
+    message: string
+    errorCode: string
+    fields?: string[]
+  }
+  statusCode?: number
+}
+
+/**
+ * Salesforce Record Creation Response
+ * Response when creating records in Salesforce
+ */
+export interface SalesforceCreateResponse {
+  id: string
+  success: boolean
+  errors: Array<{
+    message: string
+    statusCode: string
+    fields: string[]
+  }>
+}
+
+/**
+ * Salesforce Record Update Response
+ * Response when updating records in Salesforce
+ */
+export interface SalesforceUpdateResponse {
+  success: boolean
+  errors: Array<{
+    message: string
+    statusCode: string
+    fields: string[]
+  }>
+}
+
+/**
+ * Salesforce Sync Configuration
+ * Configuration for what data to sync to Salesforce
+ */
+export interface SalesforceSyncConfig {
+  enabled: boolean
+  syncDocuments: boolean
+  syncFaqs: boolean
+  syncMessages: boolean
+  documentObjectName: string
+  faqObjectName: string
+  messageObjectName: string
+  syncInterval: number // minutes
+  lastSyncDate?: Date
+}
+
+/**
+ * Salesforce Document Mapping
+ * Maps ProcessedDocument to Salesforce object
+ */
+export interface SalesforceDocumentRecord {
+  Name: string // title
+  Description__c: string // description
+  Category__c: string // category
+  Status__c: string // status
+  Confidence_Score__c: number // confidenceScore
+  Created_By__c?: string // createdBy
+  Slack_Channel__c?: string // derived from messages
+  Message_Count__c?: number // documentMessages count
+  FAQ_Count__c?: number // documentFAQs count
+  External_Id__c: string // our document ID
+  Conversation_Analysis__c?: string // JSON string
+}
+
+/**
+ * Salesforce FAQ Mapping
+ * Maps FAQ to Salesforce Knowledge Article or custom object
+ */
+export interface SalesforceFAQRecord {
+  Name: string // question (truncated for title)
+  Question__c: string // question
+  Answer__c: string // answer
+  Category__c: string // category
+  Status__c: string // status
+  Confidence_Score__c: number // confidenceScore
+  Approved_By__c?: string // approvedBy
+  Approved_Date__c?: string // approvedAt ISO string
+  External_Id__c: string // our FAQ ID
+  Source_Documents__c?: string // comma-separated document IDs
+}
+
+/**
+ * Salesforce Message Mapping
+ * Maps Message to Salesforce case comment or custom object
+ */
+export interface SalesforceMessageRecord {
+  Name: string // username + timestamp
+  Text__c: string // text content
+  Username__c: string // username
+  User_ID__c: string // userId
+  Channel__c: string // channel
+  Timestamp__c: string // timestamp ISO string
+  Thread_ID__c?: string // threadTs
+  Is_Thread_Reply__c: boolean // isThreadReply
+  External_Id__c: string // our message ID
+  Slack_Message_ID__c: string // slackId
+}
+
+/**
+ * Salesforce Sync Job
+ * Tracks sync operations to Salesforce
+ */
+export interface SalesforceSyncJob {
+  id: string
+  jobType: 'FULL_SYNC' | 'INCREMENTAL_SYNC' | 'DOCUMENT_SYNC' | 'FAQ_SYNC' | 'MESSAGE_SYNC'
+  status: 'QUEUED' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'CANCELLED'
+  startedAt?: Date
+  completedAt?: Date
+  recordsProcessed: number
+  recordsSucceeded: number
+  recordsFailed: number
+  errorDetails?: Array<{
+    recordId: string
+    error: string
+    recordType: 'document' | 'faq' | 'message'
+  }>
+  lastSyncCursor?: string // for incremental syncs
+  syncConfig: SalesforceSyncConfig
+  createdAt: Date
+  updatedAt: Date
+}
+
+/**
+ * Salesforce Connection Status
+ * Current status of Salesforce integration
+ */
+export interface SalesforceConnectionStatus {
+  isConnected: boolean
+  isAuthenticated: boolean
+  connectionError?: string
+  lastConnectionTest?: Date
+  userInfo?: SalesforceUserInfo
+  instanceUrl?: string
+  apiVersion: string
+  limits?: {
+    dailyApiCalls: {
+      used: number
+      limit: number
+    }
+  }
+}
+
+/**
+ * Salesforce OAuth State
+ * State parameter for OAuth flow security
+ */
+export interface SalesforceOAuthState {
+  state: string
+  redirectTo?: string
+  userId?: string
+  createdAt: Date
+}
+
+/**
+ * Salesforce Sync Summary
+ * Summary of sync operation results
+ */
+export interface SalesforceSyncSummary {
+  totalRecords: number
+  successfulSyncs: number
+  failedSyncs: number
+  skippedRecords: number
+  syncDuration: number // milliseconds
+  recordTypes: {
+    documents: { synced: number; failed: number }
+    faqs: { synced: number; failed: number }
+    messages: { synced: number; failed: number }
+  }
+  errors: Array<{
+    recordId: string
+    recordType: string
+    error: string
+  }>
+}
+
+/**
+ * Salesforce API Client Configuration
+ * Configuration for making Salesforce API calls
+ */
+export interface SalesforceApiClientConfig {
+  instanceUrl: string
+  accessToken: string
+  apiVersion: string
+  timeout?: number
+  retryAttempts?: number
+  retryDelay?: number
+}
+
+/**
+ * Salesforce Query Result
+ * Result from SOQL queries
+ */
+export interface SalesforceQueryResult<T = any> {
+  totalSize: number
+  done: boolean
+  nextRecordsUrl?: string
+  records: T[]
+}
+
+/**
+ * Salesforce Bulk Operation Result
+ * Result from bulk API operations
+ */
+export interface SalesforceBulkResult {
+  jobId: string
+  state: 'Open' | 'InProgress' | 'Aborted' | 'Completed' | 'Failed'
+  object: string
+  operation: 'insert' | 'update' | 'upsert' | 'delete'
+  createdDate: string
+  systemModstamp: string
+  numberBatchesQueued: number
+  numberBatchesInProgress: number
+  numberBatchesCompleted: number
+  numberBatchesFailed: number
+  numberRecordsProcessed: number
+  numberRecordsFailed: number
+  numberRetries: number
+}
+
+/**
+ * Salesforce Error Response
+ * Error structure from Salesforce API
+ */
+export interface SalesforceError {
+  message: string
+  errorCode: string
+  fields?: string[]
+}
+
+/**
+ * Salesforce Sync Settings for UI
+ * Settings that can be configured through the UI
+ */
+export interface SalesforceSyncSettings {
+  enabled: boolean
+  syncFrequency: 'manual' | 'hourly' | 'daily' | 'weekly'
+  syncHour?: number // for daily/weekly sync
+  syncDayOfWeek?: number // for weekly sync
+  documentObjectName: string
+  faqObjectName: string
+  messageObjectName: string
+  enableBidirectionalSync: boolean
+  conflictResolution: 'salesforce_wins' | 'app_wins' | 'manual_review'
+  fieldMappings: {
+    documents: Record<string, string>
+    faqs: Record<string, string>
+    messages: Record<string, string>
+  }
+  filters: {
+    syncOnlyApprovedFaqs: boolean
+    syncOnlyCompletedDocuments: boolean
+    excludePrivateChannels: boolean
+    dateRangeFilter?: {
+      startDate: Date
+      endDate?: Date
+    }
+  }
+}
+
+/**
+ * Component Props for Salesforce Integration UI
+ */
+export interface SalesforceConfigProps {
+  config: SalesforceSyncSettings
+  connectionStatus: SalesforceConnectionStatus
+  onConfigChange: (config: SalesforceSyncSettings) => void
+  onConnect: () => void
+  onDisconnect: () => void
+  onTestConnection: () => void
+  onStartSync: (syncType: 'full' | 'incremental') => void
+  className?: string
+}
+
+export interface SalesforceSyncDashboardProps {
+  syncJobs: SalesforceSyncJob[]
+  connectionStatus: SalesforceConnectionStatus
+  onRefresh: () => void
+  onRetryJob: (jobId: string) => void
+  onCancelJob: (jobId: string) => void
+  className?: string
+}
+
+/**
+ * API Request/Response Types for Salesforce Endpoints
+ */
+export interface SalesforceConnectRequest {
+  userId?: string
+  redirectTo?: string
+}
+
+export interface SalesforceConnectResponse {
+  authUrl: string
+  state: string
+}
+
+export interface SalesforceCallbackRequest {
+  code: string
+  state: string
+  error?: string
+  error_description?: string
+}
+
+export interface SalesforceCallbackResponse {
+  success: boolean
+  userInfo?: SalesforceUserInfo
+  redirectTo?: string
+  error?: string
+}
+
+export interface SalesforceStartSyncRequest {
+  syncType: 'full' | 'incremental'
+  recordTypes?: ('documents' | 'faqs' | 'messages')[]
+  filters?: {
+    startDate?: string
+    endDate?: string
+    categories?: string[]
+    statuses?: string[]
+  }
+}
+
+export interface SalesforceStartSyncResponse {
+  jobId: string
+  estimatedRecords: number
+  estimatedDuration: number // milliseconds
+}
+
+export interface SalesforceDisconnectResponse {
+  success: boolean
+  message: string
+}
+
+export interface SalesforceTestConnectionResponse {
+  success: boolean
+  connectionDetails?: {
+    instanceUrl: string
+    userInfo: SalesforceUserInfo
+    limits: any
+  }
+  error?: string
+  warning?: string
+}
+
+/**
+ * Webhook Types for Salesforce Integration
+ * For receiving updates from Salesforce if bidirectional sync is enabled
+ */
+export interface SalesforceWebhookPayload {
+  sobjectType: string
+  eventType: 'created' | 'updated' | 'deleted' | 'undeleted'
+  recordIds: string[]
+  changeType: string
+  channelName: string
+  clientId: string
+}
+
+export interface SalesforceWebhookEvent {
+  schema: string
+  payload: SalesforceWebhookPayload
+  event: {
+    replayId: number
+  }
+}
+
+/**
+ * Error Classes for Salesforce Integration
+ */
+export class SalesforceAuthError extends Error {
+  constructor(
+    message: string,
+    public readonly authCode?: string,
+    public readonly description?: string
+  ) {
+    super(message)
+    this.name = 'SalesforceAuthError'
+  }
+}
+
+export class SalesforceApiError extends Error {
+  constructor(
+    message: string,
+    public readonly statusCode: number,
+    public readonly errorCode?: string,
+    public readonly fields?: string[]
+  ) {
+    super(message)
+    this.name = 'SalesforceApiError'
+  }
+}
+
+export class SalesforceSyncError extends Error {
+  constructor(
+    message: string,
+    public readonly jobId?: string,
+    public readonly recordType?: string,
+    public readonly recordId?: string
+  ) {
+    super(message)
+    this.name = 'SalesforceSyncError'
+  }
 } 
