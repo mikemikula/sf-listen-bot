@@ -2,6 +2,8 @@
 
 An enterprise-grade, AI-powered knowledge management platform that captures and transforms unstructured Slack conversations into structured, searchable knowledge assets within Salesforce.
 
+<img width="1268" height="1247" alt="image" src="https://github.com/user-attachments/assets/91d39329-af12-45dd-935f-62cbc9e0e913" />
+
 ## 🎯 Overview
 
 SF Listen Bot is a full-stack Next.js application designed to solve the critical business problem of knowledge being trapped and lost in ephemeral communication channels. It provides an end-to-end solution that:
