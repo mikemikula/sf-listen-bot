@@ -1,34 +1,43 @@
-# 🤖 Listen Bot - Slack Message Logger
+# 🤖 SF Listen Bot - AI Knowledge Platform
 
-A modern Slack message logger that captures messages from designated channels and displays them in a beautiful, real-time dashboard.
+An enterprise-grade, AI-powered knowledge management platform that captures and transforms unstructured Slack conversations into structured, searchable knowledge assets within Salesforce.
 
 ## 🎯 Overview
 
-Listen Bot is a full-stack Next.js application that:
-- ✅ Captures Slack messages via webhooks  
-- ✅ Stores messages in Postgres (Supabase)
-- ✅ Displays messages in a real-time dashboard
-- ✅ Provides filtering and search capabilities
-- ✅ Built with modern tech stack and best practices
+SF Listen Bot is a full-stack Next.js application designed to solve the critical business problem of knowledge being trapped and lost in ephemeral communication channels. It provides an end-to-end solution that:
+
+-   ✅ **Captures Slack Data**: Ingests Slack messages in real-time via webhooks and supports historical data imports via a channel puller.
+-   🧠 **AI-Powered Analysis**: Leverages Google Gemini to analyze conversation patterns, identify key topics, and generate titles and summaries.
+-   🛡️ **PII Detection & Management**: Automatically detects and redacts Personally Identifiable Information (PII) with a dedicated dashboard for manual review and approval.
+-   📄 **Creates Structured Documents**: Groups related messages into coherent `ProcessedDocuments` that act as a source of truth.
+-   💡 **Generates FAQs**: Uses AI to generate high-quality FAQs from processed documents, with built-in duplicate detection using Pinecone vector search.
+-   🔗 **Integrates with Salesforce**: Securely connects to Salesforce via OAuth and syncs `Documents` and `FAQs` to custom objects (`Slack_Document__c`, `Slack_FAQ__c`).
+-   ⚙️ **Manages Processing**: Features a robust background job system using Bull and Redis to handle intensive AI tasks without blocking the UI.
+-   📊 **Provides Rich Dashboards**: A comprehensive UI for viewing messages, managing documents, reviewing FAQs, handling PII, monitoring system analytics, and controlling automation.
 
 ## 🏗️ Tech Stack
 
-- **Frontend**: Next.js 14, React, TypeScript
-- **Styling**: Tailwind CSS v4, BEM methodology
-- **Backend**: Next.js API Routes, Node.js
-- **Database**: PostgreSQL (Supabase)
-- **ORM**: Prisma
-- **Hosting**: Vercel
-- **Package Manager**: pnpm
+-   **Frontend**: Next.js 14, React, TypeScript, Tailwind CSS
+-   **Backend**: Next.js API Routes, Node.js
+-   **Database**: PostgreSQL (via Supabase) & Redis
+-   **ORM**: Prisma
+-   **AI & Machine Learning**: Google Gemini (for generation & analysis), Pinecone (for vector search/duplicate detection)
+-   **Job Queuing**: Bull for managing background jobs
+-   **Integration**: Slack API, Salesforce (REST & Metadata)
+-   **Deployment**: Vercel
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 
-- Node.js 18+ installed
-- pnpm installed (`npm install -g pnpm`)
-- Supabase account and database
-- Slack app created and configured
+-   Node.js 18+
+-   pnpm (`npm install -g pnpm`)
+-   Access to a PostgreSQL database
+-   Access to a Redis instance
+-   Slack App credentials
+-   Google Gemini API Key
+-   Pinecone API Key
+-   Salesforce Connected App credentials
 
 ### 1. Clone and Install
 
@@ -41,355 +50,64 @@ pnpm install
 
 ### 2. Environment Setup
 
-Edit `.env.local` with your configuration:
-
-```bash
-# Database (Supabase)
-DATABASE_URL="postgresql://username:password@host:port/database"
-DIRECT_URL="postgresql://username:password@host:port/database"
-
-# Slack App
-SLACK_SIGNING_SECRET="your_slack_signing_secret"
-
-# App Config
-NEXT_PUBLIC_APP_URL="http://localhost:3000"
-```
+Edit `.env.local` with all your credentials for the services listed in the prerequisites. Key variables include `DATABASE_URL`, `REDIS_HOST`, `SLACK_SIGNING_SECRET`, `GEMINI_API_KEY`, `PINECONE_API_KEY`, and Salesforce credentials.
 
 ### 3. Database Setup
 
 ```bash
-# Generate Prisma client
+# Generate Prisma client from your schema
 pnpm db:generate
 
-# Push schema to database
+# Push the database schema to your PostgreSQL instance
 pnpm db:push
-
-# (Optional) Open Prisma Studio
-pnpm db:studio
 ```
 
-### 4. Development
+### 4. Development Server
 
 ```bash
-# Start development server
+# Start the Next.js development server
 pnpm dev
-
-# Run type checking
-pnpm type-check
-
-# Run linting
-pnpm lint
-
-# Verify everything is working
-pnpm verify
 ```
 
 Visit `http://localhost:3000` to see the dashboard.
 
 ---
 
-## 📱 Slack App Configuration
-
-### Step 1: Create Slack App
-
-1. Go to [https://api.slack.com/apps](https://api.slack.com/apps)
-2. Click "Create New App" → "From scratch"
-3. Name your app "Listen Bot" and select your workspace
-
-### Step 2: Configure OAuth & Permissions
-
-Add these **Bot Token Scopes**:
-- `channels:history` - Read message history
-- `channels:read` - Read channel information
-- `chat:write` - Send messages (optional)
-
-### Step 3: Enable Event Subscriptions
-
-1. Go to **Event Subscriptions**
-2. Enable Events: **On**
-3. Request URL: `https://your-domain.vercel.app/api/slack/events`
-4. Subscribe to bot events:
-   - `message.channels`
-
-### Step 4: Install to Workspace
-
-1. Go to **Install App**
-2. Click "Install to Workspace"
-3. Authorize the permissions
-
-### Step 5: Invite Bot to Channel
-
-In your Slack channel:
-```
-/invite @Listen Bot
-```
-
----
-
 ## 🗃️ Database Schema
 
-### Messages Table
+The application uses a sophisticated relational database schema to track data from ingestion to final output. The core models are:
 
-```sql
-CREATE TABLE messages (
-  id          TEXT PRIMARY KEY,
-  slack_id    TEXT UNIQUE NOT NULL,
-  text        TEXT NOT NULL,
-  user_id     TEXT NOT NULL,
-  username    TEXT NOT NULL,
-  channel     TEXT NOT NULL,
-  timestamp   TIMESTAMP NOT NULL,
-  created_at  TIMESTAMP DEFAULT NOW(),
-  updated_at  TIMESTAMP DEFAULT NOW()
-);
+-   `Message`: Stores every raw message from Slack, including thread relationships.
+-   `ProcessedDocument`: An AI-generated summary of a conversation, linking multiple messages together.
+-   `FAQ`: An AI-generated Question/Answer pair derived from a `ProcessedDocument`.
+-   `PIIDetection`: Tracks every piece of PII found in messages, its status, and how it was redacted.
+-   `AutomationJob`: Represents a background task (e.g., generating a document), tracking its progress and status.
+-   `SlackEvent`: An audit log of every incoming event from Slack for reliability and debugging.
+-   `SalesforceConnection`: Securely stores OAuth credentials for Salesforce integration.
 
--- Indexes for performance
-CREATE INDEX idx_messages_channel ON messages(channel);
-CREATE INDEX idx_messages_timestamp ON messages(timestamp);
-CREATE INDEX idx_messages_user_id ON messages(user_id);
-```
-
----
-
-## 🎨 Component Architecture
-
-```
-src/
-├── components/
-│   ├── ErrorBoundary.tsx    # Error handling
-│   ├── FilterBar.tsx        # Search & filters
-│   ├── Header.tsx           # App header
-│   ├── LoadingSpinner.tsx   # Loading states
-│   ├── MessageCard.tsx      # Individual message
-│   └── MessageFeed.tsx      # Message list
-├── lib/
-│   ├── db.ts               # Database connection
-│   └── slack.ts            # Slack utilities
-├── pages/
-│   ├── api/
-│   │   ├── health.ts       # Health check
-│   │   ├── messages/       # Messages API
-│   │   └── slack/events.ts # Slack webhook
-│   └── index.tsx           # Main dashboard
-├── types/
-│   └── index.ts            # TypeScript definitions
-└── prisma/
-    └── schema.prisma       # Database schema
-```
+For a complete and detailed view of the schema and all relationships, please refer to the `prisma/schema.prisma` file.
 
 ---
 
 ## 🔌 API Endpoints
 
-### Slack Webhook
-```
-POST /api/slack/events
-- Handles Slack event subscriptions
-- Validates request signatures
-- Stores messages in database
-```
+The application exposes a rich set of API endpoints to support its functionality:
 
-### Messages API
-```
-GET /api/messages?channel=C123&search=hello&page=1&limit=20
-- Fetches paginated messages
-- Supports filtering and search
-- Returns formatted message data
-```
-
-### Health Check
-```
-GET /api/health
-- Database connectivity check
-- Application status
-- Uptime information
-```
-
----
-
-## 🚀 Deployment (Vercel)
-
-### 1. Prepare for Production
-
-```bash
-# Build the application
-pnpm build
-
-# Run production build locally (optional)
-pnpm start
-```
-
-### 2. Vercel Setup
-
-1. Install Vercel CLI: `npm install -g vercel`
-2. Login: `vercel login`
-3. Deploy: `vercel`
-
-**📖 For complete deployment instructions, see `VERCEL_DEPLOYMENT.md`**
-
-### 3. Environment Variables
-
-Set these in Vercel dashboard:
-
-```bash
-DATABASE_URL="your_supabase_url"
-DIRECT_URL="your_supabase_direct_url"  
-SLACK_SIGNING_SECRET="your_slack_secret"
-NEXT_PUBLIC_APP_URL="https://your-app.vercel.app"
-NODE_ENV="production"
-```
-
-### 4. Database Migration
-
-```bash
-# Generate Prisma client for production
-railway run npx prisma generate
-
-# Deploy database schema
-railway run npx prisma db push
-```
-
-### 5. Update Slack App
-
-Update your Slack app's **Event Subscriptions** URL:
-```
-https://your-app.vercel.app/api/slack/events
-```
-
----
-
-## 🧪 Testing
-
-### Manual Testing
-
-1. **Webhook**: Send test message in Slack channel
-2. **Dashboard**: Check message appears in UI
-3. **Filtering**: Test search and channel filters
-4. **Health**: Visit `/api/health`
-
-### API Testing
-
-```bash
-# Test health endpoint
-curl https://your-app.vercel.app/api/health
-
-# Test messages API
-curl https://your-app.vercel.app/api/messages
-```
-
----
-
-## 🛠️ Development Commands
-
-```bash
-# Development
-pnpm dev                 # Start dev server
-pnpm build              # Build for production
-pnpm start              # Start production server
-pnpm lint               # Run ESLint
-pnpm type-check         # Run TypeScript checker
-pnpm verify             # Run all checks
-
-# Database
-pnpm db:generate        # Generate Prisma client
-pnpm db:push            # Push schema to database
-pnpm db:migrate         # Create and run migration
-pnpm db:studio          # Open Prisma Studio
-pnpm db:seed            # Run database seeder
-```
-
----
-
-## 🔍 Troubleshooting
-
-### Common Issues
-
-**1. Slack signature verification fails**
-- Check `SLACK_SIGNING_SECRET` is correct
-- Ensure webhook URL is accessible
-- Verify request timestamp isn't too old
-
-**2. Database connection errors** 
-- Verify `DATABASE_URL` is correct
-- Check Supabase database is running
-- Ensure network connectivity
-
-**3. Messages not appearing**
-- Check bot is invited to channel
-- Verify webhook URL is correct
-- Check application logs for errors
-
-**4. Build/Deploy errors**
-- Run `pnpm verify` locally first
-- Check all environment variables are set
-- Ensure database schema is migrated
-
-### Debugging
-
-```bash
-# Check logs in development
-pnpm dev
-
-# Check Railway logs
-railway logs
-
-# Test database connection
-railway run npx prisma studio
-```
-
----
-
-## 📊 Monitoring
-
-### Health Checks
-
-- **Endpoint**: `/api/health`
-- **Database**: Connection status
-- **Uptime**: Application uptime tracking
-- **Status**: Overall service health
-
-### Logging
-
-- **Development**: Console logs with emojis
-- **Production**: Structured logging to Vercel
-- **Errors**: Comprehensive error tracking
+-   `POST /api/slack/events`: The main webhook for ingesting real-time events from Slack.
+-   `GET /api/messages`: Fetches paginated and filterable messages for the main dashboard.
+-   `GET /api/messages/stream`: A Server-Sent Events (SSE) endpoint for pushing real-time updates to the UI.
+-   `POST /api/documents/process-all`: Triggers a background job to process all unprocessed messages into documents.
+-   `POST /api/faqs/generate`: Triggers a background job to generate FAQs from a specific document.
+-   `GET /api/pii/review`: Fetches PII detections that require manual review.
+-   `POST /api/salesforce/oauth/connect`: Initiates the OAuth flow for Salesforce connection.
+-   `POST /api/salesforce/sync`: Starts a job to sync documents and FAQs to Salesforce.
+-   `GET /api/processing/analytics`: Provides a snapshot of system health and processing statistics.
 
 ---
 
 ## 🔮 Future Enhancements
 
-### Phase 2 Features
-- [ ] Multiple channel support
-- [ ] Message reactions and threads  
-- [ ] User management system
-- [ ] Export functionality
-- [ ] Advanced analytics dashboard
-- [ ] Real-time notifications
-
-### Technical Improvements
-- [ ] Redis caching layer
-- [ ] WebSocket connections
-- [ ] Message queuing (Bull/Agenda)
-- [ ] Advanced monitoring (Sentry)
-- [ ] Automated testing suite
-- [ ] Performance optimizations
-
----
-
-## 📄 License
-
-MIT License - see LICENSE file for details.
-
----
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Run `pnpm verify`
-5. Submit a pull request
-
----
-
-**Built with ❤️ using Next.js, TypeScript, and modern web technologies.** 
+-   [ ] **Bidirectional Salesforce Sync**: Implement the designed webhook listeners (`SalesforceWebhookPayload`) to allow changes in Salesforce to sync back to the application.
+-   [ ] **Microsoft Teams Integration**: Abstract the communication layer to support ingestion from other platforms like MS Teams.
+-   [ ] **Advanced Analytics**: Create a dashboard to track knowledge creation, usage metrics, and the impact of automated FAQs on support ticket volume.
+-   [ ] **Direct Salesforce Knowledge Integration**: Add a sync target to create and update articles in the official Salesforce Knowledge Base.

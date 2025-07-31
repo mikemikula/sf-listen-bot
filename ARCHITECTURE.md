@@ -1,114 +1,130 @@
-
 # Application Architecture
 
 This document provides a comprehensive overview of the SF Listen Bot application, covering its business objectives, system architecture, technology stack, and key features.
 
 ## 1. Business & Solution Overview
 
-This application serves as an intelligent knowledge base generator that transforms unstructured conversations from Slack into valuable, organized assets like official documentation and FAQs. It is designed for organizations that rely on Slack for internal communication and want to capture the valuable information that is often lost in the constant flow of messages.
+This application is an **Enterprise AI-Powered Knowledge Management Platform**. It transforms unstructured conversations from Slack into valuable, organized, and compliant assets, and syncs them directly into Salesforce.
 
 ### 1.1. Core Business Process
 
-The application follows a clear, multi-step process to deliver value:
+The application follows a robust, multi-stage pipeline:
 
-1.  **Data Ingestion**: The system monitors and ingests conversations from designated Slack channels in real-time.
-2.  **AI-Powered Processing**: The raw data is processed by an AI to analyze and summarize the content. During this step, any Personally Identifiable Information (PII) is detected and redacted.
-3.  **Knowledge Asset Generation**: The secure, anonymized data is used to generate structured and valuable assets.
-4.  **Value Delivery**: The final outputs are clear, accessible knowledge assets:
-    *   **Curated Documents**: Well-organized documents that summarize key topics.
-    *   **FAQs**: A list of frequently asked questions and their answers.
+1.  **Data Ingestion**: Monitors and ingests conversations from designated Slack channels in real-time (`/api/slack/events`) and via a historical data importer (`/pages/slack/channel-pull`).
+2.  **Synchronous Processing**: Each incoming message is immediately saved to the database and scanned for PII. The UI is updated in near real-time via an SSE stream.
+3.  **Asynchronous AI Analysis**: On user command, long-running background jobs are initiated to perform heavy AI tasks. This includes analyzing conversations, identifying topics, and generating titles and summaries for documents.
+4.  **Knowledge Asset Generation**: The secure, analyzed data is used to generate two key assets:
+    *   **Curated Documents**: Structured `ProcessedDocument` records that group related messages into a coherent conversation.
+    -   **FAQs**: AI-generated `FAQ` records with built-in duplicate detection via vector search.
+5.  **Salesforce Integration**: The final, curated knowledge assets are synced to custom objects in Salesforce, making them available to sales and service teams.
 
 ## 2. Technology Stack
 
 *   **Frontend**: Next.js, React, TypeScript, Tailwind CSS, Lucide React, Server-Sent Events (SSE).
-*   **Backend**: Next.js API Routes, Prisma, Bull (with Redis).
-*   **AI & Machine Learning**: Google Gemini, Pinecone.
-*   **Database**: PostgreSQL, Redis.
+*   **Backend**: Next.js API Routes, Prisma.
+*   **Job Queuing**: Bull with Redis for managing asynchronous background tasks.
+*   **AI & Machine Learning**: Google Gemini for content analysis and generation, Pinecone for vector search and semantic duplicate detection.
+*   **Database**: PostgreSQL for primary data, Redis for queue management.
 *   **Deployment**: Vercel.
 
 ## 3. System Architecture
 
-The application is a monolithic Next.js application that encompasses both the frontend and backend. It is designed to be deployed as a serverless application on Vercel.
+The application is a monolithic Next.js application designed for serverless deployment on Vercel. It uses a hybrid synchronous/asynchronous model to balance real-time feedback with scalable processing.
 
 ### 3.1. High-Level System Flow
 
-The system operates through a series of interactions between its main components:
+```mermaid
+graph TD
+    subgraph Slack
+        A[Slack Channel]
+    end
 
-1.  **User Interface (Next.js Frontend)**: Users interact with the application through a web interface built with Next.js and React.
-2.  **Backend (Next.js API Routes)**: The frontend sends HTTP requests to the backend, which is a set of serverless functions.
-3.  **Data & Services**: The backend interacts with several services:
-    *   It sends events to and receives events from the **Slack API**.
-    *   It uses the **Prisma ORM** to query the **PostgreSQL Database**.
-    *   It leverages **AI/ML Services** (like Google Gemini) for content processing.
-4.  **Automation**: An **Automation Engine** triggers background jobs, which are managed by a **Job Queue** (Bull with Redis). These jobs are then executed by the backend.
+    subgraph Application
+        B[API Endpoint: /api/slack/events]
+        C[Event Processor]
+        D[PostgreSQL Database]
+        E[Job Queue - Bull/Redis]
+        F[Background Job Workers]
+        G[AI Services - Gemini & Pinecone]
+        H[UI Dashboards]
+        I[SSE Stream: /api/messages/stream]
+    end
+
+    subgraph Salesforce
+        J[Salesforce Custom Objects]
+    end
+
+    A -- Webhook --> B
+    B --> C
+    C -- Stores Message & PII Scan --> D
+    C -- Notifies via SSE --> I
+    I -- Pushes Updates --> H
+    
+    H -- Triggers AI Processing --> E
+    E -- Dispatches Jobs --> F
+    F -- Reads from --> D
+    F -- Calls --> G
+    G -- Returns Analysis --> F
+    F -- Writes Documents/FAQs --> D
+    
+    H -- Triggers Sync --> F
+    F -- Pushes Data --> J
+```
 
 ### 3.2. Architectural Layers & Patterns
 
-*   **Frontend**: A Next.js application serving the user interface, built with a **feature-based component structure** and styled with **Tailwind CSS**. It uses the React Context API for **lightweight state management**.
-*   **Backend (API)**: A set of Next.js API routes that provide the business logic, using **custom error classes** for structured error handling.
-*   **Data Layer**: A PostgreSQL database with a schema managed by **Prisma**.
-*   **Services**: A collection of libraries in `src/lib` for interacting with external APIs and processing data.
-*   **Automation**: A **Bull/Redis queue** manages background jobs for long-running tasks.
+*   **Frontend**: A Next.js application serving the user interface, built with a **feature-based component structure**. It uses a custom hook (`useRealTimeMessages`) to consume an SSE stream for live updates.
+*   **Backend (API)**: A set of Next.js API routes. The system distinguishes between synchronous endpoints for fast operations (like message ingestion) and endpoints that trigger asynchronous jobs for slow operations.
+*   **Data Layer**: A PostgreSQL database with a schema managed by **Prisma**. All models and relations are defined in `prisma/schema.prisma`.
+*   **Services**: A collection of modular libraries in `src/lib` for interacting with external APIs (Slack, Gemini, Pinecone, Salesforce) and implementing core business logic.
+*   **Automation & Job Queue**: A **Bull/Redis queue** (`src/lib/backgroundJobs.ts`) manages all long-running, resource-intensive tasks, ensuring the API remains responsive and tasks are processed reliably.
 
 ## 4. Detailed Architecture
 
-### 4.1. Frontend
+### 4.1. Data Layer
 
-*   **Routing**: The application uses the Next.js `pages` directory for file-system based routing.
-*   **Real-time Updates**: Server-Sent Events (SSE) are used for real-time updates, handled by `/api/messages/stream.ts` and the `useRealTimeMessages.ts` hook.
-*   **Error Handling**: The `ErrorBoundary.tsx` component catches and handles rendering errors.
+The `prisma/schema.prisma` file defines all data models. Key models include:
 
-### 4.2. Backend
+*   `Message`: Stores raw Slack messages and thread relationships.
+*   `ProcessedDocument`: An AI-generated summary of a conversation, acting as a container for related messages.
+*   `FAQ`: An AI-generated Question/Answer pair, linked back to a source `ProcessedDocument`.
+*   `PIIDetection`: Tracks every piece of PII found, its status (`PENDING_REVIEW`, `WHITELISTED`, etc.), and how it was redacted. This provides a full compliance audit trail.
+*   `AutomationJob`: Represents a background task (e.g., `DOCUMENT_CREATION`), tracking its progress, status, and any errors.
+*   `SlackEvent`: Logs every incoming webhook payload from Slack for reliability and debugging.
+*   **Junction Tables**: `DocumentMessage`, `DocumentFAQ`, and `MessageFAQ` create many-to-many relationships, providing rich traceability from a final FAQ back to the individual messages that created it.
 
-*   **API Endpoints**: The API is organized by resource in `src/pages/api`.
-*   **Core Services**: The core business logic resides in `src/lib`.
-*   **Background Jobs**: Long-running tasks are managed in `src/lib/backgroundJobs.ts`.
+### 4.2. Functional Map by Feature
 
-### 4.3. Data Layer
+*   **Slack Data Ingestion**:
+    *   **Real-time**: `src/pages/api/slack/events.ts`, `src/lib/eventProcessor.ts`.
+    *   **Historical**: `src/pages/slack/channel-pull.tsx`, `src/lib/slackChannelPuller.ts`.
 
-*   **Schema Definition**: The `prisma/schema.prisma` file defines all data models.
-*   **Key Data Models**: `Message`, `ProcessedDocument`, `FAQ`, `AutomationJob`, `PIIDetection`, `SlackEvent`.
-*   **Data Relationships**:
-    *   A `Message` can be part of a `ProcessedDocument` (`DocumentMessage` join table).
-    *   A `ProcessedDocument` can be the source for multiple `FAQ`s (`DocumentFAQ` table).
-    *   An `AutomationJob` can generate a `ProcessedDocument`.
-    *   `PIIDetection` records are linked to a `Message`.
+*   **Content Processing & AI**:
+    *   **Document Processing**: `src/lib/documentProcessor.ts`, triggered by a `DOCUMENT_CREATION` job.
+    *   **FAQ Generation**: `src/lib/faqGenerator.ts`, triggered by an `FAQ_GENERATION` job.
+    *   **PII Detection**: `src/lib/piiDetector.ts` (used synchronously by `eventProcessor`).
+    *   **AI Service**: `src/lib/gemini.ts` (contains all prompts and logic for interacting with the LLM).
 
-## 5. Functional Map by Feature
+*   **Salesforce Integration**:
+    *   **Authentication**: Full OAuth 2.0 flow (`/api/salesforce/oauth`).
+    *   **Data Sync**: `src/lib/salesforceSync.ts` handles mapping and pushing data.
+    *   **Schema Deployment**: `src/lib/salesforceCLI.ts` and `salesforceMetadataDeployer.ts` manage creating custom objects and fields in the target org.
 
-This section provides a detailed mapping of core features to the files that implement them.
+*   **User Interface**:
+    *   **Main Application Shell**: `src/pages/_app.tsx`, `src/components/Header.tsx`.
+    *   **Dashboards**:
+        *   `src/pages/index.tsx`: Message Feed
+        *   `src/pages/documents/index.tsx`: Document Management
+        *   `src/pages/faqs/index.tsx`: FAQ Management & Approval
+        *   `src/pages/pii/review.tsx`: PII Review Workflow
+        *   `src/pages/processing/dashboard.tsx`: System Analytics
+        *   `src/pages/processing/automation.tsx`: Automation & Job Control
+        *   `src/pages/salesforce/index.tsx`: Salesforce Connection & Sync
 
-### 5.1. Slack Data Ingestion
+### 4.3. Security
 
-*   **Real-time Event Handling**: `src/pages/api/slack/events.ts`, `src/lib/eventProcessor.ts`.
-*   **Historical Data Pulling**: `src/pages/slack/channel-pull.tsx`, `src/lib/slackChannelPuller.ts`.
+*   **Slack**: All incoming webhooks are verified using the Slack signing secret (`verifySlackSignature` in `src/lib/slack.ts`).
+*   **Salesforce**: Authentication is handled via a secure OAuth 2.0 flow with PKCE. Access and refresh tokens are encrypted and stored securely in the database (`SalesforceConnection` model).
+*   **Data**: PII is actively detected, logged, and redacted. The PII review dashboard provides a human-in-the-loop mechanism for compliance.
 
-### 5.2. Content Processing & AI
-
-*   **Document Processing**: `src/pages/api/documents/process.ts`, `src/lib/documentProcessor.ts`.
-*   **FAQ Generation**: `src/pages/api/faqs/generate.ts`, `src/lib/faqGenerator.ts`.
-*   **PII Detection**: `src/lib/piiDetector.ts`, `src/pages/pii/review.tsx`.
-
-### 5.3. Data Storage
-
-*   **Database Schema**: `prisma/schema.prisma`.
-*   **Database Client**: `src/lib/db.ts`.
-*   **Vector Database**: `src/lib/pinecone.ts`.
-
-### 5.4. User Interface
-
-*   **Main Application Shell**: `src/pages/_app.tsx`, `src/components/Header.tsx`.
-*   **Dashboards**: `src/pages/index.tsx`, `src/pages/documents/index.tsx`, `src/pages/faqs/index.tsx`, `src/pages/processing/dashboard.tsx`.
-
-### 5.5. Automation & Background Jobs
-
-*   **Job Management**: `src/lib/backgroundJobs.ts`, `src/pages/api/processing/jobs/manage.ts`.
-*   **Automation Rules**: `src/pages/api/processing/automation/rules.ts`.
-
-## 6. Security & Deployment
-
-*   **Authentication**: The application is public, with no user-level authentication.
-*   **Authorization**: Access control is managed at the service level via API keys and tokens.
-*   **Deployment**: The application is configured for deployment on Vercel (`vercel.json`).
-
-This document will be updated as the application evolves. 
+This document will be updated as the application evolves.
