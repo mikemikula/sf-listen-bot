@@ -107,7 +107,7 @@ export class SalesforceDataMapper {
       Name: this.truncateTitle(document.title, 80), // Salesforce Name field limit
       Description__c: document.description,
       Category__c: document.category,
-      Status__c: document.status,
+      Status__c: this.mapDocumentStatus(document.status),
       Confidence_Score__c: document.confidenceScore,
       Created_By__c: document.createdBy || 'System',
       Slack_Channel__c: channelNames.join(', '),
@@ -134,7 +134,7 @@ export class SalesforceDataMapper {
       Question__c: faq.question,
       Answer__c: faq.answer,
       Category__c: faq.category,
-      Status__c: faq.status,
+      Status__c: this.mapFAQStatus(faq.status),
       Confidence_Score__c: faq.confidenceScore,
       Approved_By__c: faq.approvedBy || undefined,
       Approved_Date__c: faq.approvedAt?.toISOString(),
@@ -160,6 +160,38 @@ export class SalesforceDataMapper {
       Is_Thread_Reply__c: message.isThreadReply,
       Slack_Message_ID__c: message.slackId
     }
+  }
+
+  /**
+   * Map internal document status to Salesforce picklist value
+   */
+  private mapDocumentStatus(status: string): string {
+    const statusMap: Record<string, string> = {
+      'COMPLETE': 'Processed',
+      'COMPLETED': 'Processed',
+      'PROCESSING': 'Draft',
+      'PENDING': 'Draft',
+      'ERROR': 'Draft',
+      'PUBLISHED': 'Published',
+      'ARCHIVED': 'Archived'
+    }
+    return statusMap[status.toUpperCase()] || 'Draft'
+  }
+
+  /**
+   * Map internal FAQ status to Salesforce picklist value
+   */
+  private mapFAQStatus(status: string): string {
+    const statusMap: Record<string, string> = {
+      'APPROVED': 'Approved',
+      'PENDING': 'Draft',
+      'REVIEW': 'Review',
+      'UNDER_REVIEW': 'Review',
+      'PUBLISHED': 'Published',
+      'ARCHIVED': 'Archived',
+      'REJECTED': 'Draft'
+    }
+    return statusMap[status.toUpperCase()] || 'Draft'
   }
 
   /**
