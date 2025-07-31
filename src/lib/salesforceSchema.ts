@@ -16,7 +16,7 @@ import type {
 /**
  * Schema definition for Slack Document custom object
  */
-const SLACK_DOCUMENT_SCHEMA = {
+export const SLACK_DOCUMENT_SCHEMA = {
   fullName: 'Slack_Document__c',
   label: 'Slack Document',
   pluralLabel: 'Slack Documents',
@@ -80,7 +80,7 @@ const SLACK_DOCUMENT_SCHEMA = {
       fullName: 'Tags__c',
       label: 'Tags',
       type: 'Text',
-      length: 500,
+      length: 255,
       description: 'Comma-separated tags for categorization'
     },
     {
@@ -121,7 +121,7 @@ const SLACK_DOCUMENT_SCHEMA = {
 /**
  * Schema definition for Slack FAQ custom object
  */
-const SLACK_FAQ_SCHEMA = {
+export const SLACK_FAQ_SCHEMA = {
   fullName: 'Slack_FAQ__c',
   label: 'Slack FAQ',
   pluralLabel: 'Slack FAQs',

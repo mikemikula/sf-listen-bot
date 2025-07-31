@@ -150,7 +150,8 @@ export class SalesforceSchemaValidator {
         valid: isValid,
         existingFieldCount: existingFields.length,
         missingFieldCount: missingFields.length,
-        missingFields
+        missingFields,
+        existingCustomFields: existingFields.filter((f: string) => f.endsWith('__c'))
       })
 
       return {

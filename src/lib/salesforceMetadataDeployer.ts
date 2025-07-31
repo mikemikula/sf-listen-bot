@@ -156,6 +156,17 @@ export class SalesforceMetadataDeployer {
       }
     })
 
+    // Log the actual object XML for debugging
+    const objectXml = await zip.file(`objects/${objectName}.object`)?.async('string')
+    if (objectXml) {
+      logger.info('Generated object XML preview', {
+        objectName,
+        xmlLength: objectXml.length,
+        xmlPreview: objectXml.substring(0, 500) + '...',
+        fieldNames: fields.map(f => f.fullName)
+      })
+    }
+    
     logger.info('Generated metadata package structure', {
       objectName,
       fieldCount: fields.length,
@@ -189,12 +200,10 @@ export class SalesforceMetadataDeployer {
   }
 
   /**
-   * Generate object XML with all fields included (Metadata API format)
+   * Generate object XML with all fields included
    */
   private generateObjectWithFieldsXML(objectName: string, fields: FieldDefinition[]): string {
-    // Generate a user-friendly label from the object name
     const label = objectName.replace('__c', '').replace(/_/g, ' ')
-    
     let xml = `<?xml version="1.0" encoding="UTF-8"?>
 <CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">
     <label>${label}</label>
@@ -206,6 +215,13 @@ export class SalesforceMetadataDeployer {
     </nameField>
     <deploymentStatus>Deployed</deploymentStatus>
     <sharingModel>ReadWrite</sharingModel>`
+
+    // Log the fields we're about to add
+    logger.info('Adding fields to object XML', {
+      objectName,
+      fieldCount: fields.length,
+      fieldNames: fields.map(f => f.fullName)
+    })
 
     // Add each field to the object
     for (const field of fields) {
@@ -458,8 +474,15 @@ export class SalesforceMetadataDeployer {
             logger.info('Metadata deployment completed successfully', {
               deploymentId,
               totalTime: `${attempts * 10} seconds`,
-              componentDeployments: statusResult.details?.componentDeployments || 0
+              componentDeployments: statusResult.details?.componentDeployments || 0,
+              numberComponentsDeployed: statusResult.details?.numberComponentsDeployed || 0,
+              numberComponentsTotal: statusResult.details?.numberComponentsTotal || 0
             })
+            
+            // Check if any components were actually deployed
+            if ((statusResult.details?.numberComponentsDeployed || 0) === 0) {
+              logger.warn('Deployment succeeded but no components were deployed - possible duplicate field issue')
+            }
             
             return {
               success: true,
@@ -591,6 +614,24 @@ export class SalesforceMetadataDeployer {
         }
       }
 
+      // Check for deployment warnings even if successful
+      const deploymentWarnings: any[] = []
+      const warningsMatch = responseText.match(/<runTestResult>([\s\S]*?)<\/runTestResult>/)
+      if (warningsMatch) {
+        logger.warn('Deployment has test results/warnings', {
+          deploymentId,
+          warningPreview: warningsMatch[1].substring(0, 200)
+        })
+      }
+
+      // Log full response if no components were deployed
+      if (isDone && isSuccess && numberComponentsDeployedMatch && numberComponentsDeployedMatch[1] === '0') {
+        logger.warn('Deployment succeeded but 0 components deployed - possible duplicate fields', {
+          deploymentId,
+          responsePreview: responseText.substring(0, 1000)
+        })
+      }
+
       const details = {
         state,
         numberComponentsTotal: numberComponentsTotalMatch ? parseInt(numberComponentsTotalMatch[1]) : 0,
@@ -606,6 +647,52 @@ export class SalesforceMetadataDeployer {
       }
     } else {
       throw new Error(`Status check failed: ${response.status} ${response.statusText}`)
+    }
+  }
+
+  /**
+   * Retrieve existing object metadata
+   */
+  private async retrieveObjectMetadata(objectName: string): Promise<any> {
+    try {
+      const soapRequest = `<?xml version="1.0" encoding="utf-8"?>
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:met="http://soap.sforce.com/2006/04/metadata">
+   <soapenv:Header>
+      <met:SessionHeader>
+         <met:sessionId>${this.tokenResponse.access_token}</met:sessionId>
+      </met:SessionHeader>
+   </soapenv:Header>
+   <soapenv:Body>
+      <met:readMetadata>
+         <met:type>CustomObject</met:type>
+         <met:fullNames>${objectName}</met:fullNames>
+      </met:readMetadata>
+   </soapenv:Body>
+</soapenv:Envelope>`
+
+      const response = await fetch(`${this.tokenResponse.instance_url}/services/Soap/m/59.0`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'text/xml; charset=UTF-8',
+          'SOAPAction': 'urn:readMetadata'
+        },
+        body: soapRequest
+      })
+
+      const responseText = await response.text()
+      logger.info('Retrieved object metadata', {
+        objectName,
+        status: response.status,
+        responsePreview: responseText.substring(0, 500)
+      })
+
+      return responseText
+    } catch (error) {
+      logger.error('Failed to retrieve object metadata', {
+        objectName,
+        error: error instanceof Error ? error.message : error
+      })
+      return null
     }
   }
 

@@ -262,6 +262,38 @@ export async function getSalesforceSession(sessionId: string): Promise<Salesforc
 }
 
 /**
+ * Get Salesforce connection details for a user
+ */
+export async function getSalesforceConnection(userId: string): Promise<{
+  accessToken: string
+  instanceUrl: string
+} | null> {
+  try {
+    const connection = await db.salesforceConnection.findFirst({
+      where: { 
+        salesforceUserId: userId,
+        status: 'ACTIVE'
+      },
+      orderBy: { createdAt: 'desc' }
+    })
+
+    if (!connection) return null
+
+    // Decrypt access token
+    const encryptedAccessToken = JSON.parse(connection.accessToken)
+    const accessToken = decrypt(encryptedAccessToken)
+
+    return {
+      accessToken,
+      instanceUrl: connection.instanceUrl
+    }
+  } catch (error) {
+    logger.error('Failed to get Salesforce connection', { error, userId })
+    return null
+  }
+}
+
+/**
  * Remove Salesforce session from database
  */
 export async function removeSalesforceSession(sessionId: string): Promise<boolean> {

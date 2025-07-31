@@ -427,7 +427,24 @@ export default function SalesforceIntegrationDashboard({
 
       if (response.ok) {
         const result = await response.json()
-        if (result.success) {
+        // Handle new CLI-based response format
+        if (result.objects) {
+          setSchemaStatus({
+            schemaDeployed: result.success || false,
+            message: result.message || '',
+            recommendedAction: result.recommendedAction,
+            objects: result.objects,
+            summary: {
+              totalObjects: (result.objects.documents?.exists ? 1 : 0) + (result.objects.faqs?.exists ? 1 : 0),
+              totalExpected: 2,
+              percentComplete: Math.round(((result.objects.documents?.exists ? 1 : 0) + (result.objects.faqs?.exists ? 1 : 0)) / 2 * 100),
+              status: result.success ? 'Complete' : 
+                     (result.objects.documents?.exists || result.objects.faqs?.exists) ? 'Partial' : 'Not Deployed',
+              totalMissingFields: (result.objects.documents?.missingFields?.length || 0) + (result.objects.faqs?.missingFields?.length || 0)
+            }
+          })
+        } else if (result.success && result.data) {
+          // Handle legacy response format
           setSchemaStatus(result.data)
         } else {
           console.error('Failed to load schema status:', result.error)
@@ -461,13 +478,26 @@ export default function SalesforceIntegrationDashboard({
       const result = await response.json()
       
       if (result.success) {
-        toast.success('Schema deployed successfully! 🎉')
+        toast.success(result.message || 'Schema deployed successfully! 🎉')
+        // Show deployment details if available
+        if (result.componentsSummary) {
+          toast(`Deployed ${result.componentsSummary.deployed}/${result.componentsSummary.total} components`, {
+            duration: 5000,
+            icon: '📦'
+          })
+        }
         await loadSchemaStatus() // Refresh status
         await loadConnectionStatus() // Refresh connection status
       } else {
         const errorMsg = result.error || 'Schema deployment failed'
-        console.error('Schema deployment error:', errorMsg)
+        console.error('Schema deployment error:', errorMsg, result.details)
         toast.error(errorMsg)
+        // Show detailed errors if available
+        if (result.details && Array.isArray(result.details)) {
+          result.details.forEach((detail: string) => {
+            toast.error(detail, { duration: 6000 })
+          })
+        }
       }
     } catch (error) { 
       console.error('Schema deployment error:', error)
