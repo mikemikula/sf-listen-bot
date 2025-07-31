@@ -683,11 +683,17 @@ export default function SalesforceIntegrationDashboard({
                     <dd className="mt-1 text-sm">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                         schemaStatus.objects?.documents?.exists 
-                          ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
+                          ? schemaStatus.objects.documents.deployedFields === schemaStatus.objects.documents.totalFields
+                            ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
+                            : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
                           : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
                       }`}>
-                        {schemaStatus.objects?.documents?.exists ? 
-                          `✓ ${schemaStatus.objects.documents.fieldCount || 0} fields` : 
+                        {schemaStatus.objects?.documents?.exists ? (
+                          <>
+                            {schemaStatus.objects.documents.deployedFields === schemaStatus.objects.documents.totalFields && '✓ '}
+                            {schemaStatus.objects.documents.deployedFields || 0}/{schemaStatus.objects.documents.totalFields || 12} fields
+                          </>
+                        ) : 
                           '✗ Not deployed'}
                       </span>
                     </dd>
@@ -697,11 +703,17 @@ export default function SalesforceIntegrationDashboard({
                     <dd className="mt-1 text-sm">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                         schemaStatus.objects?.faqs?.exists 
-                          ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
+                          ? schemaStatus.objects.faqs.deployedFields === schemaStatus.objects.faqs.totalFields
+                            ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
+                            : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
                           : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
                       }`}>
-                        {schemaStatus.objects?.faqs?.exists ? 
-                          `✓ ${schemaStatus.objects.faqs.fieldCount || 0} fields` : 
+                        {schemaStatus.objects?.faqs?.exists ? (
+                          <>
+                            {schemaStatus.objects.faqs.deployedFields === schemaStatus.objects.faqs.totalFields && '✓ '}
+                            {schemaStatus.objects.faqs.deployedFields || 0}/{schemaStatus.objects.faqs.totalFields || 9} fields
+                          </>
+                        ) : 
                           '✗ Not deployed'}
                       </span>
                     </dd>
@@ -719,8 +731,8 @@ export default function SalesforceIntegrationDashboard({
                   <div className="ml-3">
                     <p className="text-sm text-blue-700 dark:text-blue-300">
                       <strong>Schema deployment</strong> creates custom objects in your Salesforce org:
-                      <br />• <code className="font-mono text-xs">Slack_Document__c</code> - Stores processed documents
-                      <br />• <code className="font-mono text-xs">Slack_FAQ__c</code> - Stores generated FAQs
+                      <br />• <code className="font-mono text-xs">Slack_Document__c</code> - Stores processed documents (12 custom fields)
+                      <br />• <code className="font-mono text-xs">Slack_FAQ__c</code> - Stores generated FAQs (9 custom fields)
                       <br />This enables data synchronization between your Slack channels and Salesforce.
                     </p>
                   </div>

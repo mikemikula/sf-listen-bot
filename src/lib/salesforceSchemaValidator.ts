@@ -97,14 +97,16 @@ export class SalesforceSchemaValidator {
     try {
       logger.info('Validating object', { objectName, requiredFieldCount: requiredFields.length })
 
-      // Check if object exists
-      const describeUrl = `${this.tokenResponse.instance_url}/services/data/v59.0/sobjects/${objectName}/describe`
+      // Check if object exists - add timestamp to bypass any caching
+      const timestamp = Date.now()
+      const describeUrl = `${this.tokenResponse.instance_url}/services/data/v59.0/sobjects/${objectName}/describe?t=${timestamp}`
       
       const response = await fetch(describeUrl, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${this.tokenResponse.access_token}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache'
         }
       })
 

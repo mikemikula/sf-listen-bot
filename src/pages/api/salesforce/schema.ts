@@ -197,6 +197,13 @@ async function handleDeploySchema(
         const totalFieldsDeployed = deploymentResults.documents.fieldsDeployed + deploymentResults.faqs.fieldsDeployed
 
         if (overallSuccess) {
+          // Add a delay to allow Salesforce metadata to propagate
+          logger.info('Waiting for Salesforce metadata to propagate before final validation...')
+          await new Promise(resolve => setTimeout(resolve, 5000)) // 5 second delay
+          
+          // Re-validate to get accurate field counts
+          const finalValidation = await validator.validateSchema()
+          
           return res.status(200).json({
             success: true,
             data: {
@@ -211,7 +218,7 @@ async function handleDeploySchema(
               },
               deploymentMethod: 'Enhanced Metadata API',
               fieldsDeployed: totalFieldsDeployed,
-              validationResult
+              validationResult: finalValidation
             }
           })
         } else {
@@ -418,13 +425,19 @@ async function handleGetSchemaStatus(
             exists: validationResult.documentsObject.exists,
             valid: validationResult.documentsObject.valid,
             missingFields: validationResult.documentsObject.missingFields,
-            errors: validationResult.documentsObject.errors
+            errors: validationResult.documentsObject.errors,
+            fieldCount: validationResult.documentsObject.missingFields.length,
+            totalFields: 12,
+            deployedFields: 12 - validationResult.documentsObject.missingFields.length
           },
           faqs: {
             exists: validationResult.faqsObject.exists,
             valid: validationResult.faqsObject.valid,
             missingFields: validationResult.faqsObject.missingFields,
-            errors: validationResult.faqsObject.errors
+            errors: validationResult.faqsObject.errors,
+            fieldCount: validationResult.faqsObject.missingFields.length,
+            totalFields: 9,
+            deployedFields: 9 - validationResult.faqsObject.missingFields.length
           }
         },
         summary: {
