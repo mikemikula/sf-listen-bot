@@ -1464,7 +1464,7 @@ export interface SalesforceDocumentRecord {
   Slack_Channel__c?: string // derived from messages
   Message_Count__c?: number // documentMessages count
   FAQ_Count__c?: number // documentFAQs count
-  External_Id__c: string // our document ID
+  // External_Id__c is used in the URL for upsert, not in the body
   Conversation_Analysis__c?: string // JSON string
 }
 
@@ -1481,7 +1481,7 @@ export interface SalesforceFAQRecord {
   Confidence_Score__c: number // confidenceScore
   Approved_By__c?: string // approvedBy
   Approved_Date__c?: string // approvedAt ISO string
-  External_Id__c: string // our FAQ ID
+  // External_Id__c is used in the URL for upsert, not in the body
   Source_Documents__c?: string // comma-separated document IDs
 }
 
@@ -1498,7 +1498,7 @@ export interface SalesforceMessageRecord {
   Timestamp__c: string // timestamp ISO string
   Thread_ID__c?: string // threadTs
   Is_Thread_Reply__c: boolean // isThreadReply
-  External_Id__c: string // our message ID
+  // External_Id__c is used in the URL for upsert, not in the body
   Slack_Message_ID__c: string // slackId
 }
 

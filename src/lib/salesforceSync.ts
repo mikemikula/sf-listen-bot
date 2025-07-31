@@ -113,7 +113,6 @@ export class SalesforceDataMapper {
       Slack_Channel__c: channelNames.join(', '),
       Message_Count__c: 0, // Will be updated with actual count
       FAQ_Count__c: 0, // Will be updated with actual count
-      External_Id__c: document.id,
       Conversation_Analysis__c: document.conversationAnalysis ? 
         JSON.stringify(document.conversationAnalysis) : undefined
     }
@@ -139,7 +138,6 @@ export class SalesforceDataMapper {
       Confidence_Score__c: faq.confidenceScore,
       Approved_By__c: faq.approvedBy || undefined,
       Approved_Date__c: faq.approvedAt?.toISOString(),
-      External_Id__c: faq.id,
       Source_Documents__c: sourceDocumentIds.join(', ')
     }
   }
@@ -160,7 +158,6 @@ export class SalesforceDataMapper {
       Timestamp__c: message.timestamp.toISOString(),
       Thread_ID__c: message.threadTs || undefined,
       Is_Thread_Reply__c: message.isThreadReply,
-      External_Id__c: message.id,
       Slack_Message_ID__c: message.slackId
     }
   }

@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next'
 import { getSalesforceSession } from '@/lib/salesforceSessionStore'
-import { createApiClient } from '@/lib/salesforce'
+import { createApiClient, getUserInfo } from '@/lib/salesforce'
 import { logger } from '@/lib/logger'
 
 function extractSessionFromCookies(cookieString?: string): string | null {
@@ -28,8 +28,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // Get org details
-    const apiClient = createApiClient(sessionData.tokenResponse)
-    const identity = await apiClient.getUserInfo()
+    const identity = await getUserInfo(
+      sessionData.tokenResponse.access_token,
+      sessionData.tokenResponse.instance_url
+    )
     
     return res.status(200).json({
       orgInfo: {
