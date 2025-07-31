@@ -9,6 +9,7 @@
 import { NextApiRequest, NextApiResponse } from 'next'
 import { getSalesforceSession } from '@/lib/salesforceSessionStore'
 import { createSchemaManager } from '@/lib/salesforceSchema'
+import { createSchemaValidator } from '@/lib/salesforceSchemaValidator'
 import { logger } from '@/lib/logger'
 import type { ApiResponse } from '@/types'
 
@@ -76,11 +77,11 @@ export default async function handler(
     // Route to appropriate handler
     switch (req.method) {
       case 'POST':
-        return await handleDeploySchema(req, res, schemaManager)
+        return await handleDeploySchema(req, res, schemaManager, sessionData)
       case 'DELETE':
         return await handleRemoveSchema(req, res, schemaManager)
       case 'GET':
-        return await handleGetSchemaStatus(req, res, schemaManager)
+        return await handleGetSchemaStatus(req, res, schemaManager, sessionData)
       default:
         return res.status(405).json({
           success: false,
@@ -107,13 +108,170 @@ export default async function handler(
 async function handleDeploySchema(
   req: NextApiRequest,
   res: NextApiResponse<ApiResponse<any>>,
-  schemaManager: any
+  schemaManager: any,
+  sessionData: any
 ): Promise<void> {
   try {
-    logger.info('Starting schema deployment via API')
+    logger.info('Starting intelligent schema deployment via API')
 
-    // Deploy the schema
-    const result = await schemaManager.deploySchema()
+    // First, validate what already exists
+    const validator = createSchemaValidator(sessionData.tokenResponse)
+    const validationResult = await validator.validateSchema()
+    
+    logger.info('Pre-deployment validation completed', {
+      success: validationResult.success,
+      recommendedAction: validationResult.recommendedAction,
+      documentsExists: validationResult.documentsObject.exists,
+      faqsExists: validationResult.faqsObject.exists
+    })
+
+    // If schema is already complete, return success
+    if (validationResult.success) {
+      logger.info('Schema already fully deployed - no action needed')
+      
+      return res.status(200).json({
+        success: true,
+        data: {
+          message: '✅ Schema already fully deployed! All objects and fields are present.',
+          results: {
+            documents: { success: true, message: 'Already exists and valid' },
+            faqs: { success: true, message: 'Already exists and valid' }
+          },
+          deployed: {
+            documents: true,
+            faqs: true
+          },
+          validationResult
+        }
+      })
+    }
+
+    // If objects exist but have missing fields, check for enhanced deployment option
+    if (validationResult.recommendedAction === 'add_fields') {
+      const useEnhancedDeployment = req.body?.useEnhancedDeployment === true
+      
+      if (useEnhancedDeployment) {
+        logger.info('Using enhanced Metadata API deployment for missing fields', {
+          documentsMissingFields: validationResult.documentsObject.missingFields.length,
+          faqsMissingFields: validationResult.faqsObject.missingFields.length
+        })
+
+        // Redirect to enhanced field deployment logic
+        const { createMetadataDeployer } = await import('@/lib/salesforceMetadataDeployer')
+        const deployer = createMetadataDeployer(sessionData.tokenResponse, sessionData.userInfo)
+
+        const deploymentResults = {
+          documents: { success: true, fieldsDeployed: 0, error: undefined as string | undefined },
+          faqs: { success: true, fieldsDeployed: 0, error: undefined as string | undefined }
+        }
+
+        // Deploy document fields if needed
+        if (validationResult.documentsObject.missingFields.length > 0) {
+          const documentFields = deployer.getDocumentFieldDefinitions()
+          const missingDocumentFields = documentFields.filter(field => 
+            validationResult.documentsObject.missingFields.includes(field.fullName)
+          )
+          const documentResult = await deployer.deployFields('Slack_Document__c', missingDocumentFields)
+          deploymentResults.documents = {
+            success: documentResult.success,
+            fieldsDeployed: missingDocumentFields.length,
+            error: documentResult.error
+          }
+        }
+
+        // Deploy FAQ fields if needed
+        if (validationResult.faqsObject.missingFields.length > 0) {
+          const faqFields = deployer.getFaqFieldDefinitions()
+          const missingFaqFields = faqFields.filter(field => 
+            validationResult.faqsObject.missingFields.includes(field.fullName)
+          )
+          const faqResult = await deployer.deployFields('Slack_FAQ__c', missingFaqFields)
+          deploymentResults.faqs = {
+            success: faqResult.success,
+            fieldsDeployed: missingFaqFields.length,
+            error: faqResult.error
+          }
+        }
+
+        const overallSuccess = deploymentResults.documents.success && deploymentResults.faqs.success
+        const totalFieldsDeployed = deploymentResults.documents.fieldsDeployed + deploymentResults.faqs.fieldsDeployed
+
+        if (overallSuccess) {
+          return res.status(200).json({
+            success: true,
+            data: {
+              message: `🎉 Enhanced deployment successful! Deployed ${totalFieldsDeployed} fields via Metadata API.`,
+              results: {
+                documents: { success: true, message: `${deploymentResults.documents.fieldsDeployed} fields deployed` },
+                faqs: { success: true, message: `${deploymentResults.faqs.fieldsDeployed} fields deployed` }
+              },
+              deployed: {
+                documents: true,
+                faqs: true
+              },
+              deploymentMethod: 'Enhanced Metadata API',
+              fieldsDeployed: totalFieldsDeployed,
+              validationResult
+            }
+          })
+        } else {
+          return res.status(400).json({
+            success: false,
+            error: 'Enhanced field deployment partially failed',
+            data: {
+              deploymentResults,
+              validationResult
+            }
+          })
+        }
+      } else {
+        logger.warn('Objects exist but missing fields - requires manual field creation', {
+          documentsMissingFields: validationResult.documentsObject.missingFields,
+          faqsMissingFields: validationResult.faqsObject.missingFields
+        })
+        
+        return res.status(400).json({
+          success: false,
+          error: '⚠️ Objects exist but missing required fields.',
+          data: {
+            message: validationResult.message,
+            recommendedActions: [
+              'Use Enhanced Metadata API deployment (add "useEnhancedDeployment": true to request)',
+              'Use manual deployment files (/api/salesforce/deployment-files)',
+              'Use dedicated field deployment endpoint (/api/salesforce/deploy-fields)',
+              'Add fields manually via Salesforce UI'
+            ],
+            missingFields: {
+              documents: validationResult.documentsObject.missingFields,
+              faqs: validationResult.faqsObject.missingFields
+            },
+            validationResult
+          }
+        })
+      }
+    }
+
+    // Deploy only what's actually missing based on validation
+    logger.info('Deploying missing components based on validation', {
+      documentsExists: validationResult.documentsObject.exists,
+      faqsExists: validationResult.faqsObject.exists,
+      documentsMissingFields: validationResult.documentsObject.missingFields.length,
+      faqsMissingFields: validationResult.faqsObject.missingFields.length
+    })
+
+    // For objects that exist but are missing fields, we need manual deployment
+    if (validationResult.documentsObject.exists && validationResult.documentsObject.missingFields.length > 0) {
+      logger.warn('Document object exists but missing all fields - requires manual field addition', {
+        missingFields: validationResult.documentsObject.missingFields
+      })
+    }
+
+    // Deploy the schema with selective object creation
+    const result = await schemaManager.deploySchemaSelective({
+      createDocuments: !validationResult.documentsObject.exists,
+      createFaqs: !validationResult.faqsObject.exists,
+      validationResult
+    })
 
     if (result.success) {
       logger.info('Schema deployment successful', {
@@ -233,54 +391,52 @@ async function handleRemoveSchema(
 async function handleGetSchemaStatus(
   req: NextApiRequest,
   res: NextApiResponse<ApiResponse<any>>,
-  schemaManager: any
+  schemaManager: any,
+  sessionData: any
 ): Promise<void> {
   try {
-    logger.info('Checking schema status via API')
+    logger.info('Checking schema status via comprehensive validation')
 
-    // Get schema status
-    const result = await schemaManager.getSchemaStatus()
-
-    if (result.success) {
-      const documentsExist = result.objects.documents.exists
-      const faqsExist = result.objects.faqs.exists
-      const allObjectsExist = documentsExist && faqsExist
-
-      return res.status(200).json({
-        success: true,
-        data: {
-          schemaDeployed: allObjectsExist,
-          objects: {
-            documents: {
-              exists: documentsExist,
-              fieldCount: result.objects.documents.fieldCount || 0,
-              id: result.objects.documents.id
-            },
-            faqs: {
-              exists: faqsExist,
-              fieldCount: result.objects.faqs.fieldCount || 0,
-              id: result.objects.faqs.id
-            }
+    // Use validator for accurate status checking
+    const validator = createSchemaValidator(sessionData.tokenResponse)
+    const validationResult = await validator.validateSchema()
+    
+    logger.info('Schema validation completed', {
+      success: validationResult.success,
+      recommendedAction: validationResult.recommendedAction,
+      message: validationResult.message
+    })
+    
+    return res.status(200).json({
+      success: true,
+      data: {
+        schemaDeployed: validationResult.success,
+        message: validationResult.message,
+        recommendedAction: validationResult.recommendedAction,
+        objects: {
+          documents: {
+            exists: validationResult.documentsObject.exists,
+            valid: validationResult.documentsObject.valid,
+            missingFields: validationResult.documentsObject.missingFields,
+            errors: validationResult.documentsObject.errors
           },
-          summary: {
-            totalObjects: (documentsExist ? 1 : 0) + (faqsExist ? 1 : 0),
-            totalExpected: 2,
-            percentComplete: Math.round(((documentsExist ? 1 : 0) + (faqsExist ? 1 : 0)) / 2 * 100),
-            status: allObjectsExist ? 'Complete' : 
-                   (documentsExist || faqsExist) ? 'Partial' : 'Not Deployed'
+          faqs: {
+            exists: validationResult.faqsObject.exists,
+            valid: validationResult.faqsObject.valid,
+            missingFields: validationResult.faqsObject.missingFields,
+            errors: validationResult.faqsObject.errors
           }
+        },
+        summary: {
+          totalObjects: (validationResult.documentsObject.exists ? 1 : 0) + (validationResult.faqsObject.exists ? 1 : 0),
+          totalExpected: 2,
+          percentComplete: Math.round(((validationResult.documentsObject.exists ? 1 : 0) + (validationResult.faqsObject.exists ? 1 : 0)) / 2 * 100),
+          status: validationResult.success ? 'Complete' : 
+                 (validationResult.documentsObject.exists || validationResult.faqsObject.exists) ? 'Partial' : 'Not Deployed',
+          totalMissingFields: validationResult.documentsObject.missingFields.length + validationResult.faqsObject.missingFields.length
         }
-      })
-    } else {
-      logger.error('Schema status check failed', {
-        error: result.error
-      })
-
-      return res.status(500).json({
-        success: false,
-        error: result.error || 'Failed to check schema status'
-      })
-    }
+      }
+    })
 
   } catch (error) {
     logger.error('Schema status API error', {

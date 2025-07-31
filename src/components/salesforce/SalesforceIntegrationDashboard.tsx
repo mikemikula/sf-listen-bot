@@ -452,7 +452,10 @@ export default function SalesforceIntegrationDashboard({
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json'
-        }
+        },
+        body: JSON.stringify({
+          useEnhancedDeployment: true
+        })
       })
 
       const result = await response.json()

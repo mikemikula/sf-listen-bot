@@ -38,12 +38,13 @@ export interface SalesforceSessionData {
 
 /**
  * Encrypt sensitive data for database storage
- * Using AES-256-CBC for better Next.js compatibility
+ * Using modern crypto API to avoid deprecation warnings
  */
 function encrypt(text: string): { encrypted: string; iv: string } {
   const iv = crypto.randomBytes(IV_LENGTH)
-  const key = Buffer.from(ENCRYPTION_KEY.slice(0, 32), 'utf8')
-  const cipher = crypto.createCipher('aes-256-cbc', key)
+  // Create a proper 32-byte key for AES-256
+  const keyBuffer = crypto.createHash('sha256').update(ENCRYPTION_KEY).digest()
+  const cipher = crypto.createCipheriv('aes-256-cbc', keyBuffer, iv)
   
   let encrypted = cipher.update(text, 'utf8', 'hex')
   encrypted += cipher.final('hex')
@@ -56,10 +57,14 @@ function encrypt(text: string): { encrypted: string; iv: string } {
 
 /**
  * Decrypt sensitive data from database storage
+ * Using modern crypto API to avoid deprecation warnings
  */
 function decrypt(encryptedData: { encrypted: string; iv: string }): string {
-  const key = Buffer.from(ENCRYPTION_KEY.slice(0, 32), 'utf8')
-  const decipher = crypto.createDecipher('aes-256-cbc', key)
+  // Create a proper 32-byte key for AES-256
+  const keyBuffer = crypto.createHash('sha256').update(ENCRYPTION_KEY).digest()
+  const iv = Buffer.from(encryptedData.iv, 'hex')
+  
+  const decipher = crypto.createDecipheriv('aes-256-cbc', keyBuffer, iv)
   
   let decrypted = decipher.update(encryptedData.encrypted, 'hex', 'utf8')
   decrypted += decipher.final('utf8')
