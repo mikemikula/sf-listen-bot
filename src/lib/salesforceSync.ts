@@ -104,7 +104,8 @@ export class SalesforceDataMapper {
     channelNames: string[] = []
   ): SalesforceDocumentRecord {
     return {
-      Name: this.truncateTitle(document.title, 80), // Salesforce Name field limit
+      // Name field is auto-number in Salesforce, will be auto-generated
+      Title__c: document.title, // Store the actual title in Title__c field
       Description__c: document.description,
       Category__c: document.category,
       Status__c: this.mapDocumentStatus(document.status),
@@ -130,7 +131,7 @@ export class SalesforceDataMapper {
     sourceDocumentIds: string[] = []
   ): SalesforceFAQRecord {
     return {
-      Name: this.truncateTitle(faq.question, 80),
+      // Name field is auto-number in Salesforce, will be auto-generated
       Question__c: faq.question,
       Answer__c: faq.answer,
       Category__c: faq.category,
@@ -150,7 +151,7 @@ export class SalesforceDataMapper {
    */
   public mapMessageToSalesforce(message: BaseMessage): SalesforceMessageRecord {
     return {
-      Name: `${message.username} - ${message.timestamp.toISOString()}`,
+      // Name field is likely auto-number in Salesforce, will be auto-generated
       Text__c: this.truncateText(message.text, 32000), // Long text field limit
       Username__c: message.username,
       User_ID__c: message.userId,
