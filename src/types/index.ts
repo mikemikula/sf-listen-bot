@@ -1467,6 +1467,12 @@ export interface SalesforceDocumentRecord {
   FAQ_Count__c?: number // documentFAQs count
   // External_Id__c is used in the URL for upsert, not in the body
   Conversation_Analysis__c?: string // JSON string
+  // Required fields for document sync
+  Document_ID__c: string // document ID
+  Channel_Name__c: string // channel name
+  Processed_Date__c: string // when document was processed
+  Channel_ID__c: string // channel ID
+  Timestamp__c: string // document timestamp
 }
 
 /**

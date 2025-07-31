@@ -97,12 +97,19 @@ export class SalesforceDataMapper {
    * 
    * @param document - Local document record
    * @param channelNames - Associated channel names from messages
+   * @param firstMessage - First message for channel ID and timestamp
    * @returns Salesforce document record
    */
   public mapDocumentToSalesforce(
     document: ProcessedDocument,
-    channelNames: string[] = []
+    channelNames: string[] = [],
+    firstMessage?: any
   ): SalesforceDocumentRecord {
+    // Get channel info from first message or use defaults
+    const channelName = channelNames[0] || 'Unknown Channel'
+    const channelId = firstMessage?.channel || channelName
+    const timestamp = firstMessage?.timestamp || document.createdAt
+    
     return {
       // Name field is auto-number in Salesforce, will be auto-generated
       Title__c: document.title, // Store the actual title in Title__c field
@@ -115,7 +122,13 @@ export class SalesforceDataMapper {
       Message_Count__c: 0, // Will be updated with actual count
       FAQ_Count__c: 0, // Will be updated with actual count
       Conversation_Analysis__c: document.conversationAnalysis ? 
-        JSON.stringify(document.conversationAnalysis) : undefined
+        JSON.stringify(document.conversationAnalysis) : undefined,
+      // Required fields
+      Document_ID__c: document.id,
+      Channel_Name__c: channelName,
+      Processed_Date__c: new Date(document.updatedAt).toISOString(),
+      Channel_ID__c: channelId,
+      Timestamp__c: new Date(timestamp).toISOString()
     }
   }
 
@@ -371,11 +384,15 @@ export class SalesforceSyncService {
             const channelNames = Array.from(new Set(
               document.documentMessages.map(dm => dm.message.channel)
             ))
+            
+            // Get the first message for channel ID and timestamp
+            const firstMessage = document.documentMessages[0]?.message
 
-            // Map to Salesforce format
+            // Map to Salesforce format with additional data
             const salesforceRecord = this.mapper.mapDocumentToSalesforce(
               document as unknown as ProcessedDocument,
-              channelNames
+              channelNames,
+              firstMessage
             )
 
             // Update counts
